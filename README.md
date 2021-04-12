@@ -1,2 +1,1 @@
-# vssil
-Visual Self-Supervised Imitation-Learning
+# Visual Self-Supervised Imitation-Learning (VSSIL)
