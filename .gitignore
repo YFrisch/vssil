@@ -126,8 +126,10 @@ venv.bak/
 dmypy.json
 
 # Pyre type checker
-
-.idea/
 .pyre/
 
+
+.idea/
 data/datasets
+
+
