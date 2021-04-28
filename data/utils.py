@@ -17,16 +17,15 @@ def play_video(video_series: torch.Tensor):
 
     assert video_series.dim() == 4, "Input video does not have 4 dimensions."
 
-    video_series = video_series.permute(0, 2, 3, 1).detach().cpu().numpy()
+    video_series = video_series.permute(0, 2, 3, 1).detach().cpu().numpy()  # (T, H, W, C)
     # video_series = video_series.permute(0, 2, 3, 1).cpu().numpy()
 
-    # TODO: Not working yet for greyscale image series.
     c = video_series.shape[-1]
 
     fig = plt.figure()
     frame = np.zeros((video_series.shape[1], video_series.shape[2], video_series.shape[3]))
     if c == 1:
-        im = plt.imshow(frame.squeeze(), cmap='Greys')
+        im = plt.imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
     else:
         im = plt.imshow(frame)
 
