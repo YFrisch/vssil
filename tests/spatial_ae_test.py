@@ -1,33 +1,38 @@
-import os
+""" This script is used to test the agent class for the Deep Spatial Auto-Encoder."""
+
 
 import yaml
-from torch.utils.data import DataLoader
 
-from agents.spatial_ae_agent import SpatialAEAgent
-from models.deep_spatial_autoencoder import DeepSpatialAE
+from agents.deep_spatial_ae_agent import SpatialAEAgent
 from data.mime_dataset_wrapper import MimeDataSet
-from data.utils import play_video
-
-device = "cuda:0"
 
 data_set = MimeDataSet(
     base_path='/home/yannik/vssil/data/datasets/',
     task='stir',
+    start_ind=0,
+    stop_ind=10,
     joint_data=False,
     hd_kinect_img_data=True,
-    img_scale_factor=0.2
+    rd_kinect_img_data=False,
+    img_scale_factor=0.25,
+    timesteps_per_sample=10,  # -1 to sample full trajectories
 )
 
-data_loader = DataLoader(
-    data_set,
-    batch_size=1,
-    shuffle=True
+eval_data_set = MimeDataSet(
+    base_path='/home/yannik/vssil/data/datasets/',
+    task='stir',
+    start_ind=0,
+    stop_ind=-1,
+    joint_data=False,
+    hd_kinect_img_data=True,
+    rd_kinect_img_data=False,
+    img_scale_factor=0.25,
+    timesteps_per_sample=-1,  # Sample full trajectories
 )
 
-print(os.getcwd())
 dsae_conf = yaml.safe_load(open('configs/deep_spatial_ae.yml'))
-dsae_agent = SpatialAEAgent(config=dsae_conf)
-dsae_agent.train_data_loader = data_loader
-dsae_agent.eval_data_loader = data_loader
+dsae_agent = SpatialAEAgent(dataset=data_set,
+                            config=dsae_conf)
+
 dsae_agent.train(config=dsae_conf)
-# dsae_agent.evaluate(config=dsae_conf)
+# dsae_agent.evaluate(dataset=eval_data_set, config=dsae_conf)

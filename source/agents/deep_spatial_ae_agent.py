@@ -4,28 +4,41 @@
 
     # TODO: Make sure, batch sizes are handled correctly, i.e. tensors in (N, T, C, H, W) format
 """
+import time
+
 import torch
+from torch.utils.data import Dataset, DataLoader
 from torch.nn.functional import mse_loss, interpolate
 from torchvision.transforms.functional import rgb_to_grayscale
 import numpy as np
 from tqdm import tqdm
 
-from models.deep_spatial_autoencoder import DeepSpatialAE
 from .abstract_agent import AbstractAgent
+from ..models.deep_spatial_autoencoder import DeepSpatialAE
+from ..data.utils import play_video
 
 
 class SpatialAEAgent(AbstractAgent):
 
-    def __init__(self, config: dict = None):
-        super(SpatialAEAgent, self).__init__(name="SpatialAEAgent", config=config)
+    def __init__(self,
+                 dataset: Dataset = None,
+                 config: dict = None):
+
+        super(SpatialAEAgent, self).__init__("Deep Spatial Auto-Encoder",
+                                             dataset=dataset,
+                                             config=config)
+
         self.smoothness_penalty = config['training']['smoothness_penalty']
-        self.setup(config)
 
     def setup(self, config: dict = None):
 
-        self.model = DeepSpatialAE(config)
+        print(f"\n##### Setting up {self.name} on {self.device}.")
 
-        self.optim = torch.optim.Adam(self.model.parameters(), lr=config['training']['lr'])
+        self.model = DeepSpatialAE(config).to(self.device)
+
+        self.optim = torch.optim.Adam(self.model.parameters(),
+                                      lr=config['training']['lr'],
+                                      weight_decay=config['training']['weight_decay'])
 
     def loss_func(self,
                   prediction: torch.Tensor,
@@ -57,10 +70,11 @@ class SpatialAEAgent(AbstractAgent):
             In this case, the sampled image series is down-sampled and
             transformed to greyscale to give the target.
         """
-        img_series = x['hd_kinect_img_series'][0]
+        img_series = x['hd_kinect_img_series']
 
         target = interpolate(img_series,
-                             size=(config['fc']['out_img_width'],
+                             size=(3,
+                                   config['fc']['out_img_width'],
                                    config['fc']['out_img_height']
                                    )
                              )
@@ -70,7 +84,12 @@ class SpatialAEAgent(AbstractAgent):
 
     def train(self, config: dict = None):
 
+        print("\n##### Training:")
+
         for epoch in range(config['training']['epochs']):
+
+            if not epoch % int(config['training']['epochs'])/5:
+                self.make_train_val_split(config)
 
             self.model.train()
 
@@ -79,17 +98,26 @@ class SpatialAEAgent(AbstractAgent):
             losses = []
 
             print("\n")
+            time.sleep(1)
 
             for i, sample in enumerate(tqdm(self.train_data_loader)):
 
-                sample, target = self.preprocess(sample, config)
+                with torch.no_grad():
+                    sample, target = self.preprocess(sample, config)  # (N, T, C, H, W)
 
-                timesteps = sample.shape[0]
+                sample, target = sample.to(self.device), target.to(self.device)
+
+                assert sample.ndim == 5
+                assert target.ndim == 5
+
+                timesteps = sample.shape[1]
 
                 for t in range(timesteps):
 
-                    sample_t = sample[t].unsqueeze(0)
-                    target_t = target[t].unsqueeze(0)
+                    # TODO: For whole trajectories, the memory usage of this loop grow to much!
+
+                    sample_t = sample[:, t, ...]
+                    target_t = target[:, t, ...]
 
                     # Forward pass
                     prediction = self.model(sample_t)
@@ -99,10 +127,10 @@ class SpatialAEAgent(AbstractAgent):
                         f"target shape {target[t].unsqueeze(0).shape}"
 
                     # Loss
-                    features_t_minus1 = self.model.encode(sample[t-1].unsqueeze(0)) if t > 0 else \
+                    features_t_minus1 = self.model.encode(sample[:, t-1, ...]) if t > 0 else \
                         self.model.encode(sample_t)
                     features_t = self.model.encode(sample_t)
-                    features_t_plus1 = self.model.encode(sample[t+1].unsqueeze(0)) if t < timesteps-1 else \
+                    features_t_plus1 = self.model.encode(sample[:, t+1, ...]) if t < timesteps-1 else \
                         self.model.encode(sample_t)
 
                     loss = self.loss_func(prediction=prediction,
@@ -117,38 +145,47 @@ class SpatialAEAgent(AbstractAgent):
 
                     self.optim.step()
 
-                    del loss, features_t_plus1, features_t, features_t_minus1
+                    del sample_t, target_t, features_t, features_t_plus1, features_t_minus1
 
-                del sample, target, prediction
-
-                if i == 10:
-                    break
+                del sample, target
+                torch.cuda.empty_cache()
 
             print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {np.mean(losses)}")
+            self.writer.add_scalar(tag="train/loss", scalar_value=np.mean(losses), global_step=epoch)
 
-    def validate(self, config: dict = None):
-        raise NotImplementedError
+            if not epoch % config['validation']['freq']:
+                self.smoothness_penalty = False
+                self.validate(training_epoch=epoch, config=config)
+                self.smoothness_penalty = True
 
-    def evaluate(self, config: dict = None) -> (torch.Tensor, torch.Tensor):
-        """ Evaluate trained agent on evaluation data.
+    def evaluate(self, dataset: Dataset = None, config: dict = None):
 
-            TODO: Add predictiveness?
-        """
+        batch_size = config['evaluation']['batch_size']
+        assert batch_size == 1
+
+        if dataset is not None:
+            self.eval_data_loader = DataLoader(dataset=dataset,
+                                               batch_size=batch_size,
+                                               shuffle=True)
+
+        self.load_checkpoint(config['evaluation']['chckpt_path'])
 
         self.model.eval()
-        loss_per_sample = []
 
         with torch.no_grad():
-            for i, sample in enumerate(tqdm(self.eval_data_loader)):
+            for i, sample in enumerate(self.eval_data_loader):
 
                 sample, target = self.preprocess(sample, config)
+                sample, target = sample.to(self.device), target.to(self.device)
 
-                prediction = self.model(sample)
+                # Use time-steps as batch (Input tensor in format (T, C, H, W)
+                prediction = self.model(sample.squeeze())
 
-                sample_loss = mse_loss(prediction, target)
-                loss_per_sample.append(sample_loss.cpu().numpy())
+                play_video(prediction)
 
-                if i == 10:
-                    break
+                print(f"Prediction {i}\t"
+                      f"Shape {prediction.shape}\t"
+                      f"Mean {prediction.mean()}\t"
+                      f"Min {prediction.min()}\t"
+                      f"Max {prediction.max()}")
 
-        print(f"##### Evaluation: Average loss: {np.mean(loss_per_sample)}")

@@ -130,7 +130,7 @@ dmypy.json
 
 
 .idea/
-data/datasets
+datasets/
 results/
 
 
