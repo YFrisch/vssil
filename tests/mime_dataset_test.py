@@ -2,33 +2,29 @@
 
 from torch.utils.data import DataLoader
 
-from src.data.mime_dataset_wrapper import MimeDataSet
-from src.data.utils import play_video
+from src.data.mime import MimeHDKinectRGB
 
-data_set = MimeDataSet(
-    base_path='/home/yannik/vssil/data/datasets/',
+data_set = MimeHDKinectRGB(
+    base_path='/home/yannik/vssil/datasets/',
     task='stir',
     start_ind=0,
     stop_ind=10,
-    joint_data=False,
-    hd_kinect_img_data=True,
-    rd_kinect_img_data=False,
-    img_scale_factor=1.0,
-    timesteps_per_sample=20  # Set to -1 to return whole trajectory
+    timesteps_per_sample=1,  # Set to -1 to return whole trajectory
+    overlap=0,
+    img_scale_factor=0.25
 )
 
 data_loader = DataLoader(
     data_set,
-    batch_size=8,
+    batch_size=32,
     shuffle=True
 )
 
-print(f"Loaded data-set of {len(data_set.trajectory_lengths)} trajectories and {len(data_loader)} samples.")
+print(f"Loaded data-set of {len(data_set.sample_paths)} trajectories and {len(data_loader)} samples.")
 
 for i, sample in enumerate(data_loader):
-    # sample = sample['rd_kinect_img_series'].squeeze()
-    sample = sample['hd_kinect_img_series']
-    print(f"Sample: {i}|{len(data_loader)}\t  Shape: ", tuple(sample.shape))
-    # play_video(sample[0, ...].squeeze())
+
+    print(f"Sample: {i + 1}|{len(data_loader)}\t  Shape: {sample.shape}.")
+
     del sample
 

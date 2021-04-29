@@ -8,7 +8,7 @@ print(os.getcwd())
 import yaml
 
 from src.agents.deep_spatial_ae_agent import SpatialAEAgent
-from src.data.mime_dataset_wrapper import MimeDataSet
+from src.data.mime.mime_dataset_wrapper import MimeDataSet
 from src.data.utils import play_video
 from src.utils.feature_visualization import make_annotated_tensor
 

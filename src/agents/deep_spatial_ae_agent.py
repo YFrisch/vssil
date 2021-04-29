@@ -88,6 +88,7 @@ class SpatialAEAgent(AbstractAgent):
 
         for epoch in range(config['training']['epochs']):
 
+            # Make new training - validation split of the dataset every 5% of the data
             if not epoch % int(config['training']['epochs'])/5:
                 self.make_train_val_split(config)
 

@@ -25,6 +25,9 @@ class AbstractAgent:
 
         self.data_set = dataset
 
+        assert not (dataset.timesteps_per_sample == -1 and config['training']['batch_size'] > 1), \
+            "Batch size > 1 is not yet supported for whole trajectories."
+
         self.train_data_loader = DataLoader(dataset,
                                             batch_size=config['training']['batch_size'],
                                             shuffle=True)

@@ -4,22 +4,22 @@
 import yaml
 
 from src.agents.deep_spatial_ae_agent import SpatialAEAgent
-from src.data.mime_dataset_wrapper import MimeDataSet
+from src.data.mime.mime_dataset_wrapper import MimeDataSet
 
 data_set = MimeDataSet(
-    base_path='/home/yannik/vssil/data/datasets/',
+    base_path='/home/yannik/vssil/datasets/',
     task='stir',
     start_ind=0,
-    stop_ind=10,
+    stop_ind=-1,
     joint_data=False,
     hd_kinect_img_data=True,
     rd_kinect_img_data=False,
     img_scale_factor=0.25,
-    timesteps_per_sample=10,  # -1 to sample full trajectories
+    timesteps_per_sample=5,  # -1 to sample full trajectories
 )
 
 eval_data_set = MimeDataSet(
-    base_path='/home/yannik/vssil/data/datasets/',
+    base_path='/home/yannik/vssil/datasets/',
     task='stir',
     start_ind=0,
     stop_ind=-1,
@@ -30,7 +30,7 @@ eval_data_set = MimeDataSet(
     timesteps_per_sample=-1,  # Sample full trajectories
 )
 
-dsae_conf = yaml.safe_load(open('configs/deep_spatial_ae.yml'))
+dsae_conf = yaml.safe_load(open('src/configs/deep_spatial_ae.yml'))
 dsae_agent = SpatialAEAgent(dataset=data_set,
                             config=dsae_conf)
 
