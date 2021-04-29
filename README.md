@@ -2,7 +2,8 @@
 
 ### SETUP:
 
-* Install requirements from requirements.txt
+* Make sure pip is installed
+* Install requirements and local packages with ```pip install -e .```
 * MIME-Dataset for "Stir" task: https://www.dropbox.com/sh/kfxdbxy1dsju79i/AAD_0YyCm17oradIgtoTEidja?dl=0%3E2.zip
     * Download and unpack to data/dataset/mime_stir
   

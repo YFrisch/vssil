@@ -2,8 +2,8 @@
 
 from torch.utils.data import DataLoader
 
-from data.mime_dataset_wrapper import MimeDataSet
-from data.utils import play_video
+from src.data.mime_dataset_wrapper import MimeDataSet
+from src.data.utils import play_video
 
 data_set = MimeDataSet(
     base_path='/home/yannik/vssil/data/datasets/',

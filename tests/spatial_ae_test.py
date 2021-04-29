@@ -3,8 +3,8 @@
 
 import yaml
 
-from agents.deep_spatial_ae_agent import SpatialAEAgent
-from data.mime_dataset_wrapper import MimeDataSet
+from src.agents.deep_spatial_ae_agent import SpatialAEAgent
+from src.data.mime_dataset_wrapper import MimeDataSet
 
 data_set = MimeDataSet(
     base_path='/home/yannik/vssil/data/datasets/',

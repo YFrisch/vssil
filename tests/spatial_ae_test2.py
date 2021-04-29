@@ -7,10 +7,10 @@ print(os.getcwd())
 
 import yaml
 
-from source.agents.deep_spatial_ae_agent import SpatialAEAgent
-from source.data.mime_dataset_wrapper import MimeDataSet
-from source.data.utils import play_video
-from source.utils.feature_visualization import make_annotated_tensor
+from src.agents.deep_spatial_ae_agent import SpatialAEAgent
+from src.data.mime_dataset_wrapper import MimeDataSet
+from src.data.utils import play_video
+from src.utils.feature_visualization import make_annotated_tensor
 
 data_set = MimeDataSet(
     base_path='/home/yannik/vssil/datasets/',
@@ -36,7 +36,7 @@ eval_data_set = MimeDataSet(
     timesteps_per_sample=-1,  # Sample full trajectories
 )
 
-dsae_conf = yaml.safe_load(open('source/configs/deep_spatial_ae.yml'))
+dsae_conf = yaml.safe_load(open('src/configs/deep_spatial_ae.yml'))
 dsae_agent = SpatialAEAgent(dataset=data_set,
                             config=dsae_conf)
 
