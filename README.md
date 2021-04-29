@@ -8,7 +8,8 @@
   
 ### RUN:
 * Example for MIME Dataset loader: ```python tests/mime_dataset_test.py```
-* Example for Deep Spatial Auto-Encoder: ```python tests/spatial_ae_test.py```
+* Example for the training of the Deep Spatial Auto-Encoder: ```python tests/spatial_ae_test.py```
+* Example for inference of the DSAE: ```python tests/spatial_ae_test2.py```
 * View results and training process using ```tensorboard --logdir results/```
 
 ### TODOs:
