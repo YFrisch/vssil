@@ -21,9 +21,12 @@ class MimeJointAngles(MimeBase):
                  overlap: int = 20
                  ):
 
+        print("##### Loading MIME dataset of joint angles.")
+
         super(MimeJointAngles, self).__init__(sample_file_name="joint_angles.txt",
                                               base_path=base_path,
                                               task=task,
+                                              name="joint_angles",
                                               start_ind=start_ind,
                                               stop_ind=stop_ind,
                                               timesteps_per_sample=timesteps_per_sample,

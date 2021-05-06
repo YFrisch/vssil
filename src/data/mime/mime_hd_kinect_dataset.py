@@ -1,3 +1,5 @@
+import time
+
 import torch
 from torch.nn.functional import interpolate
 from torchvision.io import read_video
@@ -25,21 +27,25 @@ class MimeHDKinectRGB(MimeBase):
         self.scale_factor = img_scale_factor
 
         print("##### Loading MIME dataset of HD Kinect RGB images.")
+        time.sleep(0.1)
 
         super(MimeHDKinectRGB, self).__init__(sample_file_name="hd_kinect_rgb.mp4",
                                               base_path=base_path,
                                               task=task,
+                                              name="hd_kinect_rgb",
                                               start_ind=start_ind,
                                               stop_ind=stop_ind,
                                               timesteps_per_sample=timesteps_per_sample,
                                               overlap=overlap)
 
-        print("##### Done.")
+        print("##### Done.\n")
 
     def read_sample(self, path: str) -> (torch.Tensor, int):
 
         hd_kinect_img_series = None
+
         try:
+
             # NOTE: The following are in (T, H, W, C) format
             hd_kinect_img_series = read_video(path, pts_unit='sec')[0]
             hd_kinect_img_series = hd_kinect_img_series.permute(0, 3, 1, 2)

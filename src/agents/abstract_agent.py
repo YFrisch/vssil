@@ -3,6 +3,8 @@
 """
 import os
 import shutil
+import time
+
 import yaml
 from pathlib import Path
 from datetime import datetime, date
@@ -42,8 +44,26 @@ class AbstractAgent:
 
         self.device = config['device'] if config['device'] is not None else "cpu"
 
+        self.log_dir = None
+
+        self.writer = None
+
+        self.best_val_loss = None
+
+        self.is_setup = False
+
+        # The following parts are implemented by inheriting classes
+        self.model = None
+        self.optim = None
+        self.scheduler = None  # TODO: Not used yet
+
+    def setup(self, config: dict = None):
+        """ Sets up all relevant attributes for logging results. """
+
+        print(f"##### Setting up {self.name} on {self.device}.")
+
         year, month, day, hour, minute = datetime.now().year, datetime.now().month, datetime.now().day, \
-                                             datetime.now().hour, datetime.now().minute
+                                         datetime.now().hour, datetime.now().minute
 
         self.log_dir = config['log_dir'] + f"{year}_{month}_{day}_{hour}_{minute}/"
         if os.path.exists(self.log_dir) and os.path.isdir(self.log_dir):
@@ -56,17 +76,7 @@ class AbstractAgent:
 
         self.writer = SummaryWriter(log_dir=self.log_dir)
 
-        # The following parts are implemented by inheriting classes
-        self.model = None
-        self.optim = None
-        self.scheduler = None  # TODO: Not used yet
-
-        self.setup(config)
-
-        self.best_val_loss = None
-
-    def setup(self, config: dict = None):
-        raise NotImplementedError
+        self.is_setup = True
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
@@ -92,18 +102,21 @@ class AbstractAgent:
 
         self.train_data_loader = DataLoader(train_set,
                                             batch_size=config['training']['batch_size'],
-                                            shuffle=True)
+                                            shuffle=True,
+                                            num_workers=0)
 
         self.val_data_loader = DataLoader(val_set,
                                           batch_size=config['training']['batch_size'],
-                                          shuffle=True)
+                                          shuffle=True,
+                                          num_workers=0)
 
     def train(self, config: dict = None):
         raise NotImplementedError
 
     def validate(self, training_epoch: int, config: dict = None):
 
-        print("\n##### Validating:")
+        print("##### Validating:")
+        time.sleep(1)
 
         self.model.eval()
 
@@ -131,9 +144,13 @@ class AbstractAgent:
         avg_loss = np.mean(loss_per_sample)
         self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=training_epoch)
         print("##### Average loss:", avg_loss)
+        print("\n")
+        time.sleep(0.1)
 
         if self.best_val_loss is None:
             self.best_val_loss = avg_loss
+            torch.save(self.model.state_dict(),
+                       self.log_dir + f'checkpoints/chckpt_e{training_epoch}.PTH')
         elif avg_loss < self.best_val_loss:
             self.best_val_loss = avg_loss
             # Save current model
@@ -146,7 +163,8 @@ class AbstractAgent:
 
     def evaluate(self, config: dict = None):
 
-        print("\n##### Evaluating:")
+        print("##### Evaluating:")
+        time.sleep(0.1)
 
         self.model.eval()
 
@@ -165,5 +183,6 @@ class AbstractAgent:
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         print("##### Average loss:", np.mean(loss_per_sample))
+        time.sleep(0.1)
 
         return loss_per_sample

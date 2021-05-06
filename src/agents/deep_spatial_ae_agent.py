@@ -5,6 +5,7 @@
     # TODO: Make sure, batch sizes are handled correctly, i.e. tensors in (N, T, C, H, W) format
 """
 import time
+import gc
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -29,10 +30,6 @@ class SpatialAEAgent(AbstractAgent):
                                              config=config)
 
         self.smoothness_penalty = config['training']['smoothness_penalty']
-
-    def setup(self, config: dict = None):
-
-        print(f"\n##### Setting up {self.name} on {self.device}.")
 
         self.model = DeepSpatialAE(config).to(self.device)
 
@@ -64,13 +61,13 @@ class SpatialAEAgent(AbstractAgent):
 
         return loss + penalty
 
-    def preprocess(self, x: dict, config: dict) -> (torch.Tensor, torch.Tensor):
+    def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, torch.Tensor):
         """ Returns sample and target from sampled data.
 
             In this case, the sampled image series is down-sampled and
             transformed to greyscale to give the target.
         """
-        img_series = x['hd_kinect_img_series']
+        img_series = x
 
         target = interpolate(img_series,
                              size=(3,
@@ -84,22 +81,22 @@ class SpatialAEAgent(AbstractAgent):
 
     def train(self, config: dict = None):
 
-        print("\n##### Training:")
+        self.setup(config=config)
+
+        assert self.is_setup, "Model was not set up."
+
+        print("##### Training:")
+        time.sleep(0.1)
 
         for epoch in range(config['training']['epochs']):
 
             # Make new training - validation split of the dataset every 5% of the data
-            if not epoch % int(config['training']['epochs'])/5:
+            if not epoch % (int(config['training']['epochs'])/5):
                 self.make_train_val_split(config)
 
             self.model.train()
 
-            self.optim.zero_grad()
-
             losses = []
-
-            print("\n")
-            time.sleep(1)
 
             for i, sample in enumerate(tqdm(self.train_data_loader)):
 
@@ -115,10 +112,12 @@ class SpatialAEAgent(AbstractAgent):
 
                 for t in range(timesteps):
 
+                    self.optim.zero_grad()
+
                     # TODO: For whole trajectories, the memory usage of this loop grow to much!
 
-                    sample_t = sample[:, t, ...]
-                    target_t = target[:, t, ...]
+                    sample_t = sample[:, t, ...].to(self.device)
+                    target_t = target[:, t, ...].to(self.device)
 
                     # Forward pass
                     prediction = self.model(sample_t)
@@ -128,11 +127,12 @@ class SpatialAEAgent(AbstractAgent):
                         f"target shape {target[t].unsqueeze(0).shape}"
 
                     # Loss
-                    features_t_minus1 = self.model.encode(sample[:, t-1, ...]) if t > 0 else \
-                        self.model.encode(sample_t)
-                    features_t = self.model.encode(sample_t)
-                    features_t_plus1 = self.model.encode(sample[:, t+1, ...]) if t < timesteps-1 else \
-                        self.model.encode(sample_t)
+                    with torch.no_grad():
+                        features_t_minus1 = self.model.encode(sample[:, t-1, ...]) if t > 0 else \
+                            self.model.encode(sample_t)
+                        features_t = self.model.encode(sample_t)
+                        features_t_plus1 = self.model.encode(sample[:, t+1, ...]) if t < timesteps-1 else \
+                            self.model.encode(sample_t)
 
                     loss = self.loss_func(prediction=prediction,
                                           target=target_t,
@@ -146,12 +146,13 @@ class SpatialAEAgent(AbstractAgent):
 
                     self.optim.step()
 
-                    del sample_t, target_t, features_t, features_t_plus1, features_t_minus1
+                    del sample_t, target_t, features_t, features_t_plus1, features_t_minus1, loss
 
                 del sample, target
-                torch.cuda.empty_cache()
+                gc.collect()
+                # torch.cuda.empty_cache()
 
-            print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {np.mean(losses)}")
+            print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {np.mean(losses)}\n")
             self.writer.add_scalar(tag="train/loss", scalar_value=np.mean(losses), global_step=epoch)
 
             if not epoch % config['validation']['freq']:

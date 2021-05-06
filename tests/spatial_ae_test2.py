@@ -3,37 +3,32 @@ import os
 
 import torch.utils.data
 
-print(os.getcwd())
-
 import yaml
 
 from src.agents.deep_spatial_ae_agent import SpatialAEAgent
-from src.data.mime.mime_dataset_wrapper import MimeDataSet
+from src.data.mime import MimeHDKinectRGB
 from src.data.utils import play_video
 from src.utils.feature_visualization import make_annotated_tensor
 
-data_set = MimeDataSet(
+data_set = MimeHDKinectRGB(
     base_path='/home/yannik/vssil/datasets/',
     task='stir',
     start_ind=0,
     stop_ind=10,
-    joint_data=False,
-    hd_kinect_img_data=True,
-    rd_kinect_img_data=False,
     img_scale_factor=0.25,
     timesteps_per_sample=10,  # -1 to sample full trajectories
+    overlap=0
+
 )
 
-eval_data_set = MimeDataSet(
+eval_data_set = MimeHDKinectRGB(
     base_path='/home/yannik/vssil/datasets/',
     task='stir',
     start_ind=0,
-    stop_ind=-1,
-    joint_data=False,
-    hd_kinect_img_data=True,
-    rd_kinect_img_data=False,
+    stop_ind=2,
     img_scale_factor=0.25,
     timesteps_per_sample=-1,  # Sample full trajectories
+    overlap=0
 )
 
 dsae_conf = yaml.safe_load(open('src/configs/deep_spatial_ae.yml'))
