@@ -8,7 +8,7 @@ from src.data.mime import MimeHDKinectRGB
 
 data_set = MimeHDKinectRGB(
     base_path='/home/yannik/vssil/datasets/',
-    task='stir',
+    tasks='stir',
     start_ind=0,
     stop_ind=-1,
     img_scale_factor=0.25,

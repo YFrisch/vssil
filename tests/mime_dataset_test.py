@@ -9,7 +9,7 @@ from src.data.mime import MimeHDKinectRGB, MimeJointAngles
 
 data_set1 = MimeHDKinectRGB(
     base_path='/home/yannik/vssil/datasets/',
-    task='bottle',
+    tasks='bottle',
     start_ind=0,
     stop_ind=-1,  # Set to -1 to use all available samples
     timesteps_per_sample=-1,  # Set to -1 to return whole trajectory
@@ -19,7 +19,7 @@ data_set1 = MimeHDKinectRGB(
 
 data_set2 = MimeHDKinectRGB(
     base_path='/home/yannik/vssil/datasets/',
-    task='stir',
+    tasks='stir',
     start_ind=0,
     stop_ind=-1,  # Set to -1 to use all available samples
     timesteps_per_sample=-1,  # Set to -1 to return whole trajectory
@@ -29,7 +29,7 @@ data_set2 = MimeHDKinectRGB(
 
 joint_angles_data_set = MimeJointAngles(
     base_path='/home/yannik/vssil/datasets/',
-    task='stir',
+    tasks='stir',
     start_ind=0,
     stop_ind=-1,
     timesteps_per_sample=-1,
