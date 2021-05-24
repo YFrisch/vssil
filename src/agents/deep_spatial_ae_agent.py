@@ -79,86 +79,51 @@ class SpatialAEAgent(AbstractAgent):
 
         return img_series, target
 
-    def train(self, config: dict = None):
+    def train_step(self,
+                   sample: torch.Tensor,
+                   target: torch.Tensor,
+                   config: dict):
 
-        self.setup(config=config)
+        loss = None
+        timesteps = sample.shape[1]
 
-        assert self.is_setup, "Model was not set up."
+        for t in range(timesteps):
 
-        print("##### Training:")
-        time.sleep(0.1)
+            self.optim.zero_grad()
 
-        for epoch in range(config['training']['epochs']):
+            # TODO: For whole trajectories, the memory usage of this loop grow to much!
 
-            # Make new training - validation split of the dataset every 5% of the data
-            if not epoch % (int(config['training']['epochs'])/5):
-                self.make_train_val_split(config)
+            sample_t = sample[:, t, ...].to(self.device)
+            target_t = target[:, t, ...].to(self.device)
 
-            self.model.train()
+            # Forward pass
+            prediction = self.model(sample_t)
 
-            losses = []
+            assert prediction.shape == target_t.shape, \
+                f"Prediction shape {prediction.shape} does not match " \
+                f"target shape {target[t].unsqueeze(0).shape}"
 
-            for i, sample in enumerate(tqdm(self.train_data_loader)):
+            # Loss
+            with torch.no_grad():
+                features_t_minus1 = self.model.encode(sample[:, t-1, ...]) if t > 0 else \
+                    self.model.encode(sample_t)
+                features_t = self.model.encode(sample_t)
+                features_t_plus1 = self.model.encode(sample[:, t+1, ...]) if t < timesteps-1 else \
+                    self.model.encode(sample_t)
 
-                with torch.no_grad():
-                    sample, target = self.preprocess(sample, config)  # (N, T, C, H, W)
+            loss = self.loss_func(prediction=prediction,
+                                  target=target_t,
+                                  ft_minus1=features_t_minus1,
+                                  ft=features_t,
+                                  ft_plus1=features_t_plus1)
 
-                sample, target = sample.to(self.device), target.to(self.device)
+            loss.backward()
 
-                assert sample.ndim == 5
-                assert target.ndim == 5
+            self.optim.step()
 
-                timesteps = sample.shape[1]
+            del sample_t, target_t, features_t, features_t_plus1, features_t_minus1
 
-                for t in range(timesteps):
-
-                    self.optim.zero_grad()
-
-                    # TODO: For whole trajectories, the memory usage of this loop grow to much!
-
-                    sample_t = sample[:, t, ...].to(self.device)
-                    target_t = target[:, t, ...].to(self.device)
-
-                    # Forward pass
-                    prediction = self.model(sample_t)
-
-                    assert prediction.shape == target_t.shape, \
-                        f"Prediction shape {prediction.shape} does not match " \
-                        f"target shape {target[t].unsqueeze(0).shape}"
-
-                    # Loss
-                    with torch.no_grad():
-                        features_t_minus1 = self.model.encode(sample[:, t-1, ...]) if t > 0 else \
-                            self.model.encode(sample_t)
-                        features_t = self.model.encode(sample_t)
-                        features_t_plus1 = self.model.encode(sample[:, t+1, ...]) if t < timesteps-1 else \
-                            self.model.encode(sample_t)
-
-                    loss = self.loss_func(prediction=prediction,
-                                          target=target_t,
-                                          ft_minus1=features_t_minus1,
-                                          ft=features_t,
-                                          ft_plus1=features_t_plus1)
-
-                    losses.append(loss.detach().cpu().numpy())
-
-                    loss.backward()
-
-                    self.optim.step()
-
-                    del sample_t, target_t, features_t, features_t_plus1, features_t_minus1, loss
-
-                del sample, target
-                gc.collect()
-                # torch.cuda.empty_cache()
-
-            print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {np.mean(losses)}\n")
-            self.writer.add_scalar(tag="train/loss", scalar_value=np.mean(losses), global_step=epoch)
-
-            if not epoch % config['validation']['freq']:
-                self.smoothness_penalty = False
-                self.validate(training_epoch=epoch, config=config)
-                self.smoothness_penalty = True
+        return loss
 
     def evaluate(self, dataset: Dataset = None, config: dict = None):
 
