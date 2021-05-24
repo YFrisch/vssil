@@ -82,14 +82,15 @@ class MimeBase(Dataset):
         else:
             with open(self.meta_info_path, "w") as meta_file:
                 for base_path in tqdm(self.base_paths):
-                    for file_name in listdir(join(self.base_path, base_path)):
-                        if file_name == sample_file_name:
-                            sample_path = join(self.base_path, base_path, file_name)
-                            sample_paths.append(sample_path)
-                            sample_lengths.append(self.read_sample(sample_path)[1])  #
-                            meta_file.write(f"{sample_path};{sample_lengths[-1]}\n")
-                        else:
-                            pass
+                    if isdir(join(self.base_path, base_path)):
+                        for file_name in listdir(join(self.base_path, base_path)):
+                            if file_name == sample_file_name:
+                                sample_path = join(self.base_path, base_path, file_name)
+                                sample_paths.append(sample_path)
+                                sample_lengths.append(self.read_sample(sample_path)[1])  #
+                                meta_file.write(f"{sample_path};{sample_lengths[-1]}\n")
+                            else:
+                                pass
             print("##### Saved info to meta_info.txt file.")
         return sample_paths, sample_lengths
 

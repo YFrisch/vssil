@@ -26,7 +26,7 @@ class MimeHDKinectRGB(MimeBase):
 
         self.scale_factor = img_scale_factor
 
-        print("##### Loading MIME dataset of HD Kinect RGB images.")
+        print(f"##### Loading MIME dataset of HD Kinect RGB images for task '{task}'.")
         time.sleep(0.1)
 
         super(MimeHDKinectRGB, self).__init__(sample_file_name="hd_kinect_rgb.mp4",
