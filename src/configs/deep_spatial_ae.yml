@@ -23,7 +23,7 @@ training:
 
 evaluation:
   batch_size: 1
-  chckpt_path: "results/dsae/2021_5_5_21_8/checkpoints/chckpt_e8.PTH"
+  chckpt_path: "results/dsae/2021_5_19_11_47/checkpoints/chckpt_e32.PTH"
 
 validation:
   freq: 2

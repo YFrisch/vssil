@@ -1,0 +1,22 @@
+model:
+  q:
+    hidden_size: 128
+    num_layers: 8
+  pi:
+    hidden_size: 128
+    num_layers: 8
+  eta:
+    hidden_size: 128
+    num_layers: 8
+
+training:
+  lr: 0.0001
+  epsilon_init: 0.3
+  epsilon_final: 0.05
+  epsilon_decay_episodes: 30
+  option_lh_weight: 1.0
+  DKL_weight: 0.01
+
+validation:
+
+evaluation:
