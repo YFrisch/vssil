@@ -12,7 +12,7 @@ data_set = MimeHDKinectRGB(
     start_ind=0,
     stop_ind=-1,
     img_scale_factor=0.25,
-    timesteps_per_sample=5,  # -1 to sample full trajectories
+    timesteps_per_sample=10,  # -1 to sample full trajectories
     overlap=0
 )
 
