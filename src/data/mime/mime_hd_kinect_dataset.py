@@ -11,7 +11,7 @@ class MimeHDKinectRGB(MimeBase):
 
     def __init__(self,
                  base_path: str = '/home/yannik/vssil/data/datasets',
-                 task: str = 'stir',
+                 tasks: str = 'stir',
                  start_ind: int = 0,
                  stop_ind: int = -1,
                  timesteps_per_sample: int = -1,
@@ -26,12 +26,12 @@ class MimeHDKinectRGB(MimeBase):
 
         self.scale_factor = img_scale_factor
 
-        print(f"##### Loading MIME dataset of HD Kinect RGB images for task '{task}'.")
+        print(f"##### Loading MIME dataset of HD Kinect RGB images for task '{tasks}'.")
         time.sleep(0.1)
 
         super(MimeHDKinectRGB, self).__init__(sample_file_name="hd_kinect_rgb.mp4",
                                               base_path=base_path,
-                                              task=task,
+                                              tasks=tasks,
                                               name="hd_kinect_rgb",
                                               start_ind=start_ind,
                                               stop_ind=stop_ind,

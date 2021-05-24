@@ -15,7 +15,7 @@ class MimeBase(Dataset):
     def __init__(self,
                  sample_file_name: str = None,
                  base_path: str = '/home/yannik/vssil/data/datasets',
-                 task: str = 'stir',
+                 tasks: str = 'stir',
                  name: str = None,
                  start_ind: int = 0,
                  stop_ind: int = -1,
@@ -25,7 +25,7 @@ class MimeBase(Dataset):
         """ Creates class instance.
 
         :param base_path: Path to the super folder of all MIME tasks
-        :param task: Specific MIME task. Please combine multiple tasks using the PyTorch api
+        :param tasks: Specific MIME task. Please combine multiple tasks using the PyTorch api
         :param start_ind: Trajectory index to start sampling from (Between 0 and -2)
         :param stop_ind: Maximal trajectory index to sample from (Between 1 and -1)
         :param timesteps_per_sample: How many consec. frames to return per sample. Set -1 for whole trajectory.
@@ -39,7 +39,7 @@ class MimeBase(Dataset):
 
         assert (0 <= start_ind < stop_ind) or stop_ind == -1
 
-        self.base_path = join(base_path, 'mime_' + task)
+        self.base_path = join(base_path, 'mime_' + tasks)
         self.base_paths = listdir(self.base_path)[start_ind:stop_ind]
 
         assert isdir(self.base_path), f"Can not read {self.base_path}"

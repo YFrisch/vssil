@@ -1,3 +1,8 @@
+data:
+  tasks: 'stir'
+  overlap: 0
+  img_scale_factor: 0.25
+
 model:
   inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
   n_frames: 9
@@ -14,6 +19,7 @@ training:
   lr: 0.0001
 
 validation:
+  freq: 1
 
 evaluation:
 

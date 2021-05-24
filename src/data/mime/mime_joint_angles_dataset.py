@@ -14,14 +14,14 @@ class MimeJointAngles(MimeBase):
 
     def __init__(self,
                  base_path: str = '/home/yannik/vssil/data/datasets',
-                 task: str = 'stir',
+                 tasks: str = 'stir',
                  start_ind: int = 0,
                  stop_ind: int = -1,
                  timesteps_per_sample: int = -1,
                  overlap: int = 20
                  ):
 
-        print(f"##### Loading MIME dataset of joint angles for task '{task}'.")
+        print(f"##### Loading MIME dataset of joint angles for task '{tasks}'.")
 
         self.joint_header = ['left_w0', 'left_w1', 'left_w2', 'right_s0', 'right_s1', 'right_w0',
                              'right_w1', 'head_pan', 'right_w2', 'head_nod', 'torso_t0', 'left_e0',
@@ -29,7 +29,7 @@ class MimeJointAngles(MimeBase):
 
         super(MimeJointAngles, self).__init__(sample_file_name="joint_angles.txt",
                                               base_path=base_path,
-                                              task=task,
+                                              tasks=tasks,
                                               name="joint_angles",
                                               start_ind=start_ind,
                                               stop_ind=stop_ind,

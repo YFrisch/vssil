@@ -145,9 +145,9 @@ class AbstractAgent:
                     del sample, target, loss
                     gc.collect()
 
-                mean_loss = np.mean(loss_per_iter)
-                print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {mean_loss}\n")
-                self.writer.add_scalar(tag="train/loss", scalar_value=mean_loss, global_step=epoch)
+                avg_loss = np.mean(loss_per_iter)
+                print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
+                self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=epoch)
 
                 # Validate
                 if not epoch % config['validation']['freq']:
@@ -156,7 +156,7 @@ class AbstractAgent:
     def validate(self, training_epoch: int, config: dict = None):
 
         print("##### Validating:")
-        time.sleep(1)
+        time.sleep(0.1)
 
         self.model.eval()
 
@@ -169,16 +169,9 @@ class AbstractAgent:
                 sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
                 sample, target = sample.to(self.device), target.to(self.device)
 
-                predictions = None
+                prediction = self.model(sample)
 
-                for t in range(sample.shape[1]):
-                    frame_prediction = self.model(sample[:, t, ...])
-                    if predictions is None:
-                        predictions = frame_prediction
-                    else:
-                        predictions = torch.cat([predictions, frame_prediction], dim=1)
-
-                sample_loss = self.loss_func(predictions.squeeze(), target.squeeze())
+                sample_loss = self.loss_func(prediction.squeeze(), target.squeeze())
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         avg_loss = np.mean(loss_per_sample)
