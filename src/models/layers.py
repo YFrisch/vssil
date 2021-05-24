@@ -5,6 +5,59 @@ import torch.nn.functional as F
 from .utils import get_img_coordinates
 
 
+class Conv2d(nn.Module):
+
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 kernel_size: tuple = (2, 2),
+                 stride: tuple = (1, 1),
+                 padding: tuple = (0, 0),
+                 activation=None):
+
+        super(Conv2d, self).__init__()
+
+        self.conv_2d = nn.Conv2d(in_channels=in_channels,
+                                 out_channels=out_channels,
+                                 kernel_size=kernel_size,
+                                 stride=stride,
+                                 padding=padding)
+
+        self.activation = activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        _y = self.conv_2d(x)
+        if self.activation is not None:
+            _y = self.activation(_y)
+        return _y
+
+
+class Conv3d(nn.Module):
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 kernel_size: tuple = (2, 2, 2),
+                 stride: tuple = (1, 1, 1),
+                 padding: tuple = (0, 0, 0),
+                 activation=None):
+
+        super(Conv3d, self).__init__()
+
+        self.conv_3d = nn.Conv3d(in_channels=in_channels,
+                                 out_channels=out_channels,
+                                 kernel_size=kernel_size,
+                                 stride=stride,
+                                 padding=padding)
+
+        self.activation = activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        _y = self.conv_3d(x)
+        if self.activation is not None:
+            _y = self.activation(_y)
+        return _y
+
+
 class FullyConnected(nn.Module):
 
     def __init__(self, in_features: int, out_features: int, activation=None):
@@ -74,3 +127,15 @@ class SpatialSoftArgmax(nn.Module):
         return spatial_soft_argmax
 
 
+class SpatialAverage(nn.Module):
+
+    def __init__(self, activation=None):
+        super(SpatialAverage, self).__init__()
+        self.spatial_avg = nn.AvgPool3d(kernel_size=8)
+        self.activation = activation
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        _y = self.spatial_avg(x)
+        if self.activation is not None:
+            _y = self.activation(_y)
+        return _y
