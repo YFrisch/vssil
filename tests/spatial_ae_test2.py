@@ -1,5 +1,6 @@
 """ This script is used to test the agent class for the Deep Spatial Auto-Encoder."""
 import os
+from os.path import join
 
 import torch.utils.data
 
@@ -10,9 +11,11 @@ from src.data.mime import MimeHDKinectRGB
 from src.data.utils import play_video
 from src.utils.feature_visualization import make_annotated_tensor
 
+cwd = os.getcwd()
+
 data_set = MimeHDKinectRGB(
-    base_path='/home/yannik/vssil/datasets/',
-    task='stir',
+    base_path=join(cwd, '/datasets/'),
+    tasks='stir',
     start_ind=0,
     stop_ind=10,
     img_scale_factor=0.25,
@@ -22,8 +25,8 @@ data_set = MimeHDKinectRGB(
 )
 
 eval_data_set = MimeHDKinectRGB(
-    base_path='/home/yannik/vssil/datasets/',
-    task='stir',
+    base_path=join(cwd, '/datasets/'),
+    tasks='stir',
     start_ind=0,
     stop_ind=2,
     img_scale_factor=0.25,
@@ -31,7 +34,7 @@ eval_data_set = MimeHDKinectRGB(
     overlap=0
 )
 
-dsae_conf = yaml.safe_load(open('src/configs/deep_spatial_ae.yml'))
+dsae_conf = yaml.safe_load(open(join(cwd, 'src/configs/deep_spatial_ae.yml')))
 dsae_agent = SpatialAEAgent(dataset=data_set,
                             config=dsae_conf)
 

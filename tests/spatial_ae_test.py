@@ -1,13 +1,15 @@
 """ This script is used to test the agent class for the Deep Spatial Auto-Encoder."""
-
-
+import os
+from os.path import join
 import yaml
 
 from src.agents.deep_spatial_ae_agent import SpatialAEAgent
 from src.data.mime import MimeHDKinectRGB
 
+cwd = os.getcwd()
+
 data_set = MimeHDKinectRGB(
-    base_path='/home/yannik/vssil/datasets/',
+    base_path=join(cwd, '/datasets/'),
     tasks='stir',
     start_ind=0,
     stop_ind=-1,
@@ -16,7 +18,7 @@ data_set = MimeHDKinectRGB(
     overlap=0
 )
 
-dsae_conf = yaml.safe_load(open('src/configs/deep_spatial_ae.yml'))
+dsae_conf = yaml.safe_load(open(join(cwd, 'src/configs/deep_spatial_ae.yml')))
 dsae_agent = SpatialAEAgent(dataset=data_set,
                             config=dsae_conf)
 

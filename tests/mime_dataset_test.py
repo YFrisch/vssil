@@ -1,5 +1,7 @@
 """ This script is used to test some functionalities of the MIME dataset loader / wrapper."""
 import gc
+import os
+from os.path import join
 import psutil
 
 import torch.cuda
@@ -7,8 +9,10 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 from src.data.mime import MimeHDKinectRGB, MimeJointAngles
 
+cwd = os.getcwd()
+
 data_set1 = MimeHDKinectRGB(
-    base_path='/home/yannik/vssil/datasets/',
+    base_path=join(cwd, '/datasets/'),
     tasks='bottle',
     start_ind=0,
     stop_ind=-1,  # Set to -1 to use all available samples
@@ -18,7 +22,7 @@ data_set1 = MimeHDKinectRGB(
 )
 
 data_set2 = MimeHDKinectRGB(
-    base_path='/home/yannik/vssil/datasets/',
+    base_path=join(cwd, '/datasets/'),
     tasks='stir',
     start_ind=0,
     stop_ind=-1,  # Set to -1 to use all available samples
@@ -28,7 +32,7 @@ data_set2 = MimeHDKinectRGB(
 )
 
 joint_angles_data_set = MimeJointAngles(
-    base_path='/home/yannik/vssil/datasets/',
+    base_path=join(cwd, '/datasets/'),
     tasks='stir',
     start_ind=0,
     stop_ind=-1,

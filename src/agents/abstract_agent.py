@@ -59,7 +59,7 @@ class AbstractAgent:
         year, month, day, hour, minute = datetime.now().year, datetime.now().month, datetime.now().day, \
                                          datetime.now().hour, datetime.now().minute
 
-        self.log_dir = config['log_dir'] + f"/{year}_{month}_{day}_{hour}_{minute}/"
+        self.log_dir = os.path.join(os.getcwd(), config['log_dir'] + f"/{year}_{month}_{day}_{hour}_{minute}/")
         if os.path.exists(self.log_dir) and os.path.isdir(self.log_dir):
             shutil.rmtree(self.log_dir)
 
@@ -132,7 +132,6 @@ class AbstractAgent:
 
                 # Iterate over samples
                 for i, sample in enumerate(tqdm(self.train_data_loader)):
-
                     with torch.no_grad():
                         sample, target = self.preprocess(sample, config)  # (N, T, C, H, W)
 
@@ -165,7 +164,6 @@ class AbstractAgent:
         with torch.no_grad():
 
             for i, sample in enumerate(tqdm(self.val_data_loader)):
-
                 sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
                 sample, target = sample.to(self.device), target.to(self.device)
 
