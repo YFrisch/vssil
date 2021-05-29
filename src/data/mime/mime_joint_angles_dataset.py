@@ -1,3 +1,4 @@
+import os
 import ast
 
 import torch
@@ -13,7 +14,7 @@ class MimeJointAngles(MimeBase):
     """
 
     def __init__(self,
-                 base_path: str = '/home/yannik/vssil/data/datasets',
+                 base_path: str = os.path.join(os.getcwd(), '/datasets'),
                  tasks: str = 'stir',
                  start_ind: int = 0,
                  stop_ind: int = -1,

@@ -1,6 +1,6 @@
 import time
 
-from os import listdir
+from os import listdir, getcwd
 from os.path import isdir, join, isfile
 
 import torch
@@ -14,7 +14,7 @@ class MimeBase(Dataset):
 
     def __init__(self,
                  sample_file_name: str = None,
-                 base_path: str = '/home/yannik/vssil/data/datasets',
+                 base_path: str = join(getcwd(), '/datasets'),
                  tasks: str = 'stir',
                  name: str = None,
                  start_ind: int = 0,

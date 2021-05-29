@@ -1,3 +1,5 @@
+import os
+from os.path import join
 import time
 
 import torch
@@ -10,7 +12,7 @@ from .mime_base import MimeBase
 class MimeHDKinectRGB(MimeBase):
 
     def __init__(self,
-                 base_path: str = '/home/yannik/vssil/data/datasets',
+                 base_path: str = join(os.getcwd(), '/datasets'),
                  tasks: str = 'stir',
                  start_ind: int = 0,
                  stop_ind: int = -1,
