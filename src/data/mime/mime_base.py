@@ -132,6 +132,9 @@ class MimeBase(Dataset):
     def __len__(self):
         return len(self.index_tuples)
 
+    def get_sample_shape(self):
+        return self.__getitem__(0).shape
+
     def __getitem__(self, index):
         """ Returns sample of shape
             (T, C, H, W) of the given index.
