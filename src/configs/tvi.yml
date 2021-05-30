@@ -2,12 +2,18 @@ model:
   q:
     hidden_size: 128
     num_layers: 8
+    num_heads: 2
   pi:
     hidden_size: 128
     num_layers: 8
+    num_heads: 1
   eta:
     hidden_size: 128
     num_layers: 8
+    num_heads: 2
+  num_latent_vars: 64
+  num_actions: ...
+  num_states: ...
 
 training:
   lr: 0.0001
@@ -20,3 +26,5 @@ training:
 validation:
 
 evaluation:
+
+device: 'cuda:0'

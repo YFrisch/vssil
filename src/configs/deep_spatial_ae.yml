@@ -15,6 +15,7 @@ fc:
   activation: "Sigmoid"
 
 training:
+  k_folds: 3
   epochs: 100
   lr: 0.0005
   weight_decay: 0.0001
