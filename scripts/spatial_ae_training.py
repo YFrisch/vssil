@@ -8,8 +8,10 @@ from src.data.mime import MimeHDKinectRGB
 
 cwd = os.getcwd()
 
+dsae_conf = yaml.safe_load(open(join(cwd, 'src/configs/deep_spatial_ae.yml')))
+
 data_set = MimeHDKinectRGB(
-    base_path=join(cwd, '/datasets/'),
+    base_path=join(cwd, 'datasets'),
     tasks='stir',
     start_ind=0,
     stop_ind=-1,
@@ -18,9 +20,6 @@ data_set = MimeHDKinectRGB(
     overlap=0
 )
 
-dsae_conf = yaml.safe_load(open(join(cwd, 'src/configs/deep_spatial_ae.yml')))
 dsae_agent = SpatialAEAgent(dataset=data_set,
                             config=dsae_conf)
-
 dsae_agent.train(config=dsae_conf)
-# dsae_agent.evaluate(dataset=eval_data_set, config=dsae_conf)
