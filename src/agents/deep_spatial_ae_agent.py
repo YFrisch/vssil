@@ -67,7 +67,7 @@ class SpatialAEAgent(AbstractAgent):
             In this case, the sampled image series is down-sampled and
             transformed to greyscale to give the target.
         """
-        img_series = x
+        img_series = x.squeeze()
 
         target = interpolate(img_series,
                              size=(3,
