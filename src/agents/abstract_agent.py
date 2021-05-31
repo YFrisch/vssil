@@ -2,6 +2,7 @@
     Already implements common methods.
 """
 import os
+import sys
 import shutil
 import time
 import gc
@@ -151,6 +152,8 @@ class AbstractAgent:
                 # Validate
                 if not epoch % config['validation']['freq']:
                     self.validate(training_epoch=epoch, config=config)
+
+                sys.stdout.flush()
 
     def validate(self, training_epoch: int, config: dict = None):
 

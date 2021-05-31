@@ -56,7 +56,7 @@ class SpatialAEAgent(AbstractAgent):
         penalty = torch.zeros(1, device=prediction.device)
         loss = mse_loss(input=prediction, target=target)
 
-        if self.smoothness_penalty:
+        if self.smoothness_penalty and self.model.training:
             penalty = mse_loss(ft_plus1 - ft, ft - ft_minus1)
 
         return loss + penalty
@@ -67,7 +67,7 @@ class SpatialAEAgent(AbstractAgent):
             In this case, the sampled image series is down-sampled and
             transformed to greyscale to give the target.
         """
-        img_series = x.squeeze()
+        img_series = x
 
         target = interpolate(img_series,
                              size=(3,
@@ -93,8 +93,8 @@ class SpatialAEAgent(AbstractAgent):
 
             # TODO: For whole trajectories, the memory usage of this loop grow to much!
 
-            sample_t = sample[:, t, ...].to(self.device)
-            target_t = target[:, t, ...].to(self.device)
+            sample_t = sample[:, t, ...].to(self.device).unsqueeze(1)
+            target_t = target[:, t, ...].to(self.device).unsqueeze(1)
 
             # Forward pass
             prediction = self.model(sample_t)
@@ -105,10 +105,10 @@ class SpatialAEAgent(AbstractAgent):
 
             # Loss
             with torch.no_grad():
-                features_t_minus1 = self.model.encode(sample[:, t-1, ...]) if t > 0 else \
+                features_t_minus1 = self.model.encode(sample[:, t-1, ...].unsqueeze(1)) if t > 0 else \
                     self.model.encode(sample_t)
                 features_t = self.model.encode(sample_t)
-                features_t_plus1 = self.model.encode(sample[:, t+1, ...]) if t < timesteps-1 else \
+                features_t_plus1 = self.model.encode(sample[:, t+1, ...].unsqueeze(1)) if t < timesteps-1 else \
                     self.model.encode(sample_t)
 
             loss = self.loss_func(prediction=prediction,
@@ -146,9 +146,10 @@ class SpatialAEAgent(AbstractAgent):
                 sample, target = sample.to(self.device), target.to(self.device)
 
                 # Use time-steps as batch (Input tensor in format (T, C, H, W)
-                prediction = self.model(sample.squeeze())
+                print(sample.shape)
+                prediction = self.model(sample)
 
-                play_video(prediction)
+                play_video(prediction[0, ...])
 
                 print(f"Prediction {i}\t"
                       f"Shape {prediction.shape}\t"

@@ -53,26 +53,42 @@ class DeepSpatialAE(nn.Module):
         """ Returns the features/latent variables for given image (batch),
             i.e. encodes the image.
 
-        :param x: Input image in (N, C, H, W) format
+        :param x: Input image in (N, C, H, W) or (N, T, C, H, W) format
         """
+        reshape = False
+        if x.dim() == 5:
+            n, t, c, h, w = x.size()
+            x = x.view((n*t, c, h, w))
+            reshape = True
 
         _y = self.conv1(x)
         _y = self.conv2(_y)
         _y = self.conv3(_y)
 
         _y = self.spatial_soft_argmax(_y)
+        n_t, c, _2 = _y.size()
+        if reshape:
+            _y = _y.view((n, t, c, _2))
 
         return _y
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """ Forward pass through the whole architecture."""
-        n, c, h, w = x.size()
+        n, t, c, h, w = x.size()
+
+        x = x.view((n*t, c, h, w))
 
         # Encoder:
         _y = self.encode(x)
-        n, c, _2 = _y.size()
+        n_t, c, _2 = _y.size()
 
         # Decoder:
-        _y = self.decoder(_y.view(n, c*2)).view(n, *self.out_img_shape)
+        _y = self.decoder(_y.view(n_t, c*2)).view(n, t, *self.out_img_shape)
 
         return _y
+    
+    def train(self, mode: bool = True):
+        return super(DeepSpatialAE, self).train(mode)
+        
+    def eval(self):
+        return super(DeepSpatialAE, self).eval()

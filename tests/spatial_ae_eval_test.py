@@ -14,12 +14,18 @@ data_set = MimeHDKinectRGB(
     base_path=join(cwd, 'datasets'),
     tasks='stir',
     start_ind=0,
-    stop_ind=2,
+    stop_ind=1,
     img_scale_factor=0.25,
     timesteps_per_sample=10,  # -1 to sample full trajectories
     overlap=0
 )
 
+print(len(data_set))
+
 dsae_agent = SpatialAEAgent(dataset=data_set,
                             config=dsae_conf)
-dsae_agent.train(config=dsae_conf)
+
+dsae_agent.evaluate(
+    dataset=data_set,
+    config=dsae_conf
+)
