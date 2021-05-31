@@ -47,6 +47,8 @@ class MimeBase(Dataset):
         self.meta_info_path = join(self.base_path, f"{self.name}_meta_info.txt")
 
         self.sample_paths, self.sample_lengths = self.gather_samples(sample_file_name)
+        self.sample_paths = self.sample_paths[start_ind:stop_ind]
+        self.sample_lengths = self.sample_lengths[start_ind:stop_ind]
 
         self.index_tuples = self.make_indices(lengths=self.sample_lengths,
                                               interval_size=timesteps_per_sample,
@@ -58,8 +60,6 @@ class MimeBase(Dataset):
 
     def gather_samples(self, sample_file_name: str):
         """ Reads all file paths and sample lengths for files at self.base_path with the given name.
-
-            TODO: Speed this up by saving the meta data in a file?
 
         :param sample_file_name: File name for samples
         """

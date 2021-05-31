@@ -12,17 +12,19 @@ from src.data.mime import MimeHDKinectRGB, MimeJointAngles
 cwd = os.getcwd()
 
 data_set1 = MimeHDKinectRGB(
-    base_path=join(cwd, '/datasets/'),
-    tasks='bottle',
+    base_path=join(cwd, 'datasets/'),
+    tasks='stir',
     start_ind=0,
-    stop_ind=-1,  # Set to -1 to use all available samples
+    stop_ind=2,  # Set to -1 to use all available samples
     timesteps_per_sample=-1,  # Set to -1 to return whole trajectory
     overlap=0,
     img_scale_factor=0.25
 )
 
+print(data_set1.sample_lengths)
+
 data_set2 = MimeHDKinectRGB(
-    base_path=join(cwd, '/datasets/'),
+    base_path=join(cwd, 'datasets/'),
     tasks='stir',
     start_ind=0,
     stop_ind=-1,  # Set to -1 to use all available samples
@@ -32,7 +34,7 @@ data_set2 = MimeHDKinectRGB(
 )
 
 joint_angles_data_set = MimeJointAngles(
-    base_path=join(cwd, '/datasets/'),
+    base_path=join(cwd, 'datasets/'),
     tasks='stir',
     start_ind=0,
     stop_ind=-1,
@@ -40,10 +42,10 @@ joint_angles_data_set = MimeJointAngles(
     overlap=0
 )
 
-data_set = ConcatDataset([data_set1, data_set2])
+# data_set = ConcatDataset([data_set1, data_set2])
 
 data_loader = DataLoader(
-    data_set,
+    data_set1,
     batch_size=1,
     shuffle=True
 )
@@ -54,7 +56,8 @@ joint_angles_data_loader = DataLoader(
     shuffle=True
 )
 
-dl = joint_angles_data_loader
+# dl = joint_angles_data_loader
+dl = data_loader
 
 for i, sample in enumerate(dl):
 
