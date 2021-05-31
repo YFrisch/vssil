@@ -14,8 +14,8 @@ data_set = MimeHDKinectRGB(
     base_path=join(cwd, 'datasets'),
     tasks='stir',
     start_ind=0,
-    stop_ind=2,
-    img_scale_factor=0.25,
+    stop_ind=-1,
+    img_scale_factor=0.5,
     timesteps_per_sample=10,  # -1 to sample full trajectories
     overlap=0
 )
