@@ -113,12 +113,16 @@ class AbstractAgent:
             self.train_data_loader = DataLoader(
                 dataset=self.data_set,
                 batch_size=config['training']['batch_size'],
-                sampler=SubsetRandomSampler(train_ids)
+                sampler=SubsetRandomSampler(train_ids),
+                num_workers=config['data']['num_workers'],
+                pin_memory=True
             )
             self.val_data_loader = DataLoader(
                 dataset=self.data_set,
                 batch_size=config['training']['batch_size'],
-                sampler=SubsetRandomSampler(val_ids)
+                sampler=SubsetRandomSampler(val_ids),
+                num_workers=config['data']['num_workers'],
+                pin_memory=True
             )
 
             # Iterate over epochs
