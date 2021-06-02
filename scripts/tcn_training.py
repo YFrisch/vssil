@@ -2,8 +2,12 @@ import os
 from os.path import join
 import yaml
 
+import torch
+
 from src.data.mime.mime_hd_kinect_dataset import MimeHDKinectRGB
 from src.agents.tcn_agent import TCN_Agent
+
+print(f"Found {torch.cuda.device_count()} available cuda devices.")
 
 cwd = os.getcwd()
 
