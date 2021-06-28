@@ -2,16 +2,21 @@
 import os
 from os.path import join
 import yaml
+import argparse
 
 from src.agents.deep_spatial_ae_agent import SpatialAEAgent
 from src.data.mime import MimeHDKinectRGB
 
-cwd = os.getcwd()
+parser = argparse.ArgumentParser()
+parser.add_argument('config_path', metavar='CP', type=str, help='Path to config file.')
+parser.add_argument('data_path', metavar='DP', type=str, help='Base path to dataset.')
+args = parser.parse_args()
 
-dsae_conf = yaml.safe_load(open(join(cwd, 'src/configs/deep_spatial_ae.yml')))
+with open(args.config_path, 'r') as stream:
+	dsae_conf = yaml.safe_load(stream)
 
 data_set = MimeHDKinectRGB(
-    base_path=join(cwd, 'datasets'),
+    base_path=args.data_path,
     tasks='stir',
     start_ind=0,
     stop_ind=-1,
