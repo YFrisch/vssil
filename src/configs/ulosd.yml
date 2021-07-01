@@ -1,3 +1,5 @@
 model:
   n_feature_maps: 10
+  feature_map_width: 16
+  feature_map_height: 16
   n_convolutions: 5
