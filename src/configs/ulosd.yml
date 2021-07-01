@@ -1,0 +1,3 @@
+model:
+  n_feature_maps: 10
+  n_convolutions: 5
