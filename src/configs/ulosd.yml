@@ -1,5 +1,27 @@
+data:
+  tasks: 'stir'
+  overlap: 3
+  img_scale_factor: 0.25
+  num_workers: 1
+
 model:
-  n_feature_maps: 10
+  n_frames: 8
+  n_feature_maps: 64
   feature_map_width: 16
   feature_map_height: 16
-  n_convolutions: 5
+  feature_map_regularization: 5.0
+  n_init_filters: 32
+  n_convolutions_per_res: 2
+  conv_kernel_size: 3
+  conv_kernel_regularization: 1e-4
+  conv_init: 'he_uniform'
+  dense_init: 'he_uniform'
+
+training:
+  epochs: 100
+  lr: 0.001
+  batch_size: 32
+  separation_loss_scale: 10.0
+  separation_loss_sigma: 0.1
+
+device: 'cuda:0'
