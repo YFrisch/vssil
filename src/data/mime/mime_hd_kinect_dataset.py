@@ -18,7 +18,7 @@ class MimeHDKinectRGB(MimeBase):
                  stop_ind: int = -1,
                  timesteps_per_sample: int = -1,
                  overlap: int = 20,
-                 img_scale_factor: float = 1.0
+                 img_scale_factor: (float, float) = (1.0, 1.0)
                  ):
 
         """ Creates class instance.
@@ -52,7 +52,7 @@ class MimeHDKinectRGB(MimeBase):
             hd_kinect_img_series = read_video(path, pts_unit='sec')[0]
             hd_kinect_img_series = hd_kinect_img_series.permute(0, 3, 1, 2)
             hd_kinect_img_series = hd_kinect_img_series.float() / 255.0
-            if self.scale_factor != 1.0:
+            if self.scale_factor != (1.0, 1.0):
                 hd_kinect_img_series = interpolate(hd_kinect_img_series,
                                                    scale_factor=self.scale_factor,
                                                    recompute_scale_factor=False)
