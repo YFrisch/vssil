@@ -25,8 +25,8 @@ class ULOSD_Agent(AbstractAgent):
         self.n_feature_maps = config['model']['n_feature_maps']
 
         self.model = ULOSD(
-            input_width=160,
-            input_height=60,
+            input_width=100,
+            input_height=100,
             config=config
         )
         self.optim = ...

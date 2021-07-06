@@ -8,15 +8,14 @@ from src.agents.ulosd_agent import ULOSD_Agent
 cwd = os.getcwd()
 
 data_set = MimeHDKinectRGB(
-    base_path=join(cwd, 'data/datasets/'),
+    base_path=join(cwd, 'datasets/'),
     timesteps_per_sample=5,
     overlap=0,
-    img_scale_factor=0.25
+    img_scale_factor=(100/240, 100/640)
 )
 
 sample = data_set.__getitem__(0)
 sample = sample.unsqueeze(0)
-print(sample.shape)
 
 ulosd_conf = yaml.safe_load(open(join(cwd, 'src/configs/ulosd.yml')))
 ulosd_agent = ULOSD_Agent(dataset=data_set,

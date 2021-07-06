@@ -7,8 +7,8 @@ data:
 model:
   n_frames: 8
   n_feature_maps: 64
-  feature_map_width: 16
-  feature_map_height: 16
+  feature_map_width: 20
+  feature_map_height: 20
   feature_map_regularization: 5.0
   n_init_filters: 32
   n_convolutions_per_res: 2
