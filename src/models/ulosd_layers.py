@@ -54,7 +54,7 @@ class FeatureMapsToKeyPoints(nn.Module):
         # Normalize map scales to [0.0, 1.0] across key-points
         map_scales /= (EPSILON + torch.max(map_scales, dim=1, keepdim=True)[0])
 
-        return torch.stack([x_coordinates, y_coordinates, map_scales], dim=1)
+        return torch.stack([x_coordinates, y_coordinates, map_scales], dim=2)
 
 
 class FeatureMapsToCoordinates(nn.Module):
