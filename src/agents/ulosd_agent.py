@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from .abstract_agent import AbstractAgent
 from src.models.ulosd import ULOSD
 
+
 class ULOSD_Agent(AbstractAgent):
 
     def __init__(self,
@@ -21,12 +22,16 @@ class ULOSD_Agent(AbstractAgent):
             config=config
         )
 
-        # Each key-point is represented by an individual feature map
-        self.n_feature_maps = config['model']['n_feature_maps']
+        N = config['training']['batch_size']
+        T = config['model']['n_frames']
+        C = 3
+        # TODO: Make this modular
+        H = 160
+        W = 160
+        input_shape = (T, C, H, W)
 
         self.model = ULOSD(
-            input_width=100,
-            input_height=100,
+            input_shape=input_shape,
             config=config
         )
         self.optim = ...

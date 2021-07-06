@@ -124,12 +124,15 @@ class KeyPointsToFeatureMaps(nn.Module):
         # Split scales (mu) and 2D key-point coordinates
         N, C = keypoint_tensor.shape[0], keypoint_tensor.shape[1]
         keypoint_coordinates, scales = torch.split(keypoint_tensor, [2, 1], dim=2)
+
         assert tuple(keypoint_coordinates.shape) == (N, C, 2)
         assert tuple(scales.shape) == (N, C, 1)
 
         # Expand to (B, 1, 1, C, 1)
-        x_coordinates = keypoint_coordinates[:, :, 0].view(N, 1, 1, C, 1)
-        y_coordinates = keypoint_coordinates[:, :, 1].view(N, 1, 1, C, 1)
+        keypoint_coordinates = keypoint_coordinates.view(N, C, 1, 1, 2)
+        scales = scales.view(N, C, 1, 1, 1)
+        x_coordinates = keypoint_coordinates[..., 0]
+        y_coordinates = keypoint_coordinates[..., 1]
 
         # Make 'gaussian blobs'
         keypoint_width = 2.0 * (self.sigma / self.heatmap_width) ** 2
@@ -137,7 +140,7 @@ class KeyPointsToFeatureMaps(nn.Module):
         y_vec = torch.exp(-torch.square(self.get_grid(axis=3) - y_coordinates)/keypoint_width)
         maps = torch.multiply(x_vec, y_vec)
 
-        return maps * scales.view(N, 1, 1, C, 1)
+        return maps * scales[..., 0]
 
 
 
