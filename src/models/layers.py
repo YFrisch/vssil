@@ -1,3 +1,6 @@
+from operator import __add__
+from functools import reduce
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -86,6 +89,33 @@ class BatchNormConv2D(nn.Module):
         if self.activation is not None:
             _y = self.activation(_y)
         return _y
+
+
+class Conv2DSamePadding(Conv2d):
+
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 kernel_size: tuple = (2, 2),
+                 stride: tuple = (1, 1),
+                 activation=None):
+
+        super(Conv2DSamePadding, self).__init__(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=(0, 0),
+            activation=activation
+        )
+
+        self.zero_pad_2d = nn.ZeroPad2d(
+            reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        _y = self.zero_pad_2d(x)
+        return super(Conv2DSamePadding, self).forward(_y)
 
 
 class SpatialSoftArgmax(nn.Module):

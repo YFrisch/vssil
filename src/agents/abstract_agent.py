@@ -34,7 +34,7 @@ class AbstractAgent:
         self.val_data_loader = None
         self.eval_data_loader = None
 
-        assert not (dataset.timesteps_per_sample == -1 and config['training']['batch_size'] > 1), \
+        assert not (config['data']['timesteps_per_sample'] == -1 and config['training']['batch_size'] > 1), \
             "Batch size > 1 is not supported for whole trajectories."
 
         self.device = config['device'] if config['device'] is not None else "cpu"
@@ -135,8 +135,14 @@ class AbstractAgent:
 
                 loss_per_iter = []
 
-                # Iterate over samples
-                for i, sample in enumerate(tqdm(self.train_data_loader)):
+                # # Iterate over samples
+                # for i, sample in enumerate(tqdm(self.train_data_loader)):
+
+                # Iterate over steps
+                for i in tqdm(range(config['training']['steps_per_epoch'])):
+
+                    sample = next(iter(self.train_data_loader))
+
                     with torch.no_grad():
                         sample, target = self.preprocess(sample, config)  # (N, T, C, H, W)
 

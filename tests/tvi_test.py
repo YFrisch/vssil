@@ -2,6 +2,8 @@ import yaml
 import os
 from os.path import join
 
+from torch.utils.data import DataLoader
+
 from src.data.mime import MimeJointAngles
 from src.agents.tvi_agent import TVI_Agent
 
@@ -18,7 +20,13 @@ dataset = MimeJointAngles(
     overlap=0
 )
 
-lstm = TVI_Agent(
+tvi = TVI_Agent(
     dataset=dataset,
     config=tvi_conf
 )
+
+for i, sample in enumerate(DataLoader(dataset, 1, True)):
+    print(sample.shape)
+    _y = tvi.sample_pi(sample)
+    print(_y.shape)
+    exit()

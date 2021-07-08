@@ -71,7 +71,7 @@ class ULOSD_Agent(AbstractAgent):
         sample, target = sample.to(self.device), target.to(self.device)
 
         # Vision model
-        _, observed_key_points = self.model.encode(sample)
+        feature_maps, observed_key_points = self.model.encode(sample)
         reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
 
         # Dynamics model
@@ -83,12 +83,16 @@ class ULOSD_Agent(AbstractAgent):
 
         separation_loss = temporal_separation_loss(cfg=config, coords=observed_key_points)
 
+        # feature-map (L1) regularization of the activations of the last layer
+        l1_penalty = config['model']['feature_map_regularization'] * torch.norm(feature_maps, p=1)
+
         # TODO: Not used yet
         coord_pred_loss = 0
         kl_loss = 0
         kl_scale = 0
 
         L = reconstruction_loss + separation_loss + coord_pred_loss + (kl_loss * kl_scale)
+
 
         L.backward()
 

@@ -13,15 +13,13 @@ cwd = os.getcwd()
 
 data_set1 = MimeHDKinectRGB(
     base_path=join(cwd, 'datasets/'),
-    tasks='stir',
+    tasks='bottle',
     start_ind=0,
-    stop_ind=2,  # Set to -1 to use all available samples
-    timesteps_per_sample=-1,  # Set to -1 to return whole trajectory
+    stop_ind=-1,  # Set to -1 to use all available samples
+    timesteps_per_sample=10,  # Set to -1 to return whole trajectory
     overlap=0,
-    img_scale_factor=0.25
+    img_scale_factor=(100/240, 100/640),
 )
-
-print(data_set1.sample_lengths)
 
 data_set2 = MimeHDKinectRGB(
     base_path=join(cwd, 'datasets/'),
@@ -71,4 +69,5 @@ for i, sample in enumerate(dl):
 
     del sample
     gc.collect()
+    exit()
 

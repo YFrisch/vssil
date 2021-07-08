@@ -1,10 +1,13 @@
 from time import sleep
 
 import torch
+from torch.utils.data import ConcatDataset
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
+
+from .mime.mime_hd_kinect_dataset import MimeHDKinectRGB
 
 
 def play_video(video_series: torch.Tensor):
@@ -44,3 +47,18 @@ def play_video(video_series: torch.Tensor):
 
     plt.show()
 
+
+def combine_mime_hd_kinect_tasks(task_list: [str], base_path: str,
+                                  start_ind: int = 0, stop_ind: int = -1,
+                                  timesteps_per_sample: int = -1, overlap: int = 20,
+                                  img_scale_factor: (float, float) = (1.0, 1.0)):
+
+    list_of_datasets = []
+    for task in task_list:
+        dataset = MimeHDKinectRGB(
+            base_path, task, start_ind, stop_ind,
+            timesteps_per_sample, overlap, img_scale_factor
+        )
+        list_of_datasets.append(dataset)
+
+    return ConcatDataset(list_of_datasets)
