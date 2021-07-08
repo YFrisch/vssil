@@ -19,19 +19,7 @@ data_set = MimeHDKinectRGB(
     img_scale_factor=(160/240, 160/640)
 )
 
-sample = data_set.__getitem__(0)
-sample = sample.unsqueeze(0)
-
 ulosd_agent = ULOSD_Agent(dataset=data_set,
                           config=ulosd_conf)
 
-print(f"Sample shape: ", sample.shape)
-reconstructed_image = ulosd_agent.model(sample)
-print(f"Reconstruction shape: ", reconstructed_image.shape)
-
-fig, ax = plt.subplots(1, 2)
-ax[0].imshow(sample[0, 0, ...].detach().cpu().numpy().transpose((1, 2, 0)))
-ax[1].imshow(reconstructed_image[0, 0, ...].detach().cpu().numpy().transpose((1, 2, 0)))
-plt.show()
-
-#ulosd_agent.train(config=ulosd_conf)
+ulosd_agent.train(config=ulosd_conf)

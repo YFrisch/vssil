@@ -1,8 +1,11 @@
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from .abstract_agent import AbstractAgent
 from src.models.ulosd import ULOSD
+from src.losses.temporal_separation_loss import temporal_separation_loss
+from .abstract_agent import AbstractAgent
 
 
 class ULOSD_Agent(AbstractAgent):
@@ -33,11 +36,65 @@ class ULOSD_Agent(AbstractAgent):
         self.model = ULOSD(
             input_shape=input_shape,
             config=config
+        ).to(self.device)
+
+        self.optim = torch.optim.Adam(
+            params=self.model.parameters(),
+            lr=config['training']['lr']
         )
-        self.optim = ...
+
+    def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
+
+        return x, torch.empty((1,))
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        pass
+        """ Normalized L2 loss for image reconstruction
+
+        :param prediction: Sequence of predicted images in (N, T, C, H, W)
+        :param target: Actual image sequence in (N, T, C, H, W)
+        :return: Normalized L2 loss between prediction and target
+        """
+        N, T = target.shape[0], target.shape[1]
+        loss = F.mse_loss(input=prediction, target=target)
+        loss /= (N*T)
+        return loss
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
-        pass
+        """ One step of training.
+
+        :param sample: Image sequence in (N, T, C, H, W)
+        :param target: -
+        :param config: Configuration dictionary
+        :return: TODO
+        """
+
+        sample, target = sample.to(self.device), target.to(self.device)
+
+        # Vision model
+        _, observed_key_points = self.model.encode(sample)
+        reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+
+        # Dynamics model
+        # TODO: Not used yet
+
+        # Losses
+        reconstruction_loss = self.loss_func(prediction=reconstructed_images,
+                                             target=sample)
+
+        separation_loss = temporal_separation_loss(cfg=config, coords=observed_key_points)
+
+        # TODO: Not used yet
+        coord_pred_loss = 0
+        kl_loss = 0
+        kl_scale = 0
+
+        L = reconstruction_loss + separation_loss + coord_pred_loss + (kl_loss * kl_scale)
+
+        L.backward()
+
+        # Clip gradient norm
+        nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
+
+        self.optim.step()
+
+        return L

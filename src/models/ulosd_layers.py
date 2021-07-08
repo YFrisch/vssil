@@ -21,14 +21,14 @@ def make_pixel_grid(axis: int, width: int):
         raise ValueError(f"Can not make pixel grid for axis {axis}!")
 
 
-def add_coord_channels(image_tensor: torch.Tensor) -> torch.Tensor:
+def add_coord_channels(image_tensor: torch.Tensor, device: str = 'cpu') -> torch.Tensor:
     """ Adds channels containing pixel indices (x and y coordinates) to an image. """
     B, C, H, W = image_tensor.shape[0], image_tensor.shape[1], image_tensor.shape[2], image_tensor.shape[3]
-    x_grid = torch.linspace(start=-1.0, end=1.0, steps=H).view((1, 1, H, 1))
-    x_map = torch.tile(x_grid, (B, 1, 1, W))
-    y_grid = torch.linspace(start=1.0, end=-1.0, steps=W).view((1, 1, 1, W))
-    y_map = torch.tile(y_grid, (B, 1, H, 1))
-    return torch.cat([image_tensor, x_map, y_map], dim=1)
+    x_grid = torch.linspace(start=-1.0, end=1.0, steps=H).view((1, 1, H, 1)).to(device)
+    x_map = torch.tile(x_grid, (B, 1, 1, W)).to(device)
+    y_grid = torch.linspace(start=1.0, end=-1.0, steps=W).view((1, 1, 1, W)).to(device)
+    y_map = torch.tile(y_grid, (B, 1, H, 1)).to(device)
+    return torch.cat([image_tensor, x_map, y_map], dim=1).to(device)
 
 
 class FeatureMapsToKeyPoints(nn.Module):
@@ -37,10 +37,11 @@ class FeatureMapsToKeyPoints(nn.Module):
         (N, C, H, W) feature maps -> (N, 2 (x, y), 1 (mu)) key-points.
     """
 
-    def __init__(self):
+    def __init__(self, device: str = 'cpu'):
         super(FeatureMapsToKeyPoints, self).__init__()
-        self.map_to_x = FeatureMapsToCoordinates(axis=2)
-        self.map_to_y = FeatureMapsToCoordinates(axis=3)
+        self.device = device
+        self.map_to_x = FeatureMapsToCoordinates(axis=2, device=device)
+        self.map_to_y = FeatureMapsToCoordinates(axis=3, device=device)
 
     def forward(self, feature_maps: torch.Tensor) -> torch.Tensor:
 
@@ -49,7 +50,7 @@ class FeatureMapsToKeyPoints(nn.Module):
 
         x_coordinates = self.map_to_x(feature_maps)
         y_coordinates = self.map_to_y(feature_maps)
-        map_scales = torch.mean(feature_maps, dim=[2, 3])
+        map_scales = torch.mean(feature_maps, dim=[2, 3]).to(self.device)
 
         # Normalize map scales to [0.0, 1.0] across key-points
         map_scales /= (EPSILON + torch.max(map_scales, dim=1, keepdim=True)[0])
@@ -62,14 +63,15 @@ class FeatureMapsToCoordinates(nn.Module):
     """
         Reduces heatmaps to coordinates along one axis
     """
-    def __init__(self, axis: int):
+    def __init__(self, axis: int, device: str = 'cpu'):
+        self.device = device
         self.axis = axis
         super(FeatureMapsToCoordinates, self).__init__()
 
     def forward(self, maps: torch.Tensor) -> torch.Tensor:
 
         width = maps.shape[self.axis]
-        grid = make_pixel_grid(axis=self.axis, width=width)
+        grid = make_pixel_grid(axis=self.axis, width=width).to(self.device)
         shape = [1, 1, 1, 1]
         shape[self.axis] = -1
         grid = grid.view(tuple(shape))
@@ -82,11 +84,11 @@ class FeatureMapsToCoordinates(nn.Module):
             raise ValueError(f"Can not make coordinates for axis {self.axis}!")
 
         # Normalize heatmaps to a prob. distr. (Sum to 1)
-        weights = torch.sum(maps + EPSILON, dim=marginalize_dim, keepdim=True)
+        weights = torch.sum(maps + EPSILON, dim=marginalize_dim, keepdim=True).to(self.device)
         weights /= torch.sum(weights, dim=self.axis, keepdim=True)
 
         # Computer center of mass of marginalized maps to obtain scalar coordinates:
-        coordinates = torch.sum(weights*grid, dim=self.axis, keepdim=True)
+        coordinates = torch.sum(weights*grid, dim=self.axis, keepdim=True).to(self.device)
 
         # return coordinates.squeeze(dim=[2, 3])
         return coordinates.squeeze(-1).squeeze(-1)
@@ -99,18 +101,19 @@ class KeyPointsToFeatureMaps(nn.Module):
         (x, y) - coordinates.
 
     """
-    def __init__(self, sigma: float = 1.0, heatmap_width: int = 16):
+    def __init__(self, sigma: float = 1.0, heatmap_width: int = 16, device: str = 'cpu'):
         """ Creates class instance.
 
         :param sigma: Standard deviation of the 'gaussian blob', in heatmap pixels
         :param heatmap_width: Pixel width of created heatmaps
         """
         super(KeyPointsToFeatureMaps, self).__init__()
+        self.device = device
         self.sigma = sigma
         self.heatmap_width = heatmap_width
 
     def get_grid(self, axis: int):
-        grid = make_pixel_grid(axis, self.heatmap_width)
+        grid = make_pixel_grid(axis, self.heatmap_width).to(self.device)
         shape = [1, 1, 1, 1]
         shape[axis] = -1
         return grid.view(tuple(shape))
@@ -129,16 +132,16 @@ class KeyPointsToFeatureMaps(nn.Module):
         assert tuple(scales.shape) == (N, C, 1)
 
         # Expand to (B, 1, 1, C, 1)
-        keypoint_coordinates = keypoint_coordinates.view(N, C, 1, 1, 2)
-        scales = scales.view(N, C, 1, 1, 1)
-        x_coordinates = keypoint_coordinates[..., 0]
-        y_coordinates = keypoint_coordinates[..., 1]
+        keypoint_coordinates = keypoint_coordinates.view(N, C, 1, 1, 2).to(self.device)
+        scales = scales.view(N, C, 1, 1, 1).to(self.device)
+        x_coordinates = keypoint_coordinates[..., 0].to(self.device)
+        y_coordinates = keypoint_coordinates[..., 1].to(self.device)
 
         # Make 'gaussian blobs'
         keypoint_width = 2.0 * (self.sigma / self.heatmap_width) ** 2
-        x_vec = torch.exp(-torch.square(self.get_grid(axis=2) - x_coordinates)/keypoint_width)
-        y_vec = torch.exp(-torch.square(self.get_grid(axis=3) - y_coordinates)/keypoint_width)
-        maps = torch.multiply(x_vec, y_vec)
+        x_vec = torch.exp(-torch.square(self.get_grid(axis=2) - x_coordinates)/keypoint_width).to(self.device)
+        y_vec = torch.exp(-torch.square(self.get_grid(axis=3) - y_coordinates)/keypoint_width).to(self.device)
+        maps = torch.multiply(x_vec, y_vec).to(self.device)
 
         return maps * scales[..., 0]
 

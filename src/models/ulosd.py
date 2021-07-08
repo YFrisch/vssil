@@ -16,8 +16,12 @@ class ULOSD(nn.Module):
                  config: dict):
         super(ULOSD, self).__init__()
 
+        self.device = config['device']
+
         self.feature_map_width = config['model']['feature_map_width']
         self.feature_map_height = config['model']['feature_map_height']
+
+        self.conv_weight_init = config['model']['conv_init']
 
         """
             Image encoder.
@@ -29,7 +33,6 @@ class ULOSD(nn.Module):
         self.encoder = []
         # Adjusted input shape (for add_coord_channels)
         encoder_input_shape = (input_shape[1] + 2, *input_shape[2:])
-        print(encoder_input_shape)
         assert len(encoder_input_shape) == 3
 
         # First, expand the input to an initial number of filters
@@ -96,6 +99,7 @@ class ULOSD(nn.Module):
             )
         )
         self.encoder = nn.Sequential(*self.encoder)
+        self.encoder.apply(self.init_weights)
 
         """
             Image decoder.
@@ -161,6 +165,7 @@ class ULOSD(nn.Module):
         )
 
         self.decoder = nn.Sequential(*self.decoder)
+        self.decoder.apply(self.init_weights)
 
         """
             Ops layers
@@ -171,6 +176,11 @@ class ULOSD(nn.Module):
             sigma=1.0,
             heatmap_width=config['model']['feature_map_width']
         )
+
+    def init_weights(self, m: torch.nn.Module):
+        if type(m) == nn.Conv2d and self.conv_weight_init == 'he_uniform':
+            torch.nn.init.kaiming_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
 
     def encode(self, image_sequence: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """ Encodes a series of images into a tuple of a series of feature maps and
@@ -196,8 +206,8 @@ class ULOSD(nn.Module):
             key_points_list.append(key_points)
 
         # Unstack time
-        feature_maps = torch.stack(maps_list, dim=1)
-        key_points = torch.stack(key_points_list, dim=1)
+        feature_maps = torch.stack(maps_list, dim=1).to(self.device)
+        key_points = torch.stack(key_points_list, dim=1).to(self.device)
 
         return feature_maps, key_points
 
@@ -217,14 +227,16 @@ class ULOSD(nn.Module):
 
         # Encode first frame
         first_frame_feature_maps, first_frame_key_points = self.encode(first_frame)
-        first_frame_reconstructed_maps = self.key_points_2_maps(first_frame_key_points.squeeze(1))
+        first_frame_feature_maps = first_frame_feature_maps.to(self.device)
+        first_frame_key_points = first_frame_key_points.to(self.device)
+        first_frame_reconstructed_maps = self.key_points_2_maps(first_frame_key_points.squeeze(1)).to(self.device)
 
         key_points_list = [keypoint_sequence[:, t, ...] for t in range(T)]
         image_list = []
 
         for key_points in key_points_list:
 
-            gaussian_maps = self.key_points_2_maps(key_points)
+            gaussian_maps = self.key_points_2_maps(key_points).to(self.device)
             assert gaussian_maps.ndim == 4
 
             # Concat representation of current gaussian map and the information from the first frame
@@ -234,14 +246,14 @@ class ULOSD(nn.Module):
             )
 
             # Extend channels
-            combi = add_coord_channels(combi)
+            combi = add_coord_channels(combi, device=self.device)
 
             # Decode
-            reconstructed_image = self.decoder(combi)
+            reconstructed_image = self.decoder(combi).to(self.device)
             image_list.append(reconstructed_image)
 
         # Stack time-steps
-        reconstructed_images = torch.stack(image_list, dim=1)
+        reconstructed_images = torch.stack(image_list, dim=1).to(self.device)
 
         # TODO: Add first frame as in the google code
 
