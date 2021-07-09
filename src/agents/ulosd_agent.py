@@ -29,8 +29,8 @@ class ULOSD_Agent(AbstractAgent):
         N = config['training']['batch_size']
         T = config['model']['n_frames']
         C = 3
-        H = eval(config['model']['feature_map_height'])[0]
-        W = config['model']['feature_map_width']
+        H = eval(config['data']['img_shape'])[0]
+        W = eval(config['data']['img_shape'])[1]
         input_shape = (T, C, H, W)
 
         self.model = ULOSD(

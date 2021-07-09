@@ -2,14 +2,14 @@ data:
   tasks: ['stir', 'pour', 'pass', 'place_in_box']
   timesteps_per_sample: 8
   overlap: 3
-  img_shape: (64, 64)
+  img_shape: (160, 160)
   num_workers: 4
 
 model:
   n_frames: 8
   n_feature_maps: 64
-  feature_map_width: 16
-  feature_map_height: 16
+  feature_map_width: 20
+  feature_map_height: 20
   feature_map_regularization: 5.0
   n_init_filters: 32
   n_convolutions_per_res: 2
@@ -30,7 +30,7 @@ training:
 
 validation:
   freq: 5
-  batch_size: 32  # 32
+  batch_size: 32
 
 evaluation:
 
