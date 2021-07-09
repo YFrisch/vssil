@@ -18,7 +18,7 @@ data_set1 = MimeHDKinectRGB(
     stop_ind=-1,  # Set to -1 to use all available samples
     timesteps_per_sample=10,  # Set to -1 to return whole trajectory
     overlap=0,
-    img_scale_factor=(100/240, 100/640),
+    img_shape=(100, 100),
 )
 
 data_set2 = MimeHDKinectRGB(
@@ -28,7 +28,7 @@ data_set2 = MimeHDKinectRGB(
     stop_ind=-1,  # Set to -1 to use all available samples
     timesteps_per_sample=-1,  # Set to -1 to return whole trajectory
     overlap=0,
-    img_scale_factor=0.25
+    img_shape=(-1, -1)
 )
 
 joint_angles_data_set = MimeJointAngles(

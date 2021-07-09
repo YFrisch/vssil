@@ -17,7 +17,7 @@ data_set = combine_mime_hd_kinect_tasks(
     base_path=args.data_path,
     timesteps_per_sample=ulosd_conf['model']['n_frames'],
     overlap=ulosd_conf['data']['overlap'],
-    img_scale_factor=eval(ulosd_conf['data']['img_scale_factors'])
+    img_shape=eval(ulosd_conf['data']['img_shape'])
 )
 
 ulosd_agent = ULOSD_Agent(dataset=data_set,

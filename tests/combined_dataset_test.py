@@ -10,7 +10,8 @@ data_set = combine_mime_hd_kinect_tasks(
     base_path=join(cwd, 'datasets/'),
     timesteps_per_sample=8,
     overlap=0,
-    img_scale_factor=(160/240, 160/640)
+    img_shape=(160, 160)
 )
 
 print(len(data_set))
+

@@ -25,12 +25,12 @@ class ULOSD_Agent(AbstractAgent):
             config=config
         )
 
+        # Input shape
         N = config['training']['batch_size']
         T = config['model']['n_frames']
         C = 3
-        # TODO: Make this modular
-        H = 160
-        W = 160
+        H = eval(config['model']['feature_map_height'])[0]
+        W = config['model']['feature_map_width']
         input_shape = (T, C, H, W)
 
         self.model = ULOSD(

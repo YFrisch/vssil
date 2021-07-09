@@ -18,15 +18,17 @@ class MimeHDKinectRGB(MimeBase):
                  stop_ind: int = -1,
                  timesteps_per_sample: int = -1,
                  overlap: int = 20,
-                 img_scale_factor: (float, float) = (1.0, 1.0)
+                 img_shape: (int, int) = (-1, -1)
                  ):
 
         """ Creates class instance.
 
-        :param img_scale_factor: Factor to down-/upsample frames.
+        :param img_shape: Desired shape of the images.
+            Sampled images are down-/up-sampled to this shape.
+            Set to (-1, -1) to use original sizes.
         """
 
-        self.scale_factor = img_scale_factor
+        self.img_shape = img_shape
 
         print(f"##### Loading MIME dataset of HD Kinect RGB images for task '{tasks}'.")
         time.sleep(0.1)
@@ -52,9 +54,14 @@ class MimeHDKinectRGB(MimeBase):
             hd_kinect_img_series = read_video(path, pts_unit='sec')[0]
             hd_kinect_img_series = hd_kinect_img_series.permute(0, 3, 1, 2)
             hd_kinect_img_series = hd_kinect_img_series.float() / 255.0
-            if self.scale_factor != (1.0, 1.0):
+
+            if self.img_shape != (-1, -1):
+                H = hd_kinect_img_series.shape[2]
+                W = hd_kinect_img_series.shape[3]
+                H_scale = self.img_shape[0]/H
+                W_scale = self.img_shape[1]/W
                 hd_kinect_img_series = interpolate(hd_kinect_img_series,
-                                                   scale_factor=self.scale_factor,
+                                                   scale_factor=(H_scale, W_scale),
                                                    recompute_scale_factor=False)
 
         except RuntimeError as e:
