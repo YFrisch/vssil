@@ -44,8 +44,7 @@ class ULOSD_Agent(AbstractAgent):
         )
 
     def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
-
-        return x, torch.empty((1,))
+        return x, x
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """ Normalized L2 loss for image reconstruction
