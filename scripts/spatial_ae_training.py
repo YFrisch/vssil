@@ -1,6 +1,4 @@
 """ This script is used to test the agent class for the Deep Spatial Auto-Encoder."""
-import os
-from os.path import join
 import yaml
 import argparse
 
@@ -13,7 +11,7 @@ parser.add_argument('data_path', metavar='DP', type=str, help='Base path to data
 args = parser.parse_args()
 
 with open(args.config_path, 'r') as stream:
-	dsae_conf = yaml.safe_load(stream)
+    dsae_conf = yaml.safe_load(stream)
 
 data_set = MimeHDKinectRGB(
     base_path=args.data_path,
