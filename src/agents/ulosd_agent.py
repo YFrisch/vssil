@@ -66,6 +66,7 @@ class ULOSD_Agent(AbstractAgent):
         :param config: Configuration dictionary
         :return: TODO
         """
+        self.optim.zero_grad()
 
         sample, target = sample.to(self.device), target.to(self.device)
 
@@ -90,8 +91,7 @@ class ULOSD_Agent(AbstractAgent):
         kl_loss = 0
         kl_scale = 0
 
-        L = reconstruction_loss + separation_loss + coord_pred_loss + (kl_loss * kl_scale)
-
+        L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + (kl_loss * kl_scale)
 
         L.backward()
 
