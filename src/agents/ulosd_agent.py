@@ -44,6 +44,18 @@ class ULOSD_Agent(AbstractAgent):
         )
 
     def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
+        """ Maps the input image sequence to range (-0.5, 0.5).
+            Then returns input as input and target for reconstruction.
+
+            NOTE: MIME data should already be in (0, 1).
+
+        :param x: Image sequence in (N, T, C, H, W)
+        :param config:
+        :return:
+        """
+        assert x.max() <= 1
+        assert x.min() >= 0
+        x = x - 0.5
         return x, x
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -57,6 +69,28 @@ class ULOSD_Agent(AbstractAgent):
         loss = F.mse_loss(input=prediction, target=target)
         loss /= (N*T)
         return loss
+
+    def separation_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
+        return temporal_separation_loss(cfg=config, coords=keypoint_coordinates)
+
+    def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
+        # return config['model']['feature_map_regularization'] * torch.norm(feature_maps, p=1)
+        feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
+        penalty = torch.mean(torch.abs(feature_map_mean))
+        return config['model']['feature_map_regularization'] * penalty
+
+    def l2_kernel_regularization(self, config: dict) -> torch.Tensor:
+
+        l2_reg = None
+
+        for p_name, param in self.model.named_parameters():
+            if ".weight" in p_name:
+                if l2_reg is None:
+                    l2_reg = param.norm(2)**2
+                else:
+                    l2_reg += param.norm(2)**2
+
+        return config['training']['l2_kernel_reg_lambda'] * l2_reg
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         """ One step of training.
@@ -81,17 +115,20 @@ class ULOSD_Agent(AbstractAgent):
         reconstruction_loss = self.loss_func(prediction=reconstructed_images,
                                              target=sample)
 
-        separation_loss = temporal_separation_loss(cfg=config, coords=observed_key_points)
+        separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
 
         # feature-map (L1) regularization of the activations of the last layer
-        l1_penalty = config['model']['feature_map_regularization'] * torch.norm(feature_maps, p=1)
+        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+
+        l2_kernel_reg = self.l2_kernel_regularization(config=config)
 
         # TODO: Not used yet
         coord_pred_loss = 0
         kl_loss = 0
         kl_scale = 0
 
-        L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + (kl_loss * kl_scale)
+        L = reconstruction_loss + separation_loss + l1_penalty + l2_kernel_reg \
+            + coord_pred_loss + (kl_loss * kl_scale)
 
         L.backward()
 

@@ -70,6 +70,7 @@ class AbstractAgent:
             yaml.dump(config, config_file)
 
         self.writer = SummaryWriter(log_dir=self.log_dir)
+        # self.writer.add_hparams(config, {})
 
         self.kfold = KFold(n_splits=config['training']['k_folds'], shuffle=True)
 

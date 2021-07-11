@@ -62,6 +62,7 @@ for i, sample in enumerate(dl):
     # sample = sample.to("cuda:0")
     print(f"Sample: {i + 1}|{len(dl)}\t "
           f"Shape: {sample.shape}\t "
+          f"Mean val.: {sample.mean()}\t "
           #f"Alloc. GPU mem: {torch.cuda.memory_allocated()}\t "
           #f"Used RAM: {psutil.virtual_memory().used / 1e+9}|{psutil.virtual_memory().total / 1e+9}\t "
           #f"Used SWAP: {psutil.swap_memory().used / 1e+9}|{psutil.swap_memory().total / 1e+9}"
