@@ -213,7 +213,7 @@ class AbstractAgent:
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         avg_loss = np.mean(loss_per_sample)
-        self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=training_epoch)
+        self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=training_fold + training_epoch)
         print("##### Average loss:", avg_loss)
         print("\n")
         time.sleep(0.1)
