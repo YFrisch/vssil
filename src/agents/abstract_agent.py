@@ -47,6 +47,9 @@ class AbstractAgent:
 
         self.is_setup = False
 
+        # Logged values, losses, metrics, etc.
+        self.loss_per_iter = []
+
         # The following parts are implemented by inheriting classes
         self.model = None
         self.optim = None
@@ -91,6 +94,14 @@ class AbstractAgent:
 
         self.model.load_state_dict(torch.load(chckpt_path))
 
+    def reset_logged_values(self):
+        """ Resets all logged values (metrics, losses, ...). """
+        self.loss_per_iter = []
+
+    def log_values(self, fold: int, epoch: int):
+        avg_loss = np.mean(self.loss_per_iter)
+        self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=(fold+epoch))
+
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         raise NotImplementedError
 
@@ -134,7 +145,7 @@ class AbstractAgent:
 
                 self.model.train()
 
-                loss_per_iter = []
+                self.reset_logged_values()
 
                 # # Iterate over samples
                 # for i, sample in enumerate(tqdm(self.train_data_loader)):
@@ -151,22 +162,33 @@ class AbstractAgent:
 
                     loss = self.train_step(sample, target, config)
                     assert loss is not None, "No loss returned during training."
-                    loss_per_iter.append(loss.detach().cpu().numpy())
+                    self.loss_per_iter.append(loss.detach().cpu().numpy())
 
                     del sample, target, loss
                     gc.collect()
 
-                avg_loss = np.mean(loss_per_iter)
+                avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
-                self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=epoch)
+
+                self.log_values(fold=fold, epoch=epoch)
 
                 # Validate
                 if not epoch % config['validation']['freq']:
-                    self.validate(training_epoch=epoch, config=config)
+                    self.validate(training_fold=fold, training_epoch=epoch, config=config)
 
                 sys.stdout.flush()
 
-    def validate(self, training_epoch: int, config: dict = None):
+    def validation_loss(self,
+                        sample: torch.Tensor,
+                        prediction: torch.Tensor,
+                        target: torch.Tensor,
+                        config: dict) -> torch.Tensor:
+        """ Returns the loss to use for validation.
+            Note that this can differ from self.loss_function()!
+        """
+        return self.loss_func(prediction=prediction, target=target)
+
+    def validate(self, training_fold: int, training_epoch: int, config: dict = None):
 
         print("##### Validating:")
         time.sleep(0.1)
@@ -183,7 +205,11 @@ class AbstractAgent:
 
                 prediction = self.model(sample)
 
-                sample_loss = self.loss_func(prediction.squeeze(), target.squeeze())
+                sample_loss = self.validation_loss(sample=sample,
+                                                   prediction=prediction.squeeze(),
+                                                   target=target.squeeze(),
+                                                   config=config)
+
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         avg_loss = np.mean(loss_per_sample)
@@ -195,12 +221,12 @@ class AbstractAgent:
         if self.best_val_loss is None:
             self.best_val_loss = avg_loss
             torch.save(self.model.state_dict(),
-                       self.log_dir + f'checkpoints/chckpt_e{training_epoch}.PTH')
+                       self.log_dir + f'checkpoints/chckpt_f{training_fold}_e{training_epoch}.PTH')
         elif avg_loss < self.best_val_loss:
             self.best_val_loss = avg_loss
             # Save current model
             torch.save(self.model.state_dict(),
-                       self.log_dir + f'checkpoints/chckpt_e{training_epoch}.PTH')
+                       self.log_dir + f'checkpoints/chckpt_f{training_fold}_e{training_epoch}.PTH')
         else:
             pass
 

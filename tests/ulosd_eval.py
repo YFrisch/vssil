@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 
 from src.data.utils import combine_mime_hd_kinect_tasks
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.losses.temporal_separation_loss import temporal_separation_loss
+from src.data.utils import play_video
+from src.utils.feature_visualization import make_annotated_tensor
 
 parser = argparse.ArgumentParser()
 parser.add_argument('config_path', metavar='CP', type=str, help='Path to config file.')
@@ -22,7 +23,8 @@ with open(args.config_path, 'r') as stream:
 data_set = combine_mime_hd_kinect_tasks(
     task_list=ulosd_conf['data']['tasks'],
     base_path=args.data_path,
-    timesteps_per_sample=ulosd_conf['model']['n_frames'],
+    # timesteps_per_sample=ulosd_conf['model']['n_frames'],
+    timesteps_per_sample=-1,
     overlap=ulosd_conf['data']['overlap'],
     img_shape=eval(ulosd_conf['data']['img_shape'])
 )
@@ -37,6 +39,8 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
                           config=ulosd_conf)
 
 ulosd_agent.eval_data_loader = eval_data_loader
+ulosd_agent.load_checkpoint("/home/yannik/ulosd_checkpoint.PTH")
+# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_11_14_49/checkpoints/chckpt_e60.PTH")
 
 with torch.no_grad():
     for i, sample in enumerate(eval_data_loader):
@@ -44,7 +48,14 @@ with torch.no_grad():
 
         feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)
 
+        print(key_points)
+
         reconstruction = ulosd_agent.model(sample)
+        annotated_reconstruction = make_annotated_tensor(image_series=reconstruction[0, ...],
+                                                         feature_positions=key_points[0, ...])
+        annotated_sample = make_annotated_tensor(image_series=sample[0, ...],
+                                                 feature_positions=key_points[0, ...])
+
         print(reconstruction.min())
         print(reconstruction.max())
 
@@ -59,13 +70,16 @@ with torch.no_grad():
         print(f"Sample {i}\t Rec. loss: {rec_loss}\t Sep. loss: {sep_loss}\t L1 penalty: {l1_penalty}\t "
               f"L2 reg: {l2_kernel_reg}")
 
-        np_sample = sample[0, 0, ...].cpu().numpy().transpose(1, 2, 0) + 0.5
-        np_rec = reconstruction[0, 0, ...].cpu().numpy().transpose(1, 2, 0) + 0.5
+        np_samples = sample[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
+        np_recs = reconstruction[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
+        # play_video(sample[0, ...])
+        # play_video(reconstruction[0, ...])
+        play_video(annotated_reconstruction)
         fig, ax = plt.subplots(2, 1)
-        ax[0].imshow(np_sample)
-        ax[1].imshow(np_rec)
+        ax[0].imshow(np_samples[0, ...])
+        ax[1].imshow(np_recs[0, ...])
         plt.show()
-        if i == 5:
+        if i == 0:
             exit()
 
 # ulosd_agent.evaluate(config=ulosd_conf)
