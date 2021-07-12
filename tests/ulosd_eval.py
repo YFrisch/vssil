@@ -42,6 +42,9 @@ ulosd_agent.eval_data_loader = eval_data_loader
 ulosd_agent.load_checkpoint("/home/yannik/ulosd_checkpoint.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_11_14_49/checkpoints/chckpt_e60.PTH")
 
+ulosd_agent.setup(ulosd_conf)
+exit()
+
 with torch.no_grad():
     for i, sample in enumerate(eval_data_loader):
         sample, _ = ulosd_agent.preprocess(sample, ulosd_conf)

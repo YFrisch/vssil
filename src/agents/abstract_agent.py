@@ -7,17 +7,19 @@ import shutil
 import time
 import gc
 
+import json
 import yaml
 from pathlib import Path
 from datetime import datetime, date
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split, SubsetRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import numpy as np
 from sklearn.model_selection import KFold
 
+from src.utils.json import pretty_json
 
 class AbstractAgent:
 
@@ -60,10 +62,8 @@ class AbstractAgent:
 
         print(f"##### Setting up {self.name} on {self.device}.")
 
-        year, month, day, hour, minute = datetime.now().year, datetime.now().month, datetime.now().day, \
-                                         datetime.now().hour, datetime.now().minute
-
-        self.log_dir = os.path.join(os.getcwd(), config['log_dir'] + f"/{year}_{month}_{day}_{hour}_{minute}/")
+        self.log_dir = os.path.join(os.getcwd(), config['log_dir'])
+        # self.log_dir = os.path.join(os.getcwd(), config['log_dir'] + f"/{year}_{month}_{day}_{hour}_{minute}/")
         if os.path.exists(self.log_dir) and os.path.isdir(self.log_dir):
             shutil.rmtree(self.log_dir)
 
@@ -73,7 +73,12 @@ class AbstractAgent:
             yaml.dump(config, config_file)
 
         self.writer = SummaryWriter(log_dir=self.log_dir)
+        # Add graph of model
+        # self.writer.add_graph(self.model)
+        # Add config dict
         # self.writer.add_hparams(config, {})
+        self.writer.add_text("parameters", pretty_json(config))
+        self.writer.flush()
 
         self.kfold = KFold(n_splits=config['training']['k_folds'], shuffle=True)
 
