@@ -9,20 +9,18 @@ from src.data.utils import combine_mime_hd_kinect_tasks
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.utils import play_video
 from src.utils.feature_visualization import make_annotated_tensor
+from src.utils.argparse import parse_arguments
 
-parser = argparse.ArgumentParser()
-parser.add_argument('config_path', metavar='CP', type=str, help='Path to config file.')
-parser.add_argument('data_path', metavar='DP', type=str, help='Base path to dataset.')
-args = parser.parse_args()
+args = parse_arguments()
 
-with open(args.config_path, 'r') as stream:
+with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
     ulosd_conf['device'] = 'cpu'
     ulosd_conf['data']['tasks'] = ['pull_one_hand']
 
 data_set = combine_mime_hd_kinect_tasks(
     task_list=ulosd_conf['data']['tasks'],
-    base_path=args.data_path,
+    base_path=args.data,
     # timesteps_per_sample=ulosd_conf['model']['n_frames'],
     timesteps_per_sample=-1,
     overlap=ulosd_conf['data']['overlap'],
@@ -41,9 +39,6 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 ulosd_agent.eval_data_loader = eval_data_loader
 ulosd_agent.load_checkpoint("/home/yannik/ulosd_checkpoint.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_11_14_49/checkpoints/chckpt_e60.PTH")
-
-ulosd_agent.setup(ulosd_conf)
-exit()
 
 with torch.no_grad():
     for i, sample in enumerate(eval_data_loader):
@@ -73,11 +68,13 @@ with torch.no_grad():
         print(f"Sample {i}\t Rec. loss: {rec_loss}\t Sep. loss: {sep_loss}\t L1 penalty: {l1_penalty}\t "
               f"L2 reg: {l2_kernel_reg}")
 
+        exit()
+
         np_samples = sample[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
         np_recs = reconstruction[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
         # play_video(sample[0, ...])
-        # play_video(reconstruction[0, ...])
-        play_video(annotated_reconstruction)
+        play_video(reconstruction[0, ...])
+        # play_video(annotated_reconstruction)
         fig, ax = plt.subplots(2, 1)
         ax[0].imshow(np_samples[0, ...])
         ax[1].imshow(np_recs[0, ...])

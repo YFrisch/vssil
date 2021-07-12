@@ -69,13 +69,16 @@ class ULOSD_Agent(AbstractAgent):
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """ Normalized L2 loss for image reconstruction
 
+            NOTE: PyTorch already averages across the first dimension by default (N).
+
         :param prediction: Sequence of predicted images in (N, T, C, H, W)
         :param target: Actual image sequence in (N, T, C, H, W)
         :return: Normalized L2 loss between prediction and target
         """
         N, T = target.shape[0], target.shape[1]
-        loss = F.mse_loss(input=prediction, target=target)
-        loss /= (N*T)
+        loss = F.mse_loss(input=prediction.view((N*T, *tuple(target.shape[2:]))),
+                          target=target.view((N*T, *tuple(target.shape[2:]))))
+        # loss /= (N*T)
         return loss
 
     def separation_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
@@ -107,22 +110,23 @@ class ULOSD_Agent(AbstractAgent):
         self.l2_reg_per_iter = []
         self.total_loss_per_iter = []
 
-    def log_values(self, fold: int, epoch: int):
+    def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
+        global_epoch = fold*epochs_per_fold + epoch
         avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
         avg_separation_loss = np.mean(self.sep_loss_per_iter)
         avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
         avg_l2_regularization = np.mean(self.l2_reg_per_iter)
         avg_total_loss = np.mean(self.total_loss_per_iter)
         self.writer.add_scalar(tag="train/reconstruction_loss",
-                               scalar_value=avg_reconstruction_loss, global_step=(fold + epoch))
+                               scalar_value=avg_reconstruction_loss, global_step=global_epoch)
         self.writer.add_scalar(tag="train/separation_loss",
-                               scalar_value=avg_separation_loss, global_step=(fold + epoch))
+                               scalar_value=avg_separation_loss, global_step=global_epoch)
         self.writer.add_scalar(tag="train/l1_activation_penalty",
-                               scalar_value=avg_l1_penalty, global_step=(fold + epoch))
+                               scalar_value=avg_l1_penalty, global_step=global_epoch)
         self.writer.add_scalar(tag="train/l2_kernel_regularization",
-                               scalar_value=avg_l2_regularization, global_step=(fold + epoch))
+                               scalar_value=avg_l2_regularization, global_step=global_epoch)
         self.writer.add_scalar(tag="train/total_loss",
-                               scalar_value=avg_total_loss, global_step=(fold + epoch))
+                               scalar_value=avg_total_loss, global_step=global_epoch)
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         """ One step of training.

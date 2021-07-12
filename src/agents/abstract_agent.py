@@ -21,6 +21,7 @@ from sklearn.model_selection import KFold
 
 from src.utils.json import pretty_json
 
+
 class AbstractAgent:
 
     def __init__(self,
@@ -103,9 +104,10 @@ class AbstractAgent:
         """ Resets all logged values (metrics, losses, ...). """
         self.loss_per_iter = []
 
-    def log_values(self, fold: int, epoch: int):
+    def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
+        global_epoch = fold*epochs_per_fold + epoch
         avg_loss = np.mean(self.loss_per_iter)
-        self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=(fold+epoch))
+        self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         raise NotImplementedError
@@ -122,9 +124,6 @@ class AbstractAgent:
 
         # Iterate over k-folds
         for fold, (train_ids, val_ids) in enumerate(self.kfold.split(self.data_set)):
-
-            print(f"##### Fold {fold}:")
-            time.sleep(0.01)
 
             # Define training and evaluation data
             self.train_data_loader = DataLoader(
@@ -143,9 +142,10 @@ class AbstractAgent:
             )
 
             # Iterate over epochs
-            for epoch in range(0, config['training']['epochs']):
+            epochs_per_fold = config['training']['epochs']
+            for epoch in range(epochs_per_fold):
 
-                print(f"##### Epoch {epoch}:")
+                print(f"##### Fold {fold} Epoch {epoch}:")
                 time.sleep(0.01)
 
                 self.model.train()
@@ -175,7 +175,7 @@ class AbstractAgent:
                 avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
 
-                self.log_values(fold=fold, epoch=epoch)
+                self.log_values(fold=fold, epoch=epoch, epochs_per_fold=epochs_per_fold)
 
                 # Validate
                 if not epoch % config['validation']['freq']:
@@ -218,7 +218,9 @@ class AbstractAgent:
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         avg_loss = np.mean(loss_per_sample)
-        self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=training_fold + training_epoch)
+        epochs_per_fold = config['training']['epochs']
+        global_epoch = training_fold * epochs_per_fold + training_epoch
+        self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=global_epoch)
         print("##### Average loss:", avg_loss)
         print("\n")
         time.sleep(0.1)
