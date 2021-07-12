@@ -1,13 +1,10 @@
 import yaml
-import argparse
 
 from src.data.mime.mime_hd_kinect_dataset import MimeHDKinectRGB
 from src.agents.tcn_agent import TCN_Agent
+from src.utils.argparse import parse_arguments
 
-parser = argparse.ArgumentParser()
-parser.add_argument('config_path', metavar='CP', type=str, help='Path to config file.')
-parser.add_argument('data_path', metavar='DP', type=str, help='Base path to dataset.')
-args = parser.parse_args()
+args = parse_arguments()
 
 with open(args.config_path, 'r') as stream:
     tcn_conf = yaml.safe_load(stream)

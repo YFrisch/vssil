@@ -1,14 +1,11 @@
 """ This script is used to test the agent class for the Deep Spatial Auto-Encoder."""
 import yaml
-import argparse
 
 from src.agents.deep_spatial_ae_agent import SpatialAEAgent
 from src.data.mime import MimeHDKinectRGB
+from src.utils.argparse import parse_arguments
 
-parser = argparse.ArgumentParser()
-parser.add_argument('config_path', metavar='CP', type=str, help='Path to config file.')
-parser.add_argument('data_path', metavar='DP', type=str, help='Base path to dataset.')
-args = parser.parse_args()
+args = parse_arguments()
 
 with open(args.config_path, 'r') as stream:
     dsae_conf = yaml.safe_load(stream)
