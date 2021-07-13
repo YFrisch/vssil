@@ -220,7 +220,6 @@ class ULOSD(nn.Module):
         :param keypoint_sequence: Key-point sequence in (N, T, C, 3)
         """
 
-        # TODO num_timesteps =
         T = keypoint_sequence.shape[1]
         C = keypoint_sequence.shape[2]
         key_points_shape = (T, C, 3)
@@ -254,8 +253,6 @@ class ULOSD(nn.Module):
 
         # Stack time-steps
         reconstructed_images = torch.stack(image_list, dim=1).to(self.device)
-
-        # TODO: Add first frame as in the google code
 
         assert reconstructed_images.ndim == 5
         return reconstructed_images
