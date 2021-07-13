@@ -61,7 +61,11 @@ class AbstractAgent:
     def setup(self, config: dict = None):
         """ Sets up all relevant attributes for training and logging results. """
 
-        print(f"##### Setting up {self.name} on {self.device}.")
+        if torch.cuda.device_count() > 1:
+            print(f"##### Setting up {self.name} on {torch.cuda.device_count()} gpus.")
+            self.model = torch.nn.DataParallel(self.model)
+        else:
+            print(f"##### Setting up {self.name} on {self.device}.")
 
         self.log_dir = os.path.join(os.getcwd(), config['log_dir'])
         # self.log_dir = os.path.join(os.getcwd(), config['log_dir'] + f"/{year}_{month}_{day}_{hour}_{minute}/")
