@@ -16,7 +16,7 @@ args = parse_arguments()
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
     ulosd_conf['device'] = 'cpu'
-    ulosd_conf['data']['tasks'] = ['pull_one_hand']
+    ulosd_conf['data']['tasks'] = ['stir']
 
 data_set = combine_mime_hd_kinect_tasks(
     task_list=ulosd_conf['data']['tasks'],
@@ -38,7 +38,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 
 ulosd_agent.eval_data_loader = eval_data_loader
 ulosd_agent.load_checkpoint("/home/yannik/ulosd_checkpoint.PTH")
-# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_11_14_49/checkpoints/chckpt_e60.PTH")
+# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_12_20_18/checkpoints/chckpt_f3_e20.PTH")
 
 with torch.no_grad():
     for i, sample in enumerate(eval_data_loader):
@@ -67,8 +67,6 @@ with torch.no_grad():
 
         print(f"Sample {i}\t Rec. loss: {rec_loss}\t Sep. loss: {sep_loss}\t L1 penalty: {l1_penalty}\t "
               f"L2 reg: {l2_kernel_reg}")
-
-        exit()
 
         np_samples = sample[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
         np_recs = reconstruction[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5

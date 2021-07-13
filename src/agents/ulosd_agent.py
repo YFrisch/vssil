@@ -104,6 +104,7 @@ class ULOSD_Agent(AbstractAgent):
         return config['training']['l2_kernel_reg_lambda'] * l2_reg
 
     def reset_logged_values(self):
+        super(ULOSD_Agent, self).reset_logged_values()
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
         self.l1_penalty_per_iter = []

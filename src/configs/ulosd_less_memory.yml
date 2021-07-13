@@ -3,14 +3,14 @@ data:
   timesteps_per_sample: 8
   overlap: 3
   img_shape: (64, 64)
-  num_workers: 4
+  num_workers: 2
 
 model:
   n_frames: 8
-  n_feature_maps: 16
+  n_feature_maps: 32
   feature_map_width: 16
   feature_map_height: 16
-  feature_map_regularization: 5.0
+  feature_map_regularization: 2.0
   n_init_filters: 32
   n_convolutions_per_res: 2
   conv_kernel_size: 3
@@ -19,19 +19,19 @@ model:
   dense_init: 'he_uniform'
 
 training:
-  k_folds: 4
-  epochs: 30
+  k_folds: 3
+  epochs: 100
   steps_per_epoch: 50  # 100
   lr: 0.0005
-  clip_norm: 10
+  clip_norm: 5
   l2_kernel_reg_lambda: 0.0001
-  batch_size: 2  # 32
-  separation_loss_scale: 10.0
+  batch_size: 4  # 32
+  separation_loss_scale: 5.0
   separation_loss_sigma: 0.2
 
 validation:
   freq: 10
-  batch_size: 2  # 32
+  batch_size: 4  # 32
 
 evaluation:
 
