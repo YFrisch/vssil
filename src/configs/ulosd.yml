@@ -38,5 +38,5 @@ validation:
 evaluation:
 
 device: 'cuda:0'
-multi_gpu: true
+multi_gpu: True
 log_dir: "results/ulosd"

@@ -38,10 +38,10 @@ class ULOSD_Agent(AbstractAgent):
             input_shape=input_shape,
             config=config
         ).to(self.device)
-        if config['multi_gpu']:
+        if config['multi_gpu'] is True:
             self.model = ULOSD_Parallel(self.model)
 
-        self.reset_optim_and_scheduler(config=config)
+        # self.reset_optim_and_scheduler(config=config)
 
         # Logged values
         self.rec_loss_per_iter = []

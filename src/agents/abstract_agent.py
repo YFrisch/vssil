@@ -88,6 +88,8 @@ class AbstractAgent:
 
         self.kfold = KFold(n_splits=config['training']['k_folds'], shuffle=True)
 
+        self.reset_optim_and_scheduler(config=config)
+
         self.is_setup = True
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
