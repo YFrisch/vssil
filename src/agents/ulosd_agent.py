@@ -38,8 +38,10 @@ class ULOSD_Agent(AbstractAgent):
             input_shape=input_shape,
             config=config
         ).to(self.device)
-        if config['multi_gpu'] is True:
+
+        if eval(config['multi_gpu']) is True:
             self.model = ULOSD_Parallel(self.model)
+            self.model.to(self.device)
 
         # self.reset_optim_and_scheduler(config=config)
 

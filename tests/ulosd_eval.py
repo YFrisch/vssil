@@ -12,12 +12,12 @@ from src.utils.feature_visualization import make_annotated_tensor
 from src.utils.argparse import parse_arguments
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd/%A_%a/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd/2021_7_14_13_10/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
     ulosd_conf['device'] = 'cpu'
-    ulosd_conf['multi_gpu'] = 'False'
+    ulosd_conf['multi_gpu'] = 'True'
     ulosd_conf['data']['tasks'] = ['stir']
 
 data_set = combine_mime_hd_kinect_tasks(
@@ -35,13 +35,16 @@ eval_data_loader = DataLoader(
     shuffle=True
 )
 
+
 ulosd_agent = ULOSD_Agent(dataset=data_set,
                           config=ulosd_conf)
 
 ulosd_agent.eval_data_loader = eval_data_loader
 # ulosd_agent.load_checkpoint("/home/yannik/ulosd_checkpoint.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/%A_%a/checkpoints/chckpt_f2_e20.PTH")
+# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/%A_%a/checkpoints/chckpt_f2_e20.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f1_e20.PTH")
 
+print("##### Evaluating:")
 with torch.no_grad():
     for i, sample in enumerate(eval_data_loader):
         sample, _ = ulosd_agent.preprocess(sample, ulosd_conf)

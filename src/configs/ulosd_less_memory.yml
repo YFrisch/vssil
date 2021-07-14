@@ -2,14 +2,14 @@ data:
   tasks: ['stir', 'pour', 'pass', 'place_in_box']
   timesteps_per_sample: 8
   overlap: 3
-  img_shape: (64, 64)
+  img_shape: (120, 120)
   num_workers: 2
 
 model:
-  n_frames: 8
+  n_frames: 16
   n_feature_maps: 16
-  feature_map_width: 16
-  feature_map_height: 16
+  feature_map_width: 30
+  feature_map_height: 30
   feature_map_regularization: 2.0
   n_init_filters: 32
   n_convolutions_per_res: 2
@@ -22,9 +22,9 @@ training:
   k_folds: 3
   epochs: 50
   steps_per_epoch: 50  # 100
-  lr: 0.0005
-  initial_lr: 0.001
-  min_lr: 0.0001
+  lr: 0.0001
+  initial_lr: 0.0001
+  min_lr: 0.00001
   clip_norm: 5
   l2_kernel_reg_lambda: 0.0001
   batch_size: 4  # 32

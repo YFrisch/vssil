@@ -282,6 +282,9 @@ class ULOSD_Parallel(nn.DataParallel):
         except AttributeError:
             return getattr(self.module, name)
 
+    def load_state_dict(self, state_dict, strict=True):
+        super(ULOSD_Parallel, self).load_state_dict(state_dict, strict)
+
     def encode(self, image_sequence: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         return self.module.encode(image_sequence)
 
