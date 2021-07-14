@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 import numpy as np
 
-from src.models.ulosd import ULOSD
+from src.models.ulosd import ULOSD, ULOSD_Parallel
 from src.losses.temporal_separation_loss import temporal_separation_loss
 from .abstract_agent import AbstractAgent
 
@@ -38,11 +38,10 @@ class ULOSD_Agent(AbstractAgent):
             input_shape=input_shape,
             config=config
         ).to(self.device)
+        if config['multi_gpu']:
+            self.model = ULOSD_Parallel(self.model)
 
-        self.optim = torch.optim.Adam(
-            params=self.model.parameters(),
-            lr=config['training']['lr']
-        )
+        self.reset_optim_and_scheduler(config=config)
 
         # Logged values
         self.rec_loss_per_iter = []
@@ -128,6 +127,19 @@ class ULOSD_Agent(AbstractAgent):
                                scalar_value=avg_l2_regularization, global_step=global_epoch)
         self.writer.add_scalar(tag="train/total_loss",
                                scalar_value=avg_total_loss, global_step=global_epoch)
+
+    def reset_optim_and_scheduler(self, config: dict):
+
+        self.optim = torch.optim.Adam(
+            params=self.model.parameters(),
+            lr=config['training']['initial_lr']
+        )
+
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=self.optim,
+            T_max=config['training']['epochs'],
+            eta_min=config['training']['min_lr']
+        )
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         """ One step of training.

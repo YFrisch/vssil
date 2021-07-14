@@ -271,3 +271,27 @@ class ULOSD(nn.Module):
         return reconstructed_images
 
 
+class ULOSD_Parallel(nn.DataParallel):
+
+    def __init__(self, module, device_ids=None, output_device=None, dim=0):
+        super(ULOSD_Parallel, self).__init__(module, device_ids=device_ids, output_device=output_device, dim=dim)
+
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
+    def encode(self, image_sequence: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+        return self.module.encode(image_sequence)
+
+    def decode(self, keypoint_sequence: torch.Tensor, first_frame: torch.Tensor) -> torch.Tensor:
+        return self.module.decode(keypoint_sequence, first_frame)
+
+    def init_weights(self, m: torch.nn.Module):
+        return self.module.init_weights(m)
+
+    def forward(self, image_sequence: torch.Tensor) -> torch.Tensor:
+        return self.module(image_sequence)
+
+

@@ -48,6 +48,8 @@ class AbstractAgent:
 
         self.best_val_loss = None
 
+        self.uses_multiple_gpus = False
+
         self.is_setup = False
 
         # Logged values, losses, metrics, etc.
@@ -61,9 +63,8 @@ class AbstractAgent:
     def setup(self, config: dict = None):
         """ Sets up all relevant attributes for training and logging results. """
 
-        if torch.cuda.device_count() > 1:
+        if torch.cuda.device_count() >= 1 and config['multi_gpu']:
             print(f"##### Setting up {self.name} on {torch.cuda.device_count()} gpus.")
-            self.model = torch.nn.DataParallel(self.model)
         else:
             print(f"##### Setting up {self.name} on {self.device}.")
 
@@ -112,6 +113,9 @@ class AbstractAgent:
         global_epoch = fold*epochs_per_fold + epoch
         avg_loss = np.mean(self.loss_per_iter)
         self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
+
+    def reset_optim_and_scheduler(self, config: dict):
+        raise NotImplementedError
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         raise NotImplementedError
@@ -180,12 +184,23 @@ class AbstractAgent:
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
 
                 self.log_values(fold=fold, epoch=epoch, epochs_per_fold=epochs_per_fold)
+                for param_group in self.optim.param_groups:
+                    self.writer.add_scalar(tag="train/lr",
+                                           scalar_value=param_group['lr'],
+                                           global_step=fold*epochs_per_fold + epoch)
 
                 # Validate
                 if not epoch % config['validation']['freq']:
                     self.validate(training_fold=fold, training_epoch=epoch, config=config)
 
                 sys.stdout.flush()
+
+                if self.scheduler is not None:
+                    self.scheduler.step()
+
+            # Reset scheduler for each fold
+            if self.scheduler is not None:
+                self.reset_optim_and_scheduler(config)
 
     def validation_loss(self,
                         sample: torch.Tensor,
