@@ -191,7 +191,8 @@ class ULOSD_Agent(AbstractAgent):
         self.sep_loss_per_iter.append(separation_loss.detach().cpu().numpy())
 
         # feature-map (L1) regularization of the activations of the last layer
-        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+        # l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+        l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
         self.l1_penalty_per_iter.append(l1_penalty.detach().cpu().numpy())
 
         l2_kernel_reg = self.l2_kernel_regularization(config=config)
