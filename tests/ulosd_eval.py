@@ -11,7 +11,6 @@ from src.data.utils import play_video
 from src.utils.feature_visualization import make_annotated_tensor, play_series_with_keypoints,\
     play_series_and_reconstruction_with_keypoints
 from src.utils.argparse import parse_arguments
-from src.losses.inception_net_encoding_loss import inception_encoding_loss
 
 args = parse_arguments()
 args.config = "/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/config.yml"
@@ -45,7 +44,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 
 ulosd_agent.eval_data_loader = eval_data_loader
 # ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/checkpoints/chckpt_f0_e30.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/checkpoints/chckpt_f2_e0.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
 
 print("##### Evaluating:")
@@ -64,7 +63,6 @@ with torch.no_grad():
         print(ulosd_agent.key_point_sparsity_loss(keypoint_coordinates=key_points, config=ulosd_conf))
         print(ulosd_agent.l1_activation_penalty(feature_maps=feature_maps, config=ulosd_conf))
         print(ulosd_agent.loss_func(prediction=reconstruction, target=sample))
-        exit()
 
         annotated_reconstruction = make_annotated_tensor(image_series=reconstruction[0, ...],
                                                          feature_positions=key_points[0, ...])
@@ -85,7 +83,7 @@ with torch.no_grad():
         np_samples = sample[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
         np_recs = reconstruction[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
         # play_video(sample[0, ...])
-        play_video(reconstruction[0, ...])
+        play_video(reconstruction[0, ...] + 0.5)
         # play_video(annotated_reconstruction)
         fig, ax = plt.subplots(2, 1)
         ax[0].imshow(np_samples[0, ...])
