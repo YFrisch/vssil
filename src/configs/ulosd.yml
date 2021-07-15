@@ -17,6 +17,7 @@ model:
   conv_kernel_regularization: 1e-4
   conv_init: 'he_uniform'
   dense_init: 'he_uniform'
+  inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
 training:
   k_folds: 3

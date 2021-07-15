@@ -8,23 +8,27 @@ import matplotlib.pyplot as plt
 from src.data.utils import combine_mime_hd_kinect_tasks
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.utils import play_video
-from src.utils.feature_visualization import make_annotated_tensor
+from src.utils.feature_visualization import make_annotated_tensor, play_series_with_keypoints,\
+    play_series_and_reconstruction_with_keypoints
 from src.utils.argparse import parse_arguments
+from src.losses.inception_net_encoding_loss import inception_encoding_loss
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd/2021_7_14_13_10/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
     ulosd_conf['device'] = 'cpu'
-    ulosd_conf['multi_gpu'] = 'True'
-    ulosd_conf['data']['tasks'] = ['stir']
+    ulosd_conf['multi_gpu'] = True
+    ulosd_conf['data']['tasks'] = ['pour']
+    ulosd_conf['model']['inception_url'] = 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
 data_set = combine_mime_hd_kinect_tasks(
     task_list=ulosd_conf['data']['tasks'],
     base_path=args.data,
     # timesteps_per_sample=ulosd_conf['model']['n_frames'],
     timesteps_per_sample=-1,
+    # timesteps_per_sample=40,
     overlap=ulosd_conf['data']['overlap'],
     img_shape=eval(ulosd_conf['data']['img_shape'])
 )
@@ -40,9 +44,9 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
                           config=ulosd_conf)
 
 ulosd_agent.eval_data_loader = eval_data_loader
-# ulosd_agent.load_checkpoint("/home/yannik/ulosd_checkpoint.PTH")
-# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/%A_%a/checkpoints/chckpt_f2_e20.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f1_e20.PTH")
+# ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/checkpoints/chckpt_f0_e30.PTH")
+# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
 
 print("##### Evaluating:")
 with torch.no_grad():
@@ -51,16 +55,21 @@ with torch.no_grad():
 
         feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)
 
-        print(key_points)
-
+        # play_series_with_keypoints(sample + 0.5, keypoint_coords=key_points)
         reconstruction = ulosd_agent.model(sample)
+        reconstruction = torch.clip(reconstruction, -0.5, 0.5)
+
+        # play_series_and_reconstruction_with_keypoints(sample + 0.5, reconstruction + 0.5, key_points)
+
+        print(ulosd_agent.key_point_sparsity_loss(keypoint_coordinates=key_points, config=ulosd_conf))
+        print(ulosd_agent.l1_activation_penalty(feature_maps=feature_maps, config=ulosd_conf))
+        print(ulosd_agent.loss_func(prediction=reconstruction, target=sample))
+        exit()
+
         annotated_reconstruction = make_annotated_tensor(image_series=reconstruction[0, ...],
                                                          feature_positions=key_points[0, ...])
         annotated_sample = make_annotated_tensor(image_series=sample[0, ...],
                                                  feature_positions=key_points[0, ...])
-
-        print(reconstruction.min())
-        print(reconstruction.max())
 
         rec_loss = ulosd_agent.loss_func(prediction=reconstruction, target=sample)
 

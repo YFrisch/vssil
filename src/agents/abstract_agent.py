@@ -60,6 +60,11 @@ class AbstractAgent:
         self.optim = None
         self.scheduler = None  # TODO: Not used yet
 
+    def warm_start(self, config: dict):
+        """ Loads a model checkpoint specified in the config dict. """
+        print(f"##### Loading checkpoint {config['warm_start_checkpoint']}.")
+        self.load_checkpoint(config['warm_start_checkpoint'])
+
     def setup(self, config: dict = None):
         """ Sets up all relevant attributes for training and logging results. """
 
@@ -89,6 +94,9 @@ class AbstractAgent:
         self.kfold = KFold(n_splits=config['training']['k_folds'], shuffle=True)
 
         self.reset_optim_and_scheduler(config=config)
+
+        if config['warm_start'] is True:
+            self.warm_start(config=config)
 
         self.is_setup = True
 

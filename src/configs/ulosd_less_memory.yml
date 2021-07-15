@@ -39,4 +39,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: True
+warm_start: True
+warm_start_config: "/home/yannik/vssil/results/ulosd/2021_7_14_13_10/config.yml"
+warm_start_checkpoint: "/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH"
 log_dir: "results/ulosd"

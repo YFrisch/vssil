@@ -1,0 +1,2 @@
+from .temporal_separation_loss import temporal_separation_loss
+from .inception_net_encoding_loss import inception_encoding_loss

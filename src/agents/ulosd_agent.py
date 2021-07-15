@@ -5,7 +5,9 @@ from torch.utils.data import Dataset
 import numpy as np
 
 from src.models.ulosd import ULOSD, ULOSD_Parallel
-from src.losses.temporal_separation_loss import temporal_separation_loss
+from src.models.inception3 import CustomInception3
+from src.models.utils import load_inception_weights
+from src.losses import temporal_separation_loss, inception_encoding_loss
 from .abstract_agent import AbstractAgent
 
 
@@ -39,7 +41,10 @@ class ULOSD_Agent(AbstractAgent):
             config=config
         ).to(self.device)
 
-        if eval(config['multi_gpu']) is True:
+        self.inception_net = CustomInception3()
+        load_inception_weights(self.inception_net, config)
+
+        if config['multi_gpu'] is True and torch.cuda.device_count() >= 1:
             self.model = ULOSD_Parallel(self.model)
             self.model.to(self.device)
 
@@ -67,20 +72,27 @@ class ULOSD_Agent(AbstractAgent):
         x = x - 0.5
         return x, x
 
+    """
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        """ Normalized L2 loss for image reconstruction
+        ''' Normalized L2 loss (MSE) for image reconstruction
 
             NOTE: PyTorch already averages across the first dimension by default (N).
 
         :param prediction: Sequence of predicted images in (N, T, C, H, W)
         :param target: Actual image sequence in (N, T, C, H, W)
         :return: Normalized L2 loss between prediction and target
-        """
+        '''
         N, T = target.shape[0], target.shape[1]
         loss = F.mse_loss(input=prediction.view((N*T, *tuple(target.shape[2:]))),
                           target=target.view((N*T, *tuple(target.shape[2:]))))
         # loss /= (N*T)
         return loss
+    """
+
+    def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return inception_encoding_loss(inception_net=self.inception_net,
+                                       prediction=prediction,
+                                       target=target)
 
     def separation_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         return temporal_separation_loss(cfg=config, coords=keypoint_coordinates)
@@ -90,6 +102,11 @@ class ULOSD_Agent(AbstractAgent):
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
         penalty = torch.mean(torch.abs(feature_map_mean))
         return config['model']['feature_map_regularization'] * penalty
+
+    def key_point_sparsity_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
+        key_point_scales = keypoint_coordinates[..., 2]
+        loss = torch.mean(torch.sum(torch.abs(key_point_scales), dim=2), dim=[0, 1])
+        return config['model']['feature_map_regularization'] * loss
 
     def l2_kernel_regularization(self, config: dict) -> torch.Tensor:
 
@@ -158,6 +175,7 @@ class ULOSD_Agent(AbstractAgent):
         # Vision model
         feature_maps, observed_key_points = self.model.encode(sample)
         reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+        reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
 
         # Dynamics model
         # TODO: Not used yet
@@ -208,6 +226,7 @@ class ULOSD_Agent(AbstractAgent):
 
         feature_maps, observed_key_points = self.model.encode(sample)
         reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+        reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
 
         # Dynamics model
         # TODO: Not used yet

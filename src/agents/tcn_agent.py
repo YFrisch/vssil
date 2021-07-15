@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from torch.optim import Adam
 
 from src.models.time_contrastive_network import TimeContrastiveNetwork
+from src.models.utils import load_inception_weights
 from .abstract_agent import AbstractAgent
 
 
@@ -40,7 +41,7 @@ class TCN_Agent(AbstractAgent):
         self.optim = Adam(params=self.model.parameters(),
                           lr=config['training']['lr'])
 
-        self.model.load_inception_weights(config=config)
+        load_inception_weights(inception_net=self.model.inception_net, config=config)
 
     def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
         """ Create a triplet loss tuple from the sample.

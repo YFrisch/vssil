@@ -8,7 +8,12 @@ args = parse_arguments()
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
-    ulosd_conf['log_dir'] = ulosd_conf['log_dir']+f"/{args.id}/"
+    if ulosd_conf['warm_start']:
+        with open(ulosd_conf['warm_start_config'], 'r') as stream2:
+            old_conf = yaml.safe_load(stream2)
+            ulosd_conf['log_dir'] = old_conf['log_dir'][:-1] + "_resume/"
+    else:
+        ulosd_conf['log_dir'] = ulosd_conf['log_dir']+f"/{args.id}/"
     print(ulosd_conf['log_dir'])
 
 data_set = combine_mime_hd_kinect_tasks(
