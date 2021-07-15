@@ -41,7 +41,7 @@ class ULOSD_Agent(AbstractAgent):
             config=config
         ).to(self.device)
 
-        self.inception_net = CustomInception3()
+        self.inception_net = CustomInception3().to(self.device)
         load_inception_weights(self.inception_net, config)
 
         if config['multi_gpu'] is True and torch.cuda.device_count() >= 1:
