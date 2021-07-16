@@ -68,7 +68,7 @@ class AbstractAgent:
     def setup(self, config: dict = None):
         """ Sets up all relevant attributes for training and logging results. """
 
-        if torch.cuda.device_count() > 1 and eval(config['multi_gpu']):
+        if torch.cuda.device_count() > 1 and config['multi_gpu']:
             print(f"##### Setting up {self.name} on {torch.cuda.device_count()} gpus.")
         else:
             print(f"##### Setting up {self.name} on {self.device}.")
