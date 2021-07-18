@@ -73,6 +73,9 @@ class AbstractAgent:
         else:
             print(f"##### Setting up {self.name} on {self.device}.")
 
+        if torch.cuda.is_available():
+            config['used_gpus'] = str([torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())])
+
         self.log_dir = os.path.join(os.getcwd(), config['log_dir'])
         # self.log_dir = os.path.join(os.getcwd(), config['log_dir'] + f"/{year}_{month}_{day}_{hour}_{minute}/")
         if os.path.exists(self.log_dir) and os.path.isdir(self.log_dir):

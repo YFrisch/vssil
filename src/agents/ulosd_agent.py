@@ -101,12 +101,12 @@ class ULOSD_Agent(AbstractAgent):
         # return config['model']['feature_map_regularization'] * torch.norm(feature_maps, p=1)
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
         penalty = torch.mean(torch.abs(feature_map_mean))
-        return config['model']['feature_map_regularization'] * penalty
+        return config['training']['feature_map_regularization'] * penalty
 
     def key_point_sparsity_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         key_point_scales = keypoint_coordinates[..., 2]
         loss = torch.mean(torch.sum(torch.abs(key_point_scales), dim=2), dim=[0, 1])
-        return config['model']['feature_map_regularization'] * loss
+        return config['training']['feature_map_regularization'] * loss
 
     def l2_kernel_regularization(self, config: dict) -> torch.Tensor:
 
@@ -191,8 +191,8 @@ class ULOSD_Agent(AbstractAgent):
         self.sep_loss_per_iter.append(separation_loss.detach().cpu().numpy())
 
         # feature-map (L1) regularization of the activations of the last layer
-        # l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
-        l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
+        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+        # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
         self.l1_penalty_per_iter.append(l1_penalty.detach().cpu().numpy())
 
         l2_kernel_reg = self.l2_kernel_regularization(config=config)

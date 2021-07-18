@@ -13,13 +13,13 @@ from src.utils.feature_visualization import make_annotated_tensor, play_series_w
 from src.utils.argparse import parse_arguments
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd/19489075/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
     ulosd_conf['device'] = 'cpu'
     ulosd_conf['multi_gpu'] = True
-    ulosd_conf['data']['tasks'] = ['pour']
+    ulosd_conf['data']['tasks'] = ['stir']
     ulosd_conf['model']['inception_url'] = 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
 data_set = combine_mime_hd_kinect_tasks(
@@ -44,7 +44,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 
 ulosd_agent.eval_data_loader = eval_data_loader
 # ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10_resume/checkpoints/chckpt_f2_e0.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/19489075/checkpoints/chckpt_f5_e20.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
 
 print("##### Evaluating:")
@@ -58,7 +58,7 @@ with torch.no_grad():
         reconstruction = ulosd_agent.model(sample)
         reconstruction = torch.clip(reconstruction, -0.5, 0.5)
 
-        # play_series_and_reconstruction_with_keypoints(sample + 0.5, reconstruction + 0.5, key_points)
+        play_series_and_reconstruction_with_keypoints(sample + 0.5, reconstruction + 0.5, key_points)
 
         print(ulosd_agent.key_point_sparsity_loss(keypoint_coordinates=key_points, config=ulosd_conf))
         print(ulosd_agent.l1_activation_penalty(feature_maps=feature_maps, config=ulosd_conf))

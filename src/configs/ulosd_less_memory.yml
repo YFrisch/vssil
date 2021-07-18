@@ -1,35 +1,34 @@
 data:
-  tasks: ['stir', 'pour', 'pass', 'place_in_box']
+  tasks: ['stir', 'pour', 'pass', 'bottle', 'pull_one_hand', 'stack', 'press_buttons', 'push', 'rotate', 'close_book', 'pick_one_hand']
   timesteps_per_sample: 8
   overlap: 3
-  img_shape: (120, 120)
+  img_shape: (64, 64)
   num_workers: 2
 
 model:
   n_frames: 16
   n_feature_maps: 16
-  feature_map_width: 30
-  feature_map_height: 30
-  feature_map_regularization: 2.0
+  feature_map_width: 16
+  feature_map_height: 16
   n_init_filters: 32
   n_convolutions_per_res: 2
   conv_kernel_size: 3
-  conv_kernel_regularization: 0.001
   conv_init: 'he_uniform'
   dense_init: 'he_uniform'
   inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
 training:
-  k_folds: 3
-  epochs: 50
-  steps_per_epoch: 50  # 100
-  lr: 0.0001
+  k_folds: 10
+  epochs: 30
+  steps_per_epoch: 100  # 100
+  lr: 0.001
   initial_lr: 0.0001
   min_lr: 0.00001
-  clip_norm: 5
+  clip_norm: 10
   l2_kernel_reg_lambda: 0.0001
+  feature_map_regularization: 5.0
   batch_size: 4  # 32
-  separation_loss_scale: 1.0
+  separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
 
 validation:
@@ -40,7 +39,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: True
-warm_start: True
+warm_start: False
 warm_start_config: "/home/yannik/vssil/results/ulosd/2021_7_14_13_10/config.yml"
 warm_start_checkpoint: "/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH"
 log_dir: "results/ulosd"
