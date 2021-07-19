@@ -22,17 +22,17 @@ training:
   epochs: 100
   steps_per_epoch: 100  # 100
   optim: 'Adam'
+  l2_weight_decay: 0.0001
+  feature_map_regularization: 5.0
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 30
   initial_lr: 0.0001
   min_lr: 0.00001
   clip_norm: 10
   batch_size: 4  # 32
+  reconstruction_loss: 'Inception'
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
-  l2_weight_decay: 0.0001
-  feature_map_regularization: 5.0
-
 
 validation:
   freq: 10

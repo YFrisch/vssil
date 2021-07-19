@@ -104,10 +104,15 @@ class AbstractAgent:
 
         self.is_setup = True
 
-    def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def loss_func(self,
+                  prediction: torch.Tensor,
+                  target: torch.Tensor,
+                  config: dict) -> torch.Tensor:
         raise NotImplementedError
 
-    def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
+    def preprocess(self,
+                   x: torch.Tensor,
+                   config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
         """ Pre-process samples. """
         return x
 
@@ -123,7 +128,10 @@ class AbstractAgent:
         """ Resets all logged values (metrics, losses, ...). """
         self.loss_per_iter = []
 
-    def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
+    def log_values(self,
+                   fold: int,
+                   epoch: int,
+                   epochs_per_fold: int):
         global_epoch = fold * epochs_per_fold + epoch
         avg_loss = np.mean(self.loss_per_iter)
         self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
@@ -250,7 +258,10 @@ class AbstractAgent:
             if self.scheduler is not None:
                 self.reset_optim_and_scheduler(config)
 
-    def validate(self, training_fold: int, training_epoch: int, config: dict = None):
+    def validate(self,
+                 training_fold: int,
+                 training_epoch: int,
+                 config: dict = None):
 
         print("##### Validating:")
         time.sleep(0.1)
@@ -314,7 +325,7 @@ class AbstractAgent:
 
                 prediction = self.model(sample)
 
-                sample_loss = self.loss_func(prediction, target)
+                sample_loss = self.loss_func(prediction, target, config=config)
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         print("##### Average loss:", np.mean(loss_per_sample))

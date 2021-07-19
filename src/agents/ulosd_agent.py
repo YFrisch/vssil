@@ -69,27 +69,43 @@ class ULOSD_Agent(AbstractAgent):
         x = x - 0.5
         return x, x
 
-    """
-    def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        ''' Normalized L2 loss (MSE) for image reconstruction
+    def loss_func(self,
+                  prediction: torch.Tensor,
+                  target: torch.Tensor,
+                  config: dict) -> torch.Tensor:
+        """ Loss for image reconstruction.
+
+            Either uses the (normalized) L2 MSE as in
+            ...TODO
+            or passes the original image and the reconstruction trough a port
+            of a pretrained inception net and calculates the loss on that encoding
+            as in
+            ...TODO
 
             NOTE: PyTorch already averages across the first dimension by default (N).
 
         :param prediction: Sequence of predicted images in (N, T, C, H, W)
         :param target: Actual image sequence in (N, T, C, H, W)
-        :return: Normalized L2 loss between prediction and target
-        '''
-        N, T = target.shape[0], target.shape[1]
-        loss = F.mse_loss(input=prediction.view((N*T, *tuple(target.shape[2:]))),
-                          target=target.view((N*T, *tuple(target.shape[2:]))))
-        # loss /= (N*T)
-        return loss
-    """
+        :param config: Config dictionary
+        :return: Reconstruction loss between prediction and target
+        """
+        rec_loss = config['training']['reconstruction_loss']
+        assert rec_loss in ['mse', 'MSE', 'Inception', 'inception']
 
-    def loss_func(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return inception_encoding_loss(inception_net=self.inception_net,
-                                       prediction=prediction,
-                                       target=target)
+        loss = None
+
+        if rec_loss in ['mse', 'MSE']:
+            N, T = target.shape[0], target.shape[1]
+            loss = F.mse_loss(input=prediction.view((N * T, *tuple(target.shape[2:]))),
+                              target=target.view((N * T, *tuple(target.shape[2:]))))
+            # loss /= (N*T)
+
+        if rec_loss in ['Inception', 'inception', 'INCEPTION']:
+            loss = inception_encoding_loss(inception_net=self.inception_net,
+                                           prediction=prediction,
+                                           target=target)
+
+        return loss
 
     def separation_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         separation_loss_scale = config['training']['separation_loss_scale']
@@ -113,9 +129,9 @@ class ULOSD_Agent(AbstractAgent):
         for p_name, param in self.model.named_parameters():
             if ".weight" in p_name:
                 if l2_reg is None:
-                    l2_reg = param.norm(2)**2
+                    l2_reg = param.norm(2) ** 2
                 else:
-                    l2_reg += param.norm(2)**2
+                    l2_reg += param.norm(2) ** 2
 
         return config['training']['l2_kernel_reg_lambda'] * l2_reg
 
@@ -127,7 +143,7 @@ class ULOSD_Agent(AbstractAgent):
         self.total_loss_per_iter = []
 
     def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
-        global_epoch = fold*epochs_per_fold + epoch
+        global_epoch = fold * epochs_per_fold + epoch
         avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
         avg_separation_loss = np.mean(self.sep_loss_per_iter)
         avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
@@ -192,7 +208,7 @@ class ULOSD_Agent(AbstractAgent):
         kl_loss *= kl_loss_scale
 
         # total loss
-        L = reconstruction_loss + separation_loss + l1_penalty +\
+        L = reconstruction_loss + separation_loss + l1_penalty + \
             + coord_pred_loss + kl_loss
 
         # Log values and backprop. during training
