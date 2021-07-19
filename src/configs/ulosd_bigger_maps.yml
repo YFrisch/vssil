@@ -10,7 +10,6 @@ model:
   n_feature_maps: 64
   feature_map_width: 20
   feature_map_height: 20
-  feature_map_regularization: 5.0
   n_init_filters: 32
   n_convolutions_per_res: 2
   conv_kernel_size: 3
@@ -23,14 +22,17 @@ training:
   k_folds: 3
   epochs: 100
   steps_per_epoch: 100  # 100
-  lr: 0.001
+  optim: 'Adam'
+  lr_scheduler: 'StepLR'
+  lr_scheduler_epoch_steps: 30
   initial_lr: 0.001
   min_lr: 0.0001
   clip_norm: 10
   batch_size: 32  # 32
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
-  l2_kernel_reg_lambda: 0.0001
+  l2_weight_decay: 0.0001
+  feature_map_regularization: 5.0
 
 validation:
   freq: 5

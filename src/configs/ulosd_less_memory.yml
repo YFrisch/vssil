@@ -18,18 +18,21 @@ model:
   inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
 training:
-  k_folds: 10
-  epochs: 30
+  k_folds: 1
+  epochs: 100
   steps_per_epoch: 100  # 100
-  lr: 0.001
+  optim: 'Adam'
+  lr_scheduler: 'StepLR'
+  lr_scheduler_epoch_steps: 30
   initial_lr: 0.0001
   min_lr: 0.00001
   clip_norm: 10
-  l2_kernel_reg_lambda: 0.0001
-  feature_map_regularization: 5.0
   batch_size: 4  # 32
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
+  l2_weight_decay: 0.0001
+  feature_map_regularization: 5.0
+
 
 validation:
   freq: 10

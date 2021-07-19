@@ -58,7 +58,7 @@ class AbstractAgent:
         # The following parts are implemented by inheriting classes
         self.model = None
         self.optim = None
-        self.scheduler = None  # TODO: Not used yet
+        self.scheduler = None
 
     def warm_start(self, config: dict):
         """ Loads a model checkpoint specified in the config dict. """
@@ -94,7 +94,8 @@ class AbstractAgent:
         self.writer.add_text("parameters", pretty_json(config))
         self.writer.flush()
 
-        self.kfold = KFold(n_splits=config['training']['k_folds'], shuffle=True)
+        if config['training']['k_folds'] > 1:
+            self.kfold = KFold(n_splits=config['training']['k_folds'], shuffle=True)
 
         self.reset_optim_and_scheduler(config=config)
 
@@ -128,7 +129,30 @@ class AbstractAgent:
         self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
 
     def reset_optim_and_scheduler(self, config: dict):
-        raise NotImplementedError
+
+        if config['training']['optim'] in ['Adam', 'adam', 'ADAM']:
+            self.optim = torch.optim.Adam(
+                params=self.model.parameters(),
+                lr=config['training']['initial_lr'],
+                weight_decay=config['training']['l2_weight_decay']
+            )
+        else:
+            raise NotImplementedError("Optimizer not implemented yet.")
+
+        if config['training']['lr_scheduler'] in ['CosineAnnealingLR']:
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer=self.optim,
+                T_max=config['training']['epochs'],
+                eta_min=config['training']['min_lr']
+            )
+        elif config['training']['lr_scheduler'] in ['StepLR']:
+            self.scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer=self.optim,
+                step_size=config['training']['lr_scheduler_epoch_steps'],
+                gamma=0.5
+            )
+        else:
+            raise NotImplementedError("LR Scheduler not implemented yet.")
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         raise NotImplementedError
@@ -144,7 +168,14 @@ class AbstractAgent:
         time.sleep(0.01)
 
         # Iterate over k-folds
-        for fold, (train_ids, val_ids) in enumerate(self.kfold.split(self.data_set)):
+        if config['training']['k_folds'] > 1:
+            folds = enumerate(self.kfold.split(self.data_set))
+        else:
+            # Use 10% of the data for validation, if no fold for x-validation is given
+            train_ids = range(0, int(len(self.data_set)*0.9))
+            val_ids = range(int(len(self.data_set)*0.9) + 1, len(self.data_set))
+            folds = (0, train_ids, val_ids)
+        for fold, (train_ids, val_ids) in folds:
 
             # Define training and evaluation data
             self.train_data_loader = DataLoader(

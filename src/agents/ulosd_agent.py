@@ -48,13 +48,10 @@ class ULOSD_Agent(AbstractAgent):
             self.model = ULOSD_Parallel(self.model)
             self.model.to(self.device)
 
-        # self.reset_optim_and_scheduler(config=config)
-
         # Logged values
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
         self.l1_penalty_per_iter = []
-        self.l2_reg_per_iter = []
         self.total_loss_per_iter = []
 
     def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
@@ -109,7 +106,7 @@ class ULOSD_Agent(AbstractAgent):
         return config['training']['feature_map_regularization'] * loss
 
     def l2_kernel_regularization(self, config: dict) -> torch.Tensor:
-
+        """ TODO: This is replaced by PyTorch's weight decay in the optimizer. """
         l2_reg = None
 
         for p_name, param in self.model.named_parameters():
@@ -126,7 +123,6 @@ class ULOSD_Agent(AbstractAgent):
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
         self.l1_penalty_per_iter = []
-        self.l2_reg_per_iter = []
         self.total_loss_per_iter = []
 
     def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
@@ -134,7 +130,6 @@ class ULOSD_Agent(AbstractAgent):
         avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
         avg_separation_loss = np.mean(self.sep_loss_per_iter)
         avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
-        avg_l2_regularization = np.mean(self.l2_reg_per_iter)
         avg_total_loss = np.mean(self.total_loss_per_iter)
         self.writer.add_scalar(tag="train/reconstruction_loss",
                                scalar_value=avg_reconstruction_loss, global_step=global_epoch)
@@ -142,23 +137,8 @@ class ULOSD_Agent(AbstractAgent):
                                scalar_value=avg_separation_loss, global_step=global_epoch)
         self.writer.add_scalar(tag="train/l1_activation_penalty",
                                scalar_value=avg_l1_penalty, global_step=global_epoch)
-        self.writer.add_scalar(tag="train/l2_kernel_regularization",
-                               scalar_value=avg_l2_regularization, global_step=global_epoch)
         self.writer.add_scalar(tag="train/total_loss",
                                scalar_value=avg_total_loss, global_step=global_epoch)
-
-    def reset_optim_and_scheduler(self, config: dict):
-
-        self.optim = torch.optim.Adam(
-            params=self.model.parameters(),
-            lr=config['training']['initial_lr']
-        )
-
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer=self.optim,
-            T_max=config['training']['epochs'],
-            eta_min=config['training']['min_lr']
-        )
 
     def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         """ One step of training.
@@ -195,16 +175,13 @@ class ULOSD_Agent(AbstractAgent):
         # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
         self.l1_penalty_per_iter.append(l1_penalty.detach().cpu().numpy())
 
-        l2_kernel_reg = self.l2_kernel_regularization(config=config)
-        self.l2_reg_per_iter.append(l2_kernel_reg.detach().cpu().numpy())
-
         # TODO: Not used yet
         coord_pred_loss = 0
         kl_loss = 0
         kl_loss_scale = 0
         kl_loss *= kl_loss_scale
 
-        L = reconstruction_loss + separation_loss + l1_penalty + l2_kernel_reg \
+        L = reconstruction_loss + separation_loss + l1_penalty +\
             + coord_pred_loss + kl_loss
         self.total_loss_per_iter.append(L.detach().cpu().numpy())
 
@@ -242,6 +219,7 @@ class ULOSD_Agent(AbstractAgent):
 
         # feature-map (L1) regularization of the activations of the last layer
         l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+        # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
 
         l2_kernel_reg = self.l2_kernel_regularization(config=config)
 
