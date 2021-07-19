@@ -124,7 +124,7 @@ class AbstractAgent:
         self.loss_per_iter = []
 
     def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
-        global_epoch = fold*epochs_per_fold + epoch
+        global_epoch = fold * epochs_per_fold + epoch
         avg_loss = np.mean(self.loss_per_iter)
         self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
 
@@ -154,7 +154,12 @@ class AbstractAgent:
         else:
             raise NotImplementedError("LR Scheduler not implemented yet.")
 
-    def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
+    def step(self,
+             sample: torch.Tensor,
+             target: torch.Tensor,
+             config: dict,
+             mode: str) -> torch.Tensor:
+        """ One step of forwarding the model input and calculating the loss."""
         raise NotImplementedError
 
     def train(self, config: dict = None):
@@ -172,8 +177,8 @@ class AbstractAgent:
             folds = enumerate(self.kfold.split(self.data_set))
         else:
             # Use 10% of the data for validation, if no fold for x-validation is given
-            train_ids = range(0, int(len(self.data_set)*0.9))
-            val_ids = range(int(len(self.data_set)*0.9) + 1, len(self.data_set))
+            train_ids = range(0, int(len(self.data_set) * 0.9))
+            val_ids = range(int(len(self.data_set) * 0.9) + 1, len(self.data_set))
             folds = (0, train_ids, val_ids)
         for fold, (train_ids, val_ids) in folds:
 
@@ -209,7 +214,6 @@ class AbstractAgent:
 
                 # Iterate over steps
                 for i in tqdm(range(config['training']['steps_per_epoch'])):
-
                     sample = next(iter(self.train_data_loader))
 
                     with torch.no_grad():
@@ -217,7 +221,7 @@ class AbstractAgent:
 
                     sample, target = sample.to(self.device), target.to(self.device)
 
-                    loss = self.train_step(sample, target, config)
+                    loss = self.step(sample, target, config, mode='training')
                     assert loss is not None, "No loss returned during training."
                     self.loss_per_iter.append(loss.detach().cpu().numpy())
 
@@ -231,7 +235,7 @@ class AbstractAgent:
                 for param_group in self.optim.param_groups:
                     self.writer.add_scalar(tag="train/lr",
                                            scalar_value=param_group['lr'],
-                                           global_step=fold*epochs_per_fold + epoch)
+                                           global_step=fold * epochs_per_fold + epoch)
 
                 # Validate
                 if not epoch % config['validation']['freq']:
@@ -245,16 +249,6 @@ class AbstractAgent:
             # Reset scheduler for each fold
             if self.scheduler is not None:
                 self.reset_optim_and_scheduler(config)
-
-    def validation_loss(self,
-                        sample: torch.Tensor,
-                        prediction: torch.Tensor,
-                        target: torch.Tensor,
-                        config: dict) -> torch.Tensor:
-        """ Returns the loss to use for validation.
-            Note that this can differ from self.loss_function()!
-        """
-        return self.loss_func(prediction=prediction, target=target)
 
     def validate(self, training_fold: int, training_epoch: int, config: dict = None):
 
@@ -273,10 +267,10 @@ class AbstractAgent:
 
                 prediction = self.model(sample)
 
-                sample_loss = self.validation_loss(sample=sample,
-                                                   prediction=prediction.squeeze(),
-                                                   target=target.squeeze(),
-                                                   config=config)
+                sample_loss = self.step(sample=sample,
+                                        target=target.squeeze(),
+                                        config=config,
+                                        mode='validation')
 
                 loss_per_sample.append(sample_loss.cpu().numpy())
 

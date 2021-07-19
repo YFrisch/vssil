@@ -92,7 +92,8 @@ class ULOSD_Agent(AbstractAgent):
                                        target=target)
 
     def separation_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
-        return temporal_separation_loss(cfg=config, coords=keypoint_coordinates)
+        separation_loss_scale = config['training']['separation_loss_scale']
+        return temporal_separation_loss(cfg=config, coords=keypoint_coordinates) * separation_loss_scale
 
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         # return config['model']['feature_map_regularization'] * torch.norm(feature_maps, p=1)
@@ -140,15 +141,24 @@ class ULOSD_Agent(AbstractAgent):
         self.writer.add_scalar(tag="train/total_loss",
                                scalar_value=avg_total_loss, global_step=global_epoch)
 
-    def train_step(self, sample: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
+    def step(self,
+             sample: torch.Tensor,
+             target: torch.Tensor,
+             config: dict,
+             mode: str) -> torch.Tensor:
         """ One step of training.
 
         :param sample: Image sequence in (N, T, C, H, W)
         :param target: -
         :param config: Configuration dictionary
-        :return: TODO
+        :param mode: Flag to determine 'training' or 'validation' mode
+        :return: Total loss
         """
-        self.optim.zero_grad()
+
+        assert mode in ['training', 'validation']
+
+        if mode == 'training':
+            self.optim.zero_grad()
 
         sample, target = sample.to(self.device), target.to(self.device)
 
@@ -157,79 +167,46 @@ class ULOSD_Agent(AbstractAgent):
         reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
         reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
 
+        # Note: The decoder is constructed to predict v_t - v_1, so we need to add v_1 again
+        reconstructed_images = sample[:, 0, ...] + reconstructed_images
+
         # Dynamics model
         # TODO: Not used yet
 
         # Losses
         reconstruction_loss = self.loss_func(prediction=reconstructed_images,
                                              target=sample)
-        self.rec_loss_per_iter.append(reconstruction_loss.detach().cpu().numpy())
 
-        separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
-        separation_loss_scale = config['training']['separation_loss_scale']
-        separation_loss *= separation_loss_scale
-        self.sep_loss_per_iter.append(separation_loss.detach().cpu().numpy())
+        separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points,
+                                               config=config)
 
         # feature-map (L1) regularization of the activations of the last layer
-        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps,
+                                                config=config)
         # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
-        self.l1_penalty_per_iter.append(l1_penalty.detach().cpu().numpy())
 
-        # TODO: Not used yet
+        # TODO: Losses for the dynamics model, not used yet
         coord_pred_loss = 0
         kl_loss = 0
         kl_loss_scale = 0
         kl_loss *= kl_loss_scale
 
+        # total loss
         L = reconstruction_loss + separation_loss + l1_penalty +\
             + coord_pred_loss + kl_loss
-        self.total_loss_per_iter.append(L.detach().cpu().numpy())
 
-        L.backward()
+        # Log values and backprop. during training
+        if mode == 'training':
+            self.rec_loss_per_iter.append(reconstruction_loss.detach().cpu().numpy())
+            self.sep_loss_per_iter.append(separation_loss.detach().cpu().numpy())
+            self.l1_penalty_per_iter.append(l1_penalty.detach().cpu().numpy())
+            self.total_loss_per_iter.append(L.detach().cpu().numpy())
 
-        # Clip gradient norm
-        nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
+            L.backward()
 
-        self.optim.step()
+            # Clip gradient norm
+            nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
 
-        return L
-
-    def validation_loss(self,
-                        sample: torch.Tensor,
-                        prediction: torch.Tensor,
-                        target: torch.Tensor,
-                        config: dict) -> torch.Tensor:
-
-        """ Returns the total loss of the vision part."""
-
-        feature_maps, observed_key_points = self.model.encode(sample)
-        reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
-        reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
-
-        # Dynamics model
-        # TODO: Not used yet
-
-        # Losses
-        reconstruction_loss = self.loss_func(prediction=reconstructed_images,
-                                             target=sample)
-
-        separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
-        separation_loss_scale = config['training']['separation_loss_scale']
-        separation_loss *= separation_loss_scale
-
-        # feature-map (L1) regularization of the activations of the last layer
-        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
-        # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
-
-        l2_kernel_reg = self.l2_kernel_regularization(config=config)
-
-        # TODO: Not used yet
-        coord_pred_loss = 0
-        kl_loss = 0
-        kl_loss_scale = 0
-        kl_loss *= kl_loss_scale
-
-        L = reconstruction_loss + separation_loss + l1_penalty + l2_kernel_reg \
-            + coord_pred_loss + kl_loss
+            self.optim.step()
 
         return L
