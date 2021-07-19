@@ -183,11 +183,13 @@ class AbstractAgent:
         # Iterate over k-folds
         if config['training']['k_folds'] > 1:
             folds = enumerate(self.kfold.split(self.data_set))
+
         else:
             # Use 10% of the data for validation, if no fold for x-validation is given
             train_ids = range(0, int(len(self.data_set) * 0.9))
             val_ids = range(int(len(self.data_set) * 0.9) + 1, len(self.data_set))
-            folds = (0, train_ids, val_ids)
+            folds = [(0, (train_ids, val_ids))]
+
         for fold, (train_ids, val_ids) in folds:
 
             # Define training and evaluation data

@@ -3,7 +3,7 @@ data:
   timesteps_per_sample: 8
   overlap: 3
   img_shape: (64, 64)
-  num_workers: 2
+  num_workers: 3
 
 model:
   n_frames: 16
@@ -26,8 +26,8 @@ training:
   feature_map_regularization: 5.0
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 30
-  initial_lr: 0.0001
-  min_lr: 0.00001
+  initial_lr: 0.0005
+  min_lr: 0.00005
   clip_norm: 10
   batch_size: 4  # 32
   reconstruction_loss: 'Inception'

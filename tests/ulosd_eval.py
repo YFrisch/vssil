@@ -13,7 +13,7 @@ from src.utils.feature_visualization import make_annotated_tensor, play_series_w
 from src.utils.argparse import parse_arguments
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd/19489075/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd/2021_7_18_22_48/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
@@ -44,7 +44,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 
 ulosd_agent.eval_data_loader = eval_data_loader
 # ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/19489075/checkpoints/chckpt_f5_e20.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_18_22_48/checkpoints/chckpt_f5_e10.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
 
 print("##### Evaluating:")
@@ -62,14 +62,14 @@ with torch.no_grad():
 
         print(ulosd_agent.key_point_sparsity_loss(keypoint_coordinates=key_points, config=ulosd_conf))
         print(ulosd_agent.l1_activation_penalty(feature_maps=feature_maps, config=ulosd_conf))
-        print(ulosd_agent.loss_func(prediction=reconstruction, target=sample))
+        print(ulosd_agent.loss_func(prediction=reconstruction, target=sample, config=ulosd_conf))
 
         annotated_reconstruction = make_annotated_tensor(image_series=reconstruction[0, ...],
                                                          feature_positions=key_points[0, ...])
         annotated_sample = make_annotated_tensor(image_series=sample[0, ...],
                                                  feature_positions=key_points[0, ...])
 
-        rec_loss = ulosd_agent.loss_func(prediction=reconstruction, target=sample)
+        rec_loss = ulosd_agent.loss_func(prediction=reconstruction, target=sample, config=ulosd_conf)
 
         sep_loss = ulosd_agent.separation_loss(keypoint_coordinates=key_points, config=ulosd_conf)
 

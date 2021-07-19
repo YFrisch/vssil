@@ -184,14 +184,14 @@ class ULOSD_Agent(AbstractAgent):
         reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
 
         # Note: The decoder is constructed to predict v_t - v_1, so we need to add v_1 again
-        reconstructed_images = sample[:, 0, ...] + reconstructed_images
+        reconstructed_images = sample[:, 0, ...].unsqueeze(1) + reconstructed_images
 
         # Dynamics model
         # TODO: Not used yet
 
         # Losses
         reconstruction_loss = self.loss_func(prediction=reconstructed_images,
-                                             target=sample)
+                                             target=sample, config=config)
 
         separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points,
                                                config=config)
