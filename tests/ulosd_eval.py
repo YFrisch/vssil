@@ -13,7 +13,7 @@ from src.utils.feature_visualization import make_annotated_tensor, play_series_w
 from src.utils.argparse import parse_arguments
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd/2021_7_18_22_48/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd/19526936/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
@@ -44,7 +44,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 
 ulosd_agent.eval_data_loader = eval_data_loader
 # ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_18_22_48/checkpoints/chckpt_f5_e10.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/19526936/checkpoints/chckpt_f6_e20.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
 
 print("##### Evaluating:")

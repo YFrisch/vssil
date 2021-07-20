@@ -163,7 +163,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
             x = int((keypoint_coords[0, t, n_keypoint, 0] + 1)/2 * image_height)
             y = int((keypoint_coords[0, t, n_keypoint, 1] + 1)/2 * image_width)
             intensity = keypoint_coords[0, t, n_keypoint, 2]
-            if intensity > 0.5:
+            if intensity > 0.1:
                 orig_scatter_objects[n_keypoint].set_offsets([x, y])
                 rec_scatter_objects[n_keypoint].set_offsets([x, y])
         return im_frame, rec_frame, orig_scatter_objects, rec_scatter_objects

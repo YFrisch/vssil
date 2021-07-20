@@ -99,6 +99,8 @@ class ULOSD(nn.Module):
             )
         )
         self.encoder = nn.Sequential(*self.encoder)
+        self.appearance_net = nn.Sequential(*self.encoder[-1])
+        self.appearance_net.apply(self.init_weights)
         self.encoder.apply(self.init_weights)
 
         """
@@ -182,11 +184,14 @@ class ULOSD(nn.Module):
             torch.nn.init.kaiming_uniform_(m.weight)
             m.bias.data.fill_(0.01)
 
-    def encode(self, image_sequence: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    def encode(self, image_sequence: torch.Tensor, appearance: bool = False) -> (torch.Tensor, torch.Tensor):
         """ Encodes a series of images into a tuple of a series of feature maps and
             key-points.
 
         :param image_sequence: Tensor of image series in (N, T, C, H, W)
+        :param appearance: Set true if the input is only the first frame.
+                (Appearance network in the paper; Same as decoder but without
+                 final softplus layer)
         """
         # Flatten (N, T, C, H, W) into (N*T, C, H, W)
         N = image_sequence.shape[0]
@@ -199,7 +204,10 @@ class ULOSD(nn.Module):
         # x = image_sequence.view((N*T, *image_sequence.shape[2:]))
 
         for image in image_list:
-            feature_maps = self.encoder(image)
+            if appearance:
+                feature_maps = self.appearance_net(image)
+            else:
+                feature_maps = self.encoder(image)
             maps_list.append(feature_maps)
 
             key_points = self.maps_2_key_points(feature_maps)
@@ -225,7 +233,7 @@ class ULOSD(nn.Module):
         key_points_shape = (T, C, 3)
 
         # Encode first frame
-        first_frame_feature_maps, first_frame_key_points = self.encode(first_frame)
+        first_frame_feature_maps, first_frame_key_points = self.encode(first_frame, appearance=True)
         first_frame_feature_maps = first_frame_feature_maps.to(self.device)
         first_frame_key_points = first_frame_key_points.to(self.device)
         first_frame_reconstructed_maps = self.key_points_2_maps(first_frame_key_points.squeeze(1)).to(self.device)
@@ -240,7 +248,7 @@ class ULOSD(nn.Module):
 
             # Concat representation of current gaussian map and the information from the first frame
             combi = torch.cat(
-                [gaussian_maps, first_frame_feature_maps.squeeze(1), first_frame_reconstructed_maps],
+                [gaussian_maps, first_frame_reconstructed_maps, first_frame_feature_maps.squeeze(1)],
                 dim=1
             )
 
@@ -260,7 +268,7 @@ class ULOSD(nn.Module):
     def forward(self, image_sequence: torch.Tensor) -> torch.Tensor:
 
         # Encode series
-        feature_map_series, key_point_series = self.encode(image_sequence)
+        feature_map_series, key_point_series = self.encode(image_sequence, appearance=False)
 
         # Decode encodings
         reconstructed_images = self.decode(

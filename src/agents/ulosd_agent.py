@@ -120,7 +120,7 @@ class ULOSD_Agent(AbstractAgent):
     def key_point_sparsity_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         key_point_scales = keypoint_coordinates[..., 2]
         loss = torch.mean(torch.sum(torch.abs(key_point_scales), dim=2), dim=[0, 1])
-        return config['training']['feature_map_regularization'] * loss
+        return config['model']['conv_kernel_regularization'] * loss
 
     def l2_kernel_regularization(self, config: dict) -> torch.Tensor:
         """ TODO: This is replaced by PyTorch's weight decay in the optimizer. """
