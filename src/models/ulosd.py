@@ -7,6 +7,8 @@ import numpy as np
 from .layers import Conv2d, Conv2DSamePadding
 from .ulosd_layers import FeatureMapsToCoordinates, FeatureMapsToKeyPoints,\
     KeyPointsToFeatureMaps, add_coord_channels
+from .ulosd_encoders import make_encoder, make_appearance_encoder
+from .ulosd_decoder import make_decoder
 
 
 class ULOSD(nn.Module):
@@ -23,85 +25,18 @@ class ULOSD(nn.Module):
 
         self.conv_weight_init = config['model']['conv_init']
 
-        """
+        """ 
             Image encoder.
-            
+
             Iteratively halving the input width and doubling
             the number of channels, until the width of the
             feature maps is reached.
         """
-        self.encoder = []
-        # Adjusted input shape (for add_coord_channels)
-        encoder_input_shape = (input_shape[1] + 2, *input_shape[2:])
-        assert len(encoder_input_shape) == 3
-
-        # First, expand the input to an initial number of filters
-        # num_channels = encoder_input_shape[0]
-        num_channels = 3
-        self.encoder.append(
-            Conv2DSamePadding(
-                in_channels=num_channels,
-                out_channels=config['model']['n_init_filters'],
-                kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                stride=(1, 1),
-                activation=nn.Identity()
-            )
-        )
-        input_width = encoder_input_shape[-1]
-        num_channels = config['model']['n_init_filters']
-        # Apply additional layers
-        for _ in range(config['model']['n_convolutions_per_res']):
-            self.encoder.append(
-                Conv2DSamePadding(
-                    in_channels=num_channels,
-                    out_channels=num_channels,
-                    kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                    stride=(1, 1),
-                    activation=nn.Identity()
-                )
-            )
-
-        while True:
-            # Reduce resolution
-            self.encoder.append(
-                Conv2DSamePadding(
-                    in_channels=num_channels,
-                    out_channels=num_channels*2,
-                    kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                    stride=(2, 2),
-                    activation=nn.LeakyReLU(negative_slope=0.2)
-                )
-            )
-            # Apply additional layers
-            for _ in range(config['model']['n_convolutions_per_res']):
-                self.encoder.append(
-                    Conv2DSamePadding(
-                        in_channels=num_channels * 2,
-                        out_channels=num_channels * 2,
-                        kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                        stride=(1, 1),
-                        activation=nn.LeakyReLU(negative_slope=0.2)
-                    )
-                )
-            input_width //= 2
-            num_channels *= 2
-            if input_width <= config['model']['feature_map_width']:
-                break
-
-        # Final layer that maps to the desired number of feature_maps
-        self.encoder.append(
-            Conv2DSamePadding(
-                in_channels=num_channels,
-                out_channels=config['model']['n_feature_maps'],
-                kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                stride=(1, 1),
-                activation=nn.Softplus()
-            )
-        )
-        self.encoder = nn.Sequential(*self.encoder)
-        self.appearance_net = nn.Sequential(*self.encoder[-1])
-        self.appearance_net.apply(self.init_weights)
+        self.encoder, encoder_input_shape = make_encoder(input_shape, config)
         self.encoder.apply(self.init_weights)
+
+        self.appearance_net = make_appearance_encoder(input_shape, config)
+        self.appearance_net.apply(self.init_weights)
 
         """
             Image decoder.
@@ -110,63 +45,7 @@ class ULOSD(nn.Module):
             the number of channels, until the width of the
             original input image is reached.
         """
-        self.decoder = []
-        num_channels = config['model']['n_feature_maps'] * 3 + 2
-        # num_levels = np.log2(init_input_width / config['model']['feature_map_width'])
-        num_levels = np.log2(encoder_input_shape[1] / config['model']['feature_map_width'])
-        if num_levels % 1:
-            raise ValueError(f"The input image width must be a two potency"
-                             f" of the feature map width, but got {encoder_input_shape[1]}"
-                             f" and {config['model']['feature_map_width']}!")
-
-        # Iteratively double the resolution by upsampling
-        for _ in range(int(num_levels)):
-
-            num_out_channels = num_channels//2
-
-            self.decoder.append(
-                nn.Upsample(
-                    scale_factor=(2.0, 2.0),
-                    mode='bilinear',
-                    align_corners=True
-                )
-            )
-
-            self.decoder.append(
-                Conv2DSamePadding(
-                    in_channels=num_channels,
-                    out_channels=num_out_channels,
-                    kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                    stride=(1, 1),
-                    activation=nn.ReLU()
-                )
-            )
-
-            for _ in range(config['model']['n_convolutions_per_res'] - 1):
-                self.decoder.append(
-                    Conv2DSamePadding(
-                        in_channels=num_out_channels,
-                        out_channels=num_out_channels,
-                        kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
-                        stride=(1, 1),
-                        activation=nn.ReLU()
-                    )
-                )
-
-            num_channels //= 2
-
-        # Adjust channels
-        self.decoder.append(
-            Conv2DSamePadding(
-                in_channels=num_out_channels,
-                out_channels=3,
-                kernel_size=(1, 1),
-                stride=(1, 1),
-                activation=nn.Identity()
-            )
-        )
-
-        self.decoder = nn.Sequential(*self.decoder)
+        self.decoder = make_decoder(encoder_input_shape, config)
         self.decoder.apply(self.init_weights)
 
         """
@@ -206,12 +85,12 @@ class ULOSD(nn.Module):
         for image in image_list:
             if appearance:
                 feature_maps = self.appearance_net(image)
+                key_points = torch.empty((1, 1))
             else:
                 feature_maps = self.encoder(image)
-            maps_list.append(feature_maps)
-
-            key_points = self.maps_2_key_points(feature_maps)
+                key_points = self.maps_2_key_points(feature_maps)
             key_points_list.append(key_points)
+            maps_list.append(feature_maps)
 
         # Unstack time
         feature_maps = torch.stack(maps_list, dim=1).to(self.device)
@@ -233,9 +112,9 @@ class ULOSD(nn.Module):
         key_points_shape = (T, C, 3)
 
         # Encode first frame
-        first_frame_feature_maps, first_frame_key_points = self.encode(first_frame, appearance=True)
-        first_frame_feature_maps = first_frame_feature_maps.to(self.device)
-        first_frame_key_points = first_frame_key_points.to(self.device)
+        first_frame_feature_maps, _ = self.encode(first_frame, appearance=True)
+        first_frame_feature_maps = first_frame_feature_maps.squeeze(1).to(self.device)
+        first_frame_key_points = torch.clone(keypoint_sequence[:, 0, ...]).unsqueeze(1).to(self.device)
         first_frame_reconstructed_maps = self.key_points_2_maps(first_frame_key_points.squeeze(1)).to(self.device)
 
         key_points_list = [keypoint_sequence[:, t, ...] for t in range(T)]
