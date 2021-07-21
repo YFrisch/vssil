@@ -67,7 +67,7 @@ class ULOSD_Agent(AbstractAgent):
         assert x.max() <= 1
         assert x.min() >= 0
         x = x - 0.5
-        return x, x
+        return x, torch.empty([])
 
     def loss_func(self,
                   prediction: torch.Tensor,
@@ -120,7 +120,7 @@ class ULOSD_Agent(AbstractAgent):
     def key_point_sparsity_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         key_point_scales = keypoint_coordinates[..., 2]
         loss = torch.mean(torch.sum(torch.abs(key_point_scales), dim=2), dim=[0, 1])
-        return config['model']['conv_kernel_regularization'] * loss
+        return config['training']['feature_map_regularization'] * loss
 
     def l2_kernel_regularization(self, config: dict) -> torch.Tensor:
         """ TODO: This is replaced by PyTorch's weight decay in the optimizer. """
@@ -176,22 +176,27 @@ class ULOSD_Agent(AbstractAgent):
         if mode == 'training':
             self.optim.zero_grad()
 
-        sample, target = sample.to(self.device), target.to(self.device)
-
         # Vision model
         feature_maps, observed_key_points = self.model.encode(sample)
         reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
-        reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
 
-        # Note: The decoder is constructed to predict v_t - v_1, so we need to add v_1 again
-        reconstructed_images = sample[:, 0, ...].unsqueeze(1) + reconstructed_images
+        # TODO: If the prediction is the difference v_t - v_1, then this clipping is not valid anymore
+        # reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
+        reconstructed_images = torch.clip(reconstructed_images, -1.0, 1.0)
+
+        # Note: The decoder is constructed to predict v_t - v_1, so we need to add v_1 again?
+        # reconstructed_images = sample[:, 0, ...].unsqueeze(1) + reconstructed_images
+
 
         # Dynamics model
         # TODO: Not used yet
 
         # Losses
+        # TODO: Use only v_t - v_1 as training signal for the prediction, instead of v_t?
+        target_diff = sample - sample[:, 0, ...].unsqueeze(1)
         reconstruction_loss = self.loss_func(prediction=reconstructed_images,
-                                             target=sample, config=config)
+                                             target=target_diff,
+                                             config=config)
 
         separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points,
                                                config=config)

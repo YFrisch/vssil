@@ -101,7 +101,7 @@ class KeyPointsToFeatureMaps(nn.Module):
         (x, y) - coordinates.
 
     """
-    def __init__(self, sigma: float = 1.0, heatmap_width: int = 16, device: str = 'cpu'):
+    def __init__(self, sigma: float = 1.5, heatmap_width: int = 16, device: str = 'cpu'):
         """ Creates class instance.
 
         :param sigma: Standard deviation of the 'gaussian blob', in heatmap pixels

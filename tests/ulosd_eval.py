@@ -13,7 +13,7 @@ from src.utils.feature_visualization import make_annotated_tensor, play_series_w
 from src.utils.argparse import parse_arguments
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd/19526936/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd_new/19579234/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
@@ -44,7 +44,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
 
 ulosd_agent.eval_data_loader = eval_data_loader
 # ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/19526936/checkpoints/chckpt_f6_e20.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd_new/19579234/checkpoints/chckpt_f0_e40.PTH")
 # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
 
 print("##### Evaluating:")
@@ -55,8 +55,10 @@ with torch.no_grad():
         feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)
 
         # play_series_with_keypoints(sample + 0.5, keypoint_coords=key_points)
-        reconstruction = ulosd_agent.model(sample)
-        reconstruction = torch.clip(reconstruction, -0.5, 0.5)
+        reconstruction = ulosd_agent.model.decode(keypoint_sequence=key_points,
+                                                  first_frame=sample[:, 0, ...].unsqueeze(1))
+        # reconstruction = torch.clip(reconstruction, -0.5, 0.5)
+        # reconstruction = sample[:, 0, ...].unsqueeze(1) + reconstruction
 
         play_series_and_reconstruction_with_keypoints(sample + 0.5, reconstruction + 0.5, key_points)
 
@@ -75,10 +77,7 @@ with torch.no_grad():
 
         l1_penalty = ulosd_agent.l1_activation_penalty(feature_maps=feature_maps, config=ulosd_conf)
 
-        l2_kernel_reg = ulosd_agent.l2_kernel_regularization(config=ulosd_conf)
-
-        print(f"Sample {i}\t Rec. loss: {rec_loss}\t Sep. loss: {sep_loss}\t L1 penalty: {l1_penalty}\t "
-              f"L2 reg: {l2_kernel_reg}")
+        print(f"Sample {i}\t Rec. loss: {rec_loss}\t Sep. loss: {sep_loss}\t L1 penalty: {l1_penalty}")
 
         np_samples = sample[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
         np_recs = reconstruction[0, ...].cpu().numpy().transpose(0, 2, 3, 1) + 0.5
