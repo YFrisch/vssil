@@ -40,6 +40,7 @@ training:
 validation:
   freq: 10
   batch_size: 2  # 32
+  save_video: True
 
 evaluation:
 

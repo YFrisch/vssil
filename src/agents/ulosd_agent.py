@@ -161,16 +161,18 @@ class ULOSD_Agent(AbstractAgent):
     def step(self,
              sample: torch.Tensor,
              target: torch.Tensor,
-             global_step_number: int,
+             global_epoch_number: int,
              save_grad_flow_plot: bool,
+             save_val_sample: bool,
              config: dict,
              mode: str) -> torch.Tensor:
         """ One step of training.
 
         :param sample: Image sequence in (N, T, C, H, W)
         :param target: -
-        :param global_step_number: Number of global epochs
+        :param global_epoch_number: Number of global epochs
         :param save_grad_flow_plot: Whether or not to plot the gradient flow
+        :param save_val_sample: Set true to save a sample video during validation
         :param config: Configuration dictionary
         :param mode: Flag to determine 'training' or 'validation' mode
         :return: Total loss
@@ -221,6 +223,13 @@ class ULOSD_Agent(AbstractAgent):
         # L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss
         L = reconstruction_loss
 
+        if mode == 'validation' and config['validation']['save_video']:
+            with torch.no_grad():
+                reconstructed_image_series_tensor = reconstructed_images + sample[:, 0, ...].unsqueeze(1)
+                self.writer.add_video(tag='val/reconstruction_sample',
+                                      vid_tensor=reconstructed_image_series_tensor.detach(),
+                                      global_step=global_epoch_number)
+
         # Log values and backprop. during training
         if mode == 'training':
             self.rec_loss_per_iter.append(reconstruction_loss.detach().cpu().numpy())
@@ -232,7 +241,7 @@ class ULOSD_Agent(AbstractAgent):
 
             if save_grad_flow_plot:
                 plot_grad_flow(named_parameters=self.model.named_parameters(),
-                               epoch=global_step_number,
+                               epoch=global_epoch_number,
                                summary_writer=self.writer)
 
             # Clip gradient norm

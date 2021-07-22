@@ -167,8 +167,9 @@ class AbstractAgent:
     def step(self,
              sample: torch.Tensor,
              target: torch.Tensor,
-             global_step_number: int,
+             global_epoch_number: int,
              save_grad_flow_plot: bool,
+             save_val_sample: bool,
              config: dict,
              mode: str) -> torch.Tensor:
         """ One step of forwarding the model input and calculating the loss."""
@@ -242,9 +243,10 @@ class AbstractAgent:
 
                     loss = self.step(sample,
                                      target,
-                                     fold * epochs_per_fold + epoch,
-                                     save_grad_flow_plot,
-                                     config,
+                                     global_epoch_number=fold * epochs_per_fold + epoch,
+                                     save_grad_flow_plot=save_grad_flow_plot,
+                                     save_val_sample=False,
+                                     config=config,
                                      mode='training')
                     assert loss is not None, "No loss returned during training."
                     self.loss_per_iter.append(loss.detach().cpu().numpy())
@@ -295,10 +297,16 @@ class AbstractAgent:
                 sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
                 sample, target = sample.to(self.device), target.to(self.device)
 
+                if i == 0:
+                    save_val_sample = True
+                else:
+                    save_val_sample = False
+
                 sample_loss = self.step(sample,
                                         target,
-                                        global_epoch,
+                                        global_epoch_number=global_epoch,
                                         save_grad_flow_plot=False,
+                                        save_val_sample=save_val_sample,
                                         config=config,
                                         mode='validation')
 
