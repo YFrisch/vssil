@@ -2,6 +2,7 @@ import torch.nn as nn
 import numpy as np
 
 from .layers import Conv2DSamePadding
+from .utils import activation_dict
 
 
 def make_decoder(encoder_input_shape: tuple, config: dict):
@@ -33,7 +34,7 @@ def make_decoder(encoder_input_shape: tuple, config: dict):
                 out_channels=num_out_channels,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(1, 1),
-                activation=nn.ELU(alpha=1)
+                activation=activation_dict[config['model']['decoder_hidden_activations']]
             )
         )
 
@@ -44,7 +45,7 @@ def make_decoder(encoder_input_shape: tuple, config: dict):
                     out_channels=num_out_channels,
                     kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                     stride=(1, 1),
-                    activation=nn.ELU(alpha=1)
+                    activation=activation_dict[config['model']['decoder_hidden_activations']]
                 )
             )
 

@@ -1,20 +1,21 @@
 data:
   # tasks: ['stir', 'pour', 'pass', 'bottle', 'pull_one_hand', 'stack', 'press_buttons', 'push', 'rotate', 'close_book', 'pick_one_hand']
-  tasks: ['stir', 'press_buttons']
+  tasks: ['stir', 'pour', 'pass', 'stack']
   timesteps_per_sample: 8
   overlap: 3
-  img_shape: (64, 64)
-  num_workers: 3
+  img_shape: (160, 160)
+  num_workers: 2
 
 model:
   n_frames: 16
   n_feature_maps: 32
-  feature_map_width: 16
-  feature_map_height: 16
+  feature_map_width: 20
+  feature_map_height: 20
   n_init_filters: 32
-  n_convolutions_per_res: 2
+  n_convolutions_per_res: 3
   conv_kernel_size: 3
-  encoder_hidden_activations: nn.
+  encoder_hidden_activations: 'prelu'
+  decoder_hidden_activations: 'prelu'
   conv_init: 'he_uniform'
   dense_init: 'he_uniform'
   inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
@@ -24,21 +25,21 @@ training:
   epochs: 100
   steps_per_epoch: 100  # 100
   optim: 'Adam'
-  l2_weight_decay: 0.0001
+  l2_weight_decay: 0.000001
   feature_map_regularization: 0.1
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 30
-  initial_lr: 0.0005
+  initial_lr: 0.00005
   min_lr: 0.0001
   clip_norm: 10
-  batch_size: 4  # 32
-  reconstruction_loss: 'Inception'
+  batch_size: 2  # 32
+  reconstruction_loss: 'inception'
   separation_loss_scale: 2.0
   separation_loss_sigma: 0.02
 
 validation:
   freq: 10
-  batch_size: 4  # 32
+  batch_size: 2  # 32
 
 evaluation:
 

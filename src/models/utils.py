@@ -2,6 +2,7 @@ import os
 from os.path import isfile, join
 
 import torch
+import torch.nn as nn
 from torchvision.models.utils import load_state_dict_from_url
 
 from .inception3 import CustomInception3
@@ -49,3 +50,16 @@ def load_inception_weights(inception_net: CustomInception3, config: dict):
 
     # Only get the relevant parts of the state dict needed for the custom module
     partial_load_state_dict(inception_net, state_dict)
+
+
+activation_dict = {
+    'relu': nn.ReLU(),
+    'ReLU': nn.ReLU(),
+    'RELU': nn.ReLU(),
+    'ELU': nn.ELU(),
+    'elu': nn.ELU(),
+    'LeakyRELU': nn.LeakyReLU(),
+    'LeakyReLU': nn.LeakyReLU(),
+    'PReLU': nn.PReLU(),
+    'prelu': nn.PReLU()
+}

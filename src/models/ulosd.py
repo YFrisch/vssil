@@ -59,9 +59,16 @@ class ULOSD(nn.Module):
         )
 
     def init_weights(self, m: torch.nn.Module):
-        if type(m) == nn.Conv2d and self.conv_weight_init == 'he_uniform':
-            torch.nn.init.kaiming_uniform_(m.weight)
-            m.bias.data.fill_(0.01)
+        if type(m) == nn.Conv2d:
+            if self.conv_weight_init == 'he_uniform':
+                torch.nn.init.kaiming_uniform_(m.weight)
+                m.bias.data.fill_(0.01)
+            if self.conv_weight_init == 'xavier_uniform':
+                torch.nn.init.xavier_uniform_(m.weight)
+                m.bias.data.fill_(0.01)
+            if self.conv_weight_init == 'ones':
+                torch.nn.init.ones_(m.weight)
+                m.bias.data.fill_(1.00)
 
     def encode(self, image_sequence: torch.Tensor, appearance: bool = False) -> (torch.Tensor, torch.Tensor):
         """ Encodes a series of images into a tuple of a series of feature maps and
