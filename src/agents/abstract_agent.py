@@ -92,6 +92,8 @@ class AbstractAgent:
         # Add config dict
         # self.writer.add_hparams(config, {})
         self.writer.add_text("parameters", pretty_json(config))
+        weight_names = [name for name, param in self.model.named_parameters()]
+        self.writer.add_text("weights", ''.join(weight_names))
         self.writer.flush()
 
         if config['training']['k_folds'] > 1:
@@ -165,6 +167,7 @@ class AbstractAgent:
     def step(self,
              sample: torch.Tensor,
              target: torch.Tensor,
+             save_grad_flow_plot: bool,
              config: dict,
              mode: str) -> torch.Tensor:
         """ One step of forwarding the model input and calculating the loss."""
@@ -231,7 +234,16 @@ class AbstractAgent:
 
                     sample, target = sample.to(self.device), target.to(self.device)
 
-                    loss = self.step(sample, target, config, mode='training')
+                    if i == 0:
+                        save_grad_flow_plot = True
+                    else:
+                        save_grad_flow_plot = False
+
+                    loss = self.step(sample,
+                                     target,
+                                     save_grad_flow_plot,
+                                     config,
+                                     mode='training')
                     assert loss is not None, "No loss returned during training."
                     self.loss_per_iter.append(loss.detach().cpu().numpy())
 
@@ -272,24 +284,24 @@ class AbstractAgent:
 
         loss_per_sample = []
 
+        epochs_per_fold = config['training']['epochs']
+        global_epoch = training_fold * epochs_per_fold + training_epoch
+
         with torch.no_grad():
 
             for i, sample in enumerate(tqdm(self.val_data_loader)):
                 sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
                 sample, target = sample.to(self.device), target.to(self.device)
 
-                prediction = self.model(sample)
-
-                sample_loss = self.step(sample=sample,
-                                        target=target.squeeze(),
+                sample_loss = self.step(sample,
+                                        target,
+                                        save_grad_flow_plot=False,
                                         config=config,
                                         mode='validation')
 
                 loss_per_sample.append(sample_loss.cpu().numpy())
 
         avg_loss = np.mean(loss_per_sample)
-        epochs_per_fold = config['training']['epochs']
-        global_epoch = training_fold * epochs_per_fold + training_epoch
         self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=global_epoch)
         print("##### Average loss:", avg_loss)
         print("\n")

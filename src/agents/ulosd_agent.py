@@ -8,6 +8,7 @@ from src.models.ulosd import ULOSD, ULOSD_Parallel
 from src.models.inception3 import CustomInception3
 from src.models.utils import load_inception_weights
 from src.losses import temporal_separation_loss, inception_encoding_loss
+from src.utils.grad_flow import plot_grad_flow
 from .abstract_agent import AbstractAgent
 
 
@@ -160,12 +161,14 @@ class ULOSD_Agent(AbstractAgent):
     def step(self,
              sample: torch.Tensor,
              target: torch.Tensor,
+             global_step_number: int,
              config: dict,
              mode: str) -> torch.Tensor:
         """ One step of training.
 
         :param sample: Image sequence in (N, T, C, H, W)
         :param target: -
+        :param global_step_number: Number of times that step() was called (globally)
         :param config: Configuration dictionary
         :param mode: Flag to determine 'training' or 'validation' mode
         :return: Total loss
@@ -213,8 +216,8 @@ class ULOSD_Agent(AbstractAgent):
         kl_loss *= kl_loss_scale
 
         # total loss
-        L = reconstruction_loss + separation_loss + l1_penalty + \
-            + coord_pred_loss + kl_loss
+        # L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss
+        L = reconstruction_loss
 
         # Log values and backprop. during training
         if mode == 'training':
@@ -224,6 +227,10 @@ class ULOSD_Agent(AbstractAgent):
             self.total_loss_per_iter.append(L.detach().cpu().numpy())
 
             L.backward()
+
+            plot_grad_flow(named_parameters=self.model.named_parameters(),
+                           epoch=global_step_number,
+                           summary_writer=self.writer)
 
             # Clip gradient norm
             nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
