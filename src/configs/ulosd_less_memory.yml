@@ -1,5 +1,6 @@
 data:
-  tasks: ['stir', 'pour', 'pass', 'bottle', 'pull_one_hand', 'stack', 'press_buttons', 'push', 'rotate', 'close_book', 'pick_one_hand']
+  # tasks: ['stir', 'pour', 'pass', 'bottle', 'pull_one_hand', 'stack', 'press_buttons', 'push', 'rotate', 'close_book', 'pick_one_hand']
+  tasks: ['stir', 'press_buttons']
   timesteps_per_sample: 8
   overlap: 3
   img_shape: (64, 64)
@@ -13,6 +14,7 @@ model:
   n_init_filters: 32
   n_convolutions_per_res: 2
   conv_kernel_size: 3
+  encoder_hidden_activations: nn.
   conv_init: 'he_uniform'
   dense_init: 'he_uniform'
   inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
@@ -26,8 +28,8 @@ training:
   feature_map_regularization: 0.1
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 30
-  initial_lr: 0.0001
-  min_lr: 0.00001
+  initial_lr: 0.0005
+  min_lr: 0.0001
   clip_norm: 10
   batch_size: 4  # 32
   reconstruction_loss: 'Inception'

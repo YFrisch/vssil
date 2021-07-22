@@ -33,7 +33,7 @@ def make_decoder(encoder_input_shape: tuple, config: dict):
                 out_channels=num_out_channels,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(1, 1),
-                activation=nn.ReLU()
+                activation=nn.ELU(alpha=1)
             )
         )
 
@@ -44,7 +44,7 @@ def make_decoder(encoder_input_shape: tuple, config: dict):
                     out_channels=num_out_channels,
                     kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                     stride=(1, 1),
-                    activation=nn.ReLU()
+                    activation=nn.ELU(alpha=1)
                 )
             )
 

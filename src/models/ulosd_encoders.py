@@ -25,7 +25,7 @@ def make_encoder(input_shape: tuple, config: dict):
             out_channels=config['model']['n_init_filters'],
             kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
             stride=(1, 1),
-            activation=nn.LeakyReLU(negative_slope=0.2)
+            activation=nn.ELU(alpha=1)
         )
     )
     input_width = encoder_input_shape[-1]
@@ -38,7 +38,7 @@ def make_encoder(input_shape: tuple, config: dict):
                 out_channels=num_channels,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(1, 1),
-                activation=nn.LeakyReLU(negative_slope=0.2)
+                activation=nn.ELU(alpha=1)
             )
         )
 
@@ -50,7 +50,7 @@ def make_encoder(input_shape: tuple, config: dict):
                 out_channels=num_channels * 2,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(2, 2),
-                activation=nn.LeakyReLU(negative_slope=0.2)
+                activation=nn.ELU(alpha=1)
             )
         )
         # Apply additional layers
@@ -61,7 +61,7 @@ def make_encoder(input_shape: tuple, config: dict):
                     out_channels=num_channels * 2,
                     kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                     stride=(1, 1),
-                    activation=nn.LeakyReLU(negative_slope=0.2)
+                    activation=nn.ELU(alpha=1)
                 )
             )
         input_width //= 2
@@ -99,7 +99,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             out_channels=config['model']['n_init_filters'],
             kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
             stride=(1, 1),
-            activation=nn.LeakyReLU(negative_slope=0.2)
+            activation=nn.ELU(alpha=1)
         )
     )
     input_width = encoder_input_shape[-1]
@@ -112,7 +112,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                 out_channels=num_channels,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(1, 1),
-                activation=nn.LeakyReLU(negative_slope=0.2)
+                activation=nn.ELU(alpha=1)
             )
         )
 
@@ -124,7 +124,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                 out_channels=num_channels * 2,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(2, 2),
-                activation=nn.LeakyReLU(negative_slope=0.2)
+                activation=nn.ELU(alpha=1)
             )
         )
         # Apply additional layers
@@ -135,7 +135,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                     out_channels=num_channels * 2,
                     kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                     stride=(1, 1),
-                    activation=nn.LeakyReLU(negative_slope=0.2)
+                    activation=nn.ELU(alpha=1)
                 )
             )
         input_width //= 2
