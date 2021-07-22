@@ -93,7 +93,7 @@ class AbstractAgent:
         # self.writer.add_hparams(config, {})
         self.writer.add_text("parameters", pretty_json(config))
         weight_names = [name for name, param in self.model.named_parameters()]
-        self.writer.add_text("weights", ''.join(weight_names))
+        self.writer.add_text("weights", '\n'.join(weight_names))
         self.writer.flush()
 
         if config['training']['k_folds'] > 1:
@@ -167,6 +167,7 @@ class AbstractAgent:
     def step(self,
              sample: torch.Tensor,
              target: torch.Tensor,
+             global_step_number: int,
              save_grad_flow_plot: bool,
              config: dict,
              mode: str) -> torch.Tensor:
@@ -241,6 +242,7 @@ class AbstractAgent:
 
                     loss = self.step(sample,
                                      target,
+                                     fold * epochs_per_fold + epoch,
                                      save_grad_flow_plot,
                                      config,
                                      mode='training')
@@ -295,6 +297,7 @@ class AbstractAgent:
 
                 sample_loss = self.step(sample,
                                         target,
+                                        global_epoch,
                                         save_grad_flow_plot=False,
                                         config=config,
                                         mode='validation')

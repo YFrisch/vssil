@@ -162,13 +162,15 @@ class ULOSD_Agent(AbstractAgent):
              sample: torch.Tensor,
              target: torch.Tensor,
              global_step_number: int,
+             save_grad_flow_plot: bool,
              config: dict,
              mode: str) -> torch.Tensor:
         """ One step of training.
 
         :param sample: Image sequence in (N, T, C, H, W)
         :param target: -
-        :param global_step_number: Number of times that step() was called (globally)
+        :param global_step_number: Number of global epochs
+        :param save_grad_flow_plot: Whether or not to plot the gradient flow
         :param config: Configuration dictionary
         :param mode: Flag to determine 'training' or 'validation' mode
         :return: Total loss
@@ -228,9 +230,10 @@ class ULOSD_Agent(AbstractAgent):
 
             L.backward()
 
-            plot_grad_flow(named_parameters=self.model.named_parameters(),
-                           epoch=global_step_number,
-                           summary_writer=self.writer)
+            if save_grad_flow_plot:
+                plot_grad_flow(named_parameters=self.model.named_parameters(),
+                               epoch=global_step_number,
+                               summary_writer=self.writer)
 
             # Clip gradient norm
             nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
