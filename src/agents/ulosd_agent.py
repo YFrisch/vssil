@@ -229,6 +229,7 @@ class ULOSD_Agent(AbstractAgent):
                 self.writer.add_video(tag='val/reconstruction_sample',
                                       vid_tensor=reconstructed_image_series_tensor.detach(),
                                       global_step=global_epoch_number)
+                self.writer.flush()
 
         # Log values and backprop. during training
         if mode == 'training':

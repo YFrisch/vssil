@@ -161,6 +161,8 @@ class AbstractAgent:
                 step_size=config['training']['lr_scheduler_epoch_steps'],
                 gamma=0.5
             )
+        elif config['training']['lr_scheduler'] in [None, 'None', 'NONE', 'none']:
+            self.scheduler = None
         else:
             raise NotImplementedError("LR Scheduler not implemented yet.")
 
@@ -265,7 +267,8 @@ class AbstractAgent:
 
                 # Validate
                 if not epoch % config['validation']['freq']:
-                    self.validate(training_fold=fold, training_epoch=epoch, config=config)
+                    with torch.no_grad():
+                        self.validate(training_fold=fold, training_epoch=epoch, config=config)
 
                 sys.stdout.flush()
 
@@ -273,8 +276,7 @@ class AbstractAgent:
                     self.scheduler.step()
 
             # Reset scheduler for each fold
-            if self.scheduler is not None:
-                self.reset_optim_and_scheduler(config)
+            self.reset_optim_and_scheduler(config)
 
     def validate(self,
                  training_fold: int,
@@ -291,26 +293,24 @@ class AbstractAgent:
         epochs_per_fold = config['training']['epochs']
         global_epoch = training_fold * epochs_per_fold + training_epoch
 
-        with torch.no_grad():
+        for i, sample in enumerate(tqdm(self.val_data_loader)):
+            sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
+            sample, target = sample.to(self.device), target.to(self.device)
 
-            for i, sample in enumerate(tqdm(self.val_data_loader)):
-                sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
-                sample, target = sample.to(self.device), target.to(self.device)
+            if i == 0:
+                save_val_sample = True
+            else:
+                save_val_sample = False
 
-                if i == 0:
-                    save_val_sample = True
-                else:
-                    save_val_sample = False
+            sample_loss = self.step(sample,
+                                    target,
+                                    global_epoch_number=global_epoch,
+                                    save_grad_flow_plot=False,
+                                    save_val_sample=save_val_sample,
+                                    config=config,
+                                    mode='validation')
 
-                sample_loss = self.step(sample,
-                                        target,
-                                        global_epoch_number=global_epoch,
-                                        save_grad_flow_plot=False,
-                                        save_val_sample=save_val_sample,
-                                        config=config,
-                                        mode='validation')
-
-                loss_per_sample.append(sample_loss.cpu().numpy())
+            loss_per_sample.append(sample_loss.cpu().numpy())
 
         avg_loss = np.mean(loss_per_sample)
         self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=global_epoch)
