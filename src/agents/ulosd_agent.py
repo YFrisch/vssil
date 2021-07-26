@@ -187,19 +187,13 @@ class ULOSD_Agent(AbstractAgent):
         feature_maps, observed_key_points = self.model.encode(sample)
         reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
 
-        # TODO: If the prediction is the difference v_t - v_1, then this clipping is not valid anymore
-        # reconstructed_images = torch.clip(reconstructed_images, -0.5, 0.5)
+        # NOTE: Clipping the prediction to (-1, 1) bcs. it is the predicted diff. between v_t and v_1
         reconstructed_images = torch.clip(reconstructed_images, -1.0, 1.0)
-
-        # Note: The decoder is constructed to predict v_t - v_1, so we need to add v_1 again?
-        # reconstructed_images = sample[:, 0, ...].unsqueeze(1) + reconstructed_images
-
 
         # Dynamics model
         # TODO: Not used yet
 
         # Losses
-        # TODO: Use only v_t - v_1 as training signal for the prediction, instead of v_t?
         target_diff = sample - sample[:, 0, ...].unsqueeze(1)
         reconstruction_loss = self.loss_func(prediction=reconstructed_images,
                                              target=target_diff,
@@ -220,8 +214,8 @@ class ULOSD_Agent(AbstractAgent):
         kl_loss *= kl_loss_scale
 
         # total loss
-        # L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss
-        L = reconstruction_loss
+        L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss
+        # L = reconstruction_loss
 
         if mode == 'validation' and config['validation']['save_video']:
             with torch.no_grad():

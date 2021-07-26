@@ -13,7 +13,7 @@ from src.utils.feature_visualization import make_annotated_tensor, play_series_w
 from src.utils.argparse import parse_arguments
 
 args = parse_arguments()
-args.config = "/home/yannik/vssil/results/ulosd_new/19579234/config.yml"
+args.config = "/home/yannik/vssil/results/ulosd/19617128/config.yml"
 
 with open(args.config, 'r') as stream:
     ulosd_conf = yaml.safe_load(stream)
@@ -43,9 +43,7 @@ ulosd_agent = ULOSD_Agent(dataset=data_set,
                           config=ulosd_conf)
 
 ulosd_agent.eval_data_loader = eval_data_loader
-# ulosd_agent.load_checkpoint("/home/yannik/ulosd.PTH")
-ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd_new/19579234/checkpoints/chckpt_f0_e40.PTH")
-# ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_14_13_10/checkpoints/chckpt_f2_e40.PTH")
+ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/19617128/checkpoints/chckpt_f0_e40.PTH")
 
 print("##### Evaluating:")
 with torch.no_grad():
@@ -57,8 +55,8 @@ with torch.no_grad():
         # play_series_with_keypoints(sample + 0.5, keypoint_coords=key_points)
         reconstruction = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                   first_frame=sample[:, 0, ...].unsqueeze(1))
-        # reconstruction = torch.clip(reconstruction, -0.5, 0.5)
-        # reconstruction = sample[:, 0, ...].unsqueeze(1) + reconstruction
+        reconstruction = torch.clip(reconstruction, -1.0, 1.0)
+        reconstruction = sample + reconstruction
 
         play_series_and_reconstruction_with_keypoints(sample + 0.5, reconstruction + 0.5, key_points)
 

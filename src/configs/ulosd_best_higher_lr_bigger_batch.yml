@@ -1,0 +1,51 @@
+data:
+  img_shape: (160, 160)
+  num_workers: 4
+  overlap: 3
+  tasks:
+  - stir
+  - pour
+  - pass
+  - stack
+  - place_in_box
+device: cuda:0
+evaluation: null
+log_dir: results/ulosd/
+model:
+  conv_init: he_uniform
+  conv_kernel_size: 3
+  decoder_hidden_activations: prelu
+  dense_init: he_uniform
+  encoder_hidden_activations: prelu
+  feature_map_height: 20
+  feature_map_width: 20
+  inception_url: https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth
+  n_convolutions_per_res: 3
+  n_feature_maps: 32
+  n_frames: 16
+  n_init_filters: 32
+multi_gpu: true
+training:
+  batch_size: 32
+  clip_norm: 10
+  epochs: 100
+  feature_map_regularization: 0.1
+  initial_lr: 0.0005
+  k_folds: 1
+  l2_weight_decay: 0.0001
+  lr_scheduler: None
+  lr_scheduler_epoch_steps: 30
+  min_lr: 0.0001
+  optim: Adam
+  reconstruction_loss: inception
+  separation_loss_scale: 2.0
+  separation_loss_sigma: 0.02
+  steps_per_epoch: 100
+used_gpus: '[''Tesla V100-PCIE-32GB'']'
+validation:
+  batch_size: 32
+  freq: 5
+  save_video: true
+warm_start: false
+warm_start_checkpoint: ''
+warm_start_config: ''
