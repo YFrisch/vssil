@@ -1,4 +1,5 @@
 data:
+  timesteps_per_sample: 8
   img_shape: (160, 160)
   num_workers: 4
   overlap: 3
