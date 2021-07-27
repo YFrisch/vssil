@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 import numpy as np
 
-from src.models.ulosd import ULOSD, ULOSD_Parallel
+from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import CustomInception3
 from src.models.utils import load_inception_weights
 from src.losses import temporal_separation_loss, inception_encoding_loss
@@ -46,8 +46,14 @@ class ULOSD_Agent(AbstractAgent):
         load_inception_weights(self.inception_net, config)
 
         if config['multi_gpu'] is True and torch.cuda.device_count() >= 1:
-            self.model = ULOSD_Parallel(self.model)
-            self.model.to(self.device)
+            self.model = ULOSD_Dist_Parallel(
+                module=self.model,
+                device_ids=list(range(torch.cuda.device_count())),
+                dim=0
+            )
+            # self.model = ULOSD_Parallel(self.model)
+            # TODO: Is the next line required?
+            # self.model.to(self.device)
 
         # Logged values
         self.rec_loss_per_iter = []
