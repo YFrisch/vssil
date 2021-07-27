@@ -46,7 +46,8 @@ class ULOSD_Agent(AbstractAgent):
         load_inception_weights(self.inception_net, config)
 
         if config['multi_gpu'] is True and torch.cuda.device_count() >= 1:
-            self.model = ULOSD_Dist_Parallel(
+            #self.model = ULOSD_Dist_Parallel(
+            self.model = ULOSD_Parallel(
                 module=self.model,
                 device_ids=list(range(torch.cuda.device_count())),
                 dim=0
