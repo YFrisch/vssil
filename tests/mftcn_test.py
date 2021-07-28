@@ -2,7 +2,7 @@ import os
 from os.path import join
 import yaml
 
-from src.data.mime.mime_hd_kinect_dataset import MimeHDKinectRGB
+from old.src.data.mime.mime_hd_kinect_dataset import MimeHDKinectRGB
 from src.agents.mf_tcn_agent import MF_TCN_Agent
 
 cwd = os.getcwd()

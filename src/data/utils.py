@@ -1,13 +1,10 @@
-from time import sleep
-
 import torch
 from torch.utils.data import ConcatDataset
-import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
 
-from .mime.mime_hd_kinect_dataset import MimeHDKinectRGB
+from old.src.data.mime import MimeHDKinectRGB
 
 
 def play_video(video_series: torch.Tensor):

@@ -4,7 +4,7 @@ from os.path import join
 
 from torch.utils.data import DataLoader
 
-from src.data.mime import MimeJointAngles
+from old.src.data.mime import MimeJointAngles
 from src.agents.tvi_agent import TVI_Agent
 
 cwd = os.getcwd()

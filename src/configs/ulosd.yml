@@ -1,7 +1,4 @@
 data:
-  tasks: ['stir', 'pour', 'pass', 'place_in_box']
-  timesteps_per_sample: 8
-  overlap: 3
   img_shape: (64, 64)
   num_workers: 4
 

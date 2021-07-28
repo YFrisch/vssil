@@ -34,7 +34,7 @@ class AbstractAgent:
         self.val_data_loader = None
         self.eval_data_loader = None
 
-        assert not (config['data']['timesteps_per_sample'] == -1 and config['training']['batch_size'] > 1), \
+        assert not (config['model']['n_frames'] == -1 and config['training']['batch_size'] > 1), \
             "Batch size > 1 is not supported for whole trajectories."
 
         self.device = config['device'] if config['device'] is not None else "cpu"

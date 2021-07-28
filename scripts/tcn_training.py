@@ -1,6 +1,6 @@
 import yaml
 
-from src.data.mime.mime_hd_kinect_dataset import MimeHDKinectRGB
+from old.src.data.mime.mime_hd_kinect_dataset import MimeHDKinectRGB
 from src.agents.tcn_agent import TCN_Agent
 from src.utils.argparse import parse_arguments
 

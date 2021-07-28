@@ -1,2 +1,0 @@
-from .mime_hd_kinect_dataset import MimeHDKinectRGB
-from .mime_joint_angles_dataset import MimeJointAngles

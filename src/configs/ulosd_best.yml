@@ -1,14 +1,7 @@
 data:
-  timesteps_per_sample: 8
   img_shape: (64, 64)
   num_workers: 4
-  overlap: 3
-  tasks:
-  - stir
-  - pour
-  - pass
-  - stack
-  - place_in_box
+
 device: cuda:0
 evaluation: null
 log_dir: results/ulosd/
@@ -31,7 +24,7 @@ training:
   clip_norm: 10
   epochs: 100
   feature_map_regularization: 0.1
-  initial_lr: 0.0001
+  initial_lr: 0.00005
   k_folds: 1
   l2_weight_decay: 0.0001
   lr_scheduler: None
@@ -39,8 +32,8 @@ training:
   min_lr: 0.0001
   optim: Adam
   reconstruction_loss: inception
-  separation_loss_scale: 2.0
-  separation_loss_sigma: 0.02
+  separation_loss_scale: 1.0
+  separation_loss_sigma: 0.2
   steps_per_epoch: 100
 used_gpus: '[''Tesla V100-PCIE-32GB'']'
 validation:
