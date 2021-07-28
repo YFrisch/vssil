@@ -1,11 +1,8 @@
-import os
 import yaml
 
-from torchvision import transforms
-
 from src.utils.argparse import parse_arguments
+from src.data.utils import combine_mime_hd_kinect_tasks
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 
 args = parse_arguments()
 
@@ -19,21 +16,12 @@ with open(args.config, 'r') as stream:
         ulosd_conf['log_dir'] = ulosd_conf['log_dir']+f"/{args.id}/"
     print(ulosd_conf['log_dir'])
 
-preprocess = transforms.Compose([
-    # NOTE: The first transform already converts the range to (0, 1)
-    ImglistToTensor(),
-    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-data_set = VideoFrameDataset(
-    root_path=args.data,
-    annotationfile_path=os.path.join(args.data, 'annotations.txt'),
-    num_segments=20,
-    frames_per_segment=ulosd_conf['model']['n_frames'],
-    imagefile_template='img_{:05d}.jpg',
-    transform=preprocess,
-    random_shift=True,
-    test_mode=False
+data_set = combine_mime_hd_kinect_tasks(
+    task_list=ulosd_conf['data']['tasks'],
+    base_path=args.data,
+    timesteps_per_sample=ulosd_conf['model']['n_frames'],
+    overlap=ulosd_conf['data']['overlap'],
+    img_shape=eval(ulosd_conf['data']['img_shape'])
 )
 
 ulosd_agent = ULOSD_Agent(dataset=data_set,

@@ -48,6 +48,7 @@ ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/19617128/checkpoin
 print("##### Evaluating:")
 with torch.no_grad():
     for i, sample in enumerate(eval_data_loader):
+
         sample, _ = ulosd_agent.preprocess(sample, ulosd_conf)
 
         feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)

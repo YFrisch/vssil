@@ -7,10 +7,7 @@ import shutil
 import time
 import gc
 
-import json
 import yaml
-from pathlib import Path
-from datetime import datetime, date
 
 import numpy as np
 import torch
@@ -114,6 +111,7 @@ class AbstractAgent:
 
     def preprocess(self,
                    x: torch.Tensor,
+                   label: torch.Tensor,
                    config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
         """ Pre-process samples. """
         return x
@@ -231,10 +229,11 @@ class AbstractAgent:
 
                 # Iterate over steps
                 for i in tqdm(range(config['training']['steps_per_epoch'])):
-                    sample = next(iter(self.train_data_loader))
+
+                    sample, label = next(iter(self.train_data_loader))
 
                     with torch.no_grad():
-                        sample, target = self.preprocess(sample, config)  # (N, T, C, H, W)
+                        sample, target = self.preprocess(sample, label, config)  # (N, T, C, H, W)
 
                     sample, target = sample.to(self.device), target.to(self.device)
 
@@ -250,11 +249,14 @@ class AbstractAgent:
                                      save_val_sample=False,
                                      config=config,
                                      mode='training')
+
                     assert loss is not None, "No loss returned during training."
                     self.loss_per_iter.append(loss.detach().cpu().numpy())
 
                     del sample, target, loss
                     gc.collect()
+
+                    exit()
 
                 avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")

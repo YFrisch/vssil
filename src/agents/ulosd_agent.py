@@ -54,7 +54,7 @@ class ULOSD_Agent(AbstractAgent):
             )
             # self.model = ULOSD_Parallel(self.model)
             # TODO: Is the next line required?
-            # self.model.to(self.device)
+            self.model.to(self.device)
 
         # Logged values
         self.rec_loss_per_iter = []
@@ -62,13 +62,17 @@ class ULOSD_Agent(AbstractAgent):
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
-    def preprocess(self, x: torch.Tensor, config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
+    def preprocess(self,
+                   x: torch.Tensor,
+                   label: torch.Tensor,
+                   config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
         """ Maps the input image sequence to range (-0.5, 0.5).
             Then returns input as input and target for reconstruction.
 
             NOTE: MIME data should already be in (0, 1).
 
         :param x: Image sequence in (N, T, C, H, W)
+        :param label: Label sequence in (N, T, K)
         :param config:
         :return:
         """

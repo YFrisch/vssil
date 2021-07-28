@@ -1,13 +1,14 @@
 import os
 from os.path import join
 import time
+import datetime
 
 import torch
 from torch.nn.functional import interpolate
 from torchvision.io import read_video
 
 from .mime_base import MimeBase
-
+from src.utils.time import get_start_time
 
 class MimeHDKinectRGB(MimeBase):
 
@@ -52,6 +53,7 @@ class MimeHDKinectRGB(MimeBase):
 
             # NOTE: The following are in (T, H, W, C) format
             hd_kinect_img_series = read_video(path, pts_unit='sec')[0]
+
             hd_kinect_img_series = hd_kinect_img_series.permute(0, 3, 1, 2)
             hd_kinect_img_series = hd_kinect_img_series.float() / 255.0
 
