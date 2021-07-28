@@ -256,8 +256,6 @@ class AbstractAgent:
                     del sample, target, loss
                     gc.collect()
 
-                    exit()
-
                 avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
 
@@ -295,8 +293,8 @@ class AbstractAgent:
         epochs_per_fold = config['training']['epochs']
         global_epoch = training_fold * epochs_per_fold + training_epoch
 
-        for i, sample in enumerate(tqdm(self.val_data_loader)):
-            sample, target = self.preprocess(sample, config)  # Sample is in (N, T, C, H, W)
+        for i, (sample, label) in enumerate(tqdm(self.val_data_loader)):
+            sample, target = self.preprocess(sample, label, config)  # Sample is in (N, T, C, H, W)
             sample, target = sample.to(self.device), target.to(self.device)
 
             if i == 0:

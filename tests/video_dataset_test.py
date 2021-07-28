@@ -17,7 +17,7 @@ preprocess = transforms.Compose([
 data_set = VideoFrameDataset(
     root_path=data_root_path,
     annotationfile_path=annotations_file,
-    num_segments=20,
+    num_segments=1,
     frames_per_segment=16,
     imagefile_template='img_{:05d}.jpg',
     transform=preprocess,
@@ -33,6 +33,8 @@ data_loader = DataLoader(
 
 for i, sample in enumerate(data_loader):
     frames, labels = sample
+    print(frames.shape)
+    exit()
     print(f"{i} {list(labels)}")
     if i == 500:
         break
