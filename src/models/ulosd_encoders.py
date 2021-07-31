@@ -28,6 +28,9 @@ def make_encoder(input_shape: tuple, config: dict):
             activation=activation_dict[config['model']['encoder_hidden_activations']]
         )
     )
+    encoder_module_list.append(
+        nn.BatchNorm2d(num_features=config['model']['n_init_filters'])
+    )
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
@@ -41,6 +44,9 @@ def make_encoder(input_shape: tuple, config: dict):
                 activation=activation_dict[config['model']['encoder_hidden_activations']]
             )
         )
+        encoder_module_list.append(
+            nn.BatchNorm2d(num_features=num_channels)
+        )
 
     while True:
         # Reduce resolution
@@ -53,6 +59,10 @@ def make_encoder(input_shape: tuple, config: dict):
                 activation=activation_dict[config['model']['encoder_hidden_activations']]
             )
         )
+        encoder_module_list.append(
+            nn.BatchNorm2d(num_features=num_channels * 2)
+        )
+
         # Apply additional layers
         for _ in range(config['model']['n_convolutions_per_res']):
             encoder_module_list.append(
@@ -63,6 +73,9 @@ def make_encoder(input_shape: tuple, config: dict):
                     stride=(1, 1),
                     activation=activation_dict[config['model']['encoder_hidden_activations']]
                 )
+            )
+            encoder_module_list.append(
+                nn.BatchNorm2d(num_features=num_channels * 2)
             )
         input_width //= 2
         num_channels *= 2
@@ -79,7 +92,6 @@ def make_encoder(input_shape: tuple, config: dict):
             activation=nn.Softplus()
         )
     )
-
     return nn.Sequential(*encoder_module_list), encoder_input_shape
 
 
@@ -102,6 +114,9 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             activation=activation_dict[config['model']['encoder_hidden_activations']]
         )
     )
+    appearance_module_list.append(
+        nn.BatchNorm2d(num_features=config['model']['n_init_filters'])
+    )
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
@@ -115,6 +130,9 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                 activation=activation_dict[config['model']['encoder_hidden_activations']]
             )
         )
+        appearance_module_list.append(
+            nn.BatchNorm2d(num_features=num_channels)
+        )
 
     while True:
         # Reduce resolution
@@ -127,6 +145,9 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                 activation=activation_dict[config['model']['encoder_hidden_activations']]
             )
         )
+        appearance_module_list.append(
+            nn.BatchNorm2d(num_features=num_channels * 2)
+        )
         # Apply additional layers
         for _ in range(config['model']['n_convolutions_per_res']):
             appearance_module_list.append(
@@ -137,6 +158,9 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                     stride=(1, 1),
                     activation=activation_dict[config['model']['encoder_hidden_activations']]
                 )
+            )
+            appearance_module_list.append(
+                nn.BatchNorm2d(num_features=num_channels * 2)
             )
         input_width //= 2
         num_channels *= 2
