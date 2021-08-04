@@ -62,6 +62,9 @@ class AbstractAgent:
         print(f"##### Loading checkpoint {config['warm_start_checkpoint']}.")
         self.load_checkpoint(config['warm_start_checkpoint'])
 
+    def log_model(self, config: dict):
+        pass
+
     def setup(self, config: dict = None):
         """ Sets up all relevant attributes for training and logging results. """
 
@@ -88,6 +91,7 @@ class AbstractAgent:
         # self.writer.add_graph(self.model)
         # Add config dict
         # self.writer.add_hparams(config, {})
+        self.log_model(config=config)
         self.writer.add_text("parameters", pretty_json(config))
         weight_names = [name for name, param in self.model.named_parameters()]
         self.writer.add_text("weights", '\n'.join(weight_names))
@@ -144,8 +148,25 @@ class AbstractAgent:
                 lr=config['training']['initial_lr'],
                 weight_decay=config['training']['l2_weight_decay']
             )
+        elif config['training']['optim'] in ['rprop', 'RPROP']:
+            self.optim = torch.optim.Rprop(
+                params=self.model.parameters(),
+                lr=config['training']['initial_lr']
+            )
+        elif config['training']['optim'] in ['rmsprop', 'RMSPROP']:
+            self.optim = torch.optim.RMSprop(
+                params=self.model.parameters(),
+                lr=config['training']['initial_lr'],
+                weight_decay=config['training']['l2_weight_decay']
+            )
+        elif config['training']['optim'] in ['sgd', 'SGD']:
+            self.optim = torch.optim.SGD(
+                params=self.model.parameters(),
+                lr=config['training']['initial_lr'],
+                weight_decay=config['training']['l2_weight_decay']
+            )
         else:
-            raise NotImplementedError("Optimizer not implemented yet.")
+            raise NotImplementedError("Optimizer unknown / not implemented yet.")
 
         if config['training']['lr_scheduler'] in ['CosineAnnealingLR']:
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

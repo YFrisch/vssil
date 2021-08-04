@@ -16,28 +16,28 @@ model:
   inception_url: https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth
   n_convolutions_per_res: 3
   n_feature_maps: 32
-  n_frames: 16
-  n_init_filters: 32
+  n_frames: 8
+  n_init_filters: 64
 multi_gpu: true
 training:
-  batch_size: 16
+  batch_size: 8
   clip_norm: 10
   epochs: 200
-  feature_map_regularization: 0.5
-  initial_lr: 0.00005
+  feature_map_regularization: 5.0
+  initial_lr: 0.001
   k_folds: 1
-  l2_weight_decay: 0.0005
+  l2_weight_decay: 0.005
   lr_scheduler: None
   lr_scheduler_epoch_steps: 30
   min_lr: 0.0001
   optim: Adam
   reconstruction_loss: 'inception'
-  separation_loss_scale: 5.0
-  separation_loss_sigma: 0.2
+  separation_loss_scale: 0.1
+  separation_loss_sigma: 0.02
   steps_per_epoch: 200
 used_gpus: '[''Tesla V100-PCIE-32GB'']'
 validation:
-  batch_size: 16
+  batch_size: 8
   freq: 5
   save_video: true
 warm_start: false

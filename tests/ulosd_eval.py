@@ -20,7 +20,7 @@ if __name__ == "__main__":
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
     args = parse_arguments()
-    args.config = "/home/yannik/vssil/results/ulosd/2021_7_28_17_24/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd/2021_8_1_18_11/config.yml"
 
     preprocess = transforms.Compose([
         # NOTE: The first transform already converts the range to (0, 1)
@@ -30,8 +30,8 @@ if __name__ == "__main__":
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
-        ulosd_conf['device'] = 'cpu'
-        ulosd_conf['multi_gpu'] = False
+        ulosd_conf['device'] = 'cuda:0'
+        ulosd_conf['multi_gpu'] = True
         ulosd_conf['data']['tasks'] = ['stir']
         ulosd_conf['model']['inception_url'] = 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         root_path=data_root_path,
         annotationfile_path=annotations_file,
         num_segments=1,
-        frames_per_segment=16,
+        frames_per_segment=300,
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=True,
@@ -55,17 +55,17 @@ if __name__ == "__main__":
     ulosd_agent = ULOSD_Agent(dataset=data_set,
                               config=ulosd_conf)
 
-    print(ulosd_agent.device)
-    exit()
-
     ulosd_agent.eval_data_loader = eval_data_loader
-    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_7_28_17_24/checkpoints/chckpt_f0_e5.PTH")
+    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_8_1_18_11/checkpoints/chckpt_f0_e45.PTH")
 
     print("##### Evaluating:")
     with torch.no_grad():
         for i, (sample, label) in enumerate(eval_data_loader):
 
             sample, _ = ulosd_agent.preprocess(sample, label, ulosd_conf)
+            sample.to(ulosd_agent.device)
+
+            print(sample.shape)
 
             feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             reconstruction = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                       first_frame=sample[:, 0, ...].unsqueeze(1))
             reconstruction = torch.clip(reconstruction, -1.0, 1.0)
-            reconstruction = sample + reconstruction
+            reconstruction = sample[:, 0, ...] + reconstruction
 
             play_series_and_reconstruction_with_keypoints(sample + 0.5, reconstruction + 0.5, key_points)
 

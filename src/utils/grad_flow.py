@@ -12,7 +12,10 @@ def pyplot_fig_to_rgb_array(fig, expand=True):
     return np.fromstring(buf, dtype=np.uint8).reshape(shape)
 
 
-def plot_grad_flow(named_parameters, epoch: int, summary_writer: SummaryWriter):
+def plot_grad_flow(named_parameters,
+                   epoch: int,
+                   tag_name: str,
+                   summary_writer: SummaryWriter):
     """ Plots the gradients flowing through different layers in the net during training.
         Can be used for checking for possible gradient vanishing / exploding problsems.
 
@@ -51,6 +54,6 @@ def plot_grad_flow(named_parameters, epoch: int, summary_writer: SummaryWriter):
     np_array = pyplot_fig_to_rgb_array(fig)
     torch_tensor = torch.from_numpy(np_array).squeeze(0).permute(2, 0, 1)
 
-    summary_writer.add_image(tag='train/grad_flow', img_tensor=torch_tensor, global_step=epoch)
+    summary_writer.add_image(tag=f'train/grad_flow/{tag_name}', img_tensor=torch_tensor, global_step=epoch)
 
     plt.close(fig)

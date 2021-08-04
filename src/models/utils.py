@@ -37,6 +37,19 @@ def partial_load_state_dict(model: torch.nn.Module, loaded_dict: torch.Parameter
         model_state_dict[name].copy_(param)
 
 
+def init_weights(m: torch.nn.Module, config: dict):
+    if type(m) == nn.Conv2d:
+        if config['model']['weight_init'] == 'he_uniform':
+            torch.nn.init.kaiming_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        if config['model']['weight_init'] == 'xavier_uniform':
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        if config['model']['weight_init'] == 'ones':
+            torch.nn.init.ones_(m.weight)
+            m.bias.data.fill_(1.00)
+
+
 def load_inception_weights(inception_net: CustomInception3, config: dict):
     """ Loads inception net weight (pretrained on ImageNet) from file or url. """
     if not isfile(join(config['log_dir'], "inception.pth")):
@@ -53,13 +66,17 @@ def load_inception_weights(inception_net: CustomInception3, config: dict):
 
 
 activation_dict = {
-    'relu': nn.ReLU(),
-    'ReLU': nn.ReLU(),
-    'RELU': nn.ReLU(),
-    'ELU': nn.ELU(),
-    'elu': nn.ELU(),
-    'LeakyRELU': nn.LeakyReLU(),
-    'LeakyReLU': nn.LeakyReLU(),
-    'PReLU': nn.PReLU(),
-    'prelu': nn.PReLU()
+    'identity': nn.Identity,
+    'id': nn.Identity,
+    'sigmoid': nn.Sigmoid,
+    'tanh': nn.Tanh,
+    'relu': nn.ReLU,
+    'ReLU': nn.ReLU,
+    'RELU': nn.ReLU,
+    'ELU': nn.ELU,
+    'elu': nn.ELU,
+    'LeakyRELU': nn.LeakyReLU,
+    'LeakyReLU': nn.LeakyReLU,
+    'PReLU': nn.PReLU,
+    'prelu': nn.PReLU
 }
