@@ -10,7 +10,7 @@ from torchvision import transforms
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.utils import play_video
-from src.utils.feature_visualization import make_annotated_tensor, play_series_with_keypoints,\
+from src.utils.visualization import make_annotated_tensor, play_series_with_keypoints,\
     play_series_and_reconstruction_with_keypoints
 from src.utils.argparse import parse_arguments
 

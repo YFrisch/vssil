@@ -1,5 +1,6 @@
 import os.path
 
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -28,13 +29,20 @@ if __name__ == "__main__":
 
     data_loader = DataLoader(
         dataset=data_set,
-        batch_size=32,
-        shuffle=False
+        batch_size=1,
+        shuffle=True
     )
 
     for i, sample in enumerate(data_loader):
         frames, labels = sample
+        t0_frame = frames[0, 0, ...].permute(1, 2, 0).cpu().numpy()
+        tn_frame = frames[0, 10, ...].permute(1, 2, 0).cpu().numpy()
         print(frames.shape)
+        fig, ax = plt.subplots(1, 3)
+        ax[0].imshow(t0_frame)
+        ax[1].imshow(tn_frame)
+        ax[2].imshow((tn_frame-t0_frame) + 0.5)
+        plt.show()
         exit()
         print(f"{i} {list(labels)}")
         if i == 500:

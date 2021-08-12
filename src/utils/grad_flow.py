@@ -31,9 +31,11 @@ def plot_grad_flow(named_parameters,
     for n, p in named_parameters:
         if p.requires_grad and ("bias" not in n):
             layers.append(n)
-            ave_grads.append(p.grad.abs().mean())
+            #print(f'name: {n}')
+            ave_grads.append(p.grad.abs().mean().cpu())
+            #print(f'mean: {p.grad.abs().mean()}')
             # ave_grads.append(p.grad.mean())
-            max_grads.append(p.grad.abs().max())
+            max_grads.append(p.grad.abs().max().cpu())
             # max_grads.append(p.grad.max())
 
     fig = plt.figure()

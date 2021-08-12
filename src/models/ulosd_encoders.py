@@ -3,6 +3,7 @@ import torch.nn as nn
 from .layers import Conv2DSamePadding
 from .utils import activation_dict
 
+
 def make_encoder(input_shape: tuple, config: dict):
     """ Image encoder.
 
@@ -25,7 +26,7 @@ def make_encoder(input_shape: tuple, config: dict):
             out_channels=config['model']['n_init_filters'],
             kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
             stride=(1, 1),
-            activation=activation_dict[config['model']['encoder_hidden_activations']]
+            activation=config['model']['encoder_hidden_activations']
         )
     )
     encoder_module_list.append(
@@ -34,14 +35,14 @@ def make_encoder(input_shape: tuple, config: dict):
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
-    for _ in range(config['model']['n_convolutions_per_res']):
+    for _ in range(config['model']['n_convolutions_per_res'] - 1):
         encoder_module_list.append(
             Conv2DSamePadding(
                 in_channels=num_channels,
                 out_channels=num_channels,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(1, 1),
-                activation=activation_dict[config['model']['encoder_hidden_activations']]
+                activation=config['model']['encoder_hidden_activations']
             )
         )
         encoder_module_list.append(
@@ -56,7 +57,7 @@ def make_encoder(input_shape: tuple, config: dict):
                 out_channels=num_channels * 2,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(2, 2),
-                activation=activation_dict[config['model']['encoder_hidden_activations']]
+                activation=config['model']['encoder_hidden_activations']
             )
         )
         encoder_module_list.append(
@@ -64,14 +65,14 @@ def make_encoder(input_shape: tuple, config: dict):
         )
 
         # Apply additional layers
-        for _ in range(config['model']['n_convolutions_per_res']):
+        for _ in range(config['model']['n_convolutions_per_res'] - 1):
             encoder_module_list.append(
                 Conv2DSamePadding(
                     in_channels=num_channels * 2,
                     out_channels=num_channels * 2,
                     kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                     stride=(1, 1),
-                    activation=activation_dict[config['model']['encoder_hidden_activations']]
+                    activation=config['model']['encoder_hidden_activations']
                 )
             )
             encoder_module_list.append(
@@ -111,7 +112,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             out_channels=config['model']['n_init_filters'],
             kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
             stride=(1, 1),
-            activation=activation_dict[config['model']['encoder_hidden_activations']]
+            activation=config['model']['encoder_hidden_activations']
         )
     )
     appearance_module_list.append(
@@ -120,14 +121,14 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
-    for _ in range(config['model']['n_convolutions_per_res']):
+    for _ in range(config['model']['n_convolutions_per_res'] - 1):
         appearance_module_list.append(
             Conv2DSamePadding(
                 in_channels=num_channels,
                 out_channels=num_channels,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(1, 1),
-                activation=activation_dict[config['model']['encoder_hidden_activations']]
+                activation=config['model']['encoder_hidden_activations']
             )
         )
         appearance_module_list.append(
@@ -142,21 +143,21 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                 out_channels=num_channels * 2,
                 kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                 stride=(2, 2),
-                activation=activation_dict[config['model']['encoder_hidden_activations']]
+                activation=config['model']['encoder_hidden_activations']
             )
         )
         appearance_module_list.append(
             nn.BatchNorm2d(num_features=num_channels * 2)
         )
         # Apply additional layers
-        for _ in range(config['model']['n_convolutions_per_res']):
+        for _ in range(config['model']['n_convolutions_per_res'] - 1):
             appearance_module_list.append(
                 Conv2DSamePadding(
                     in_channels=num_channels * 2,
                     out_channels=num_channels * 2,
                     kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
                     stride=(1, 1),
-                    activation=activation_dict[config['model']['encoder_hidden_activations']]
+                    activation=config['model']['encoder_hidden_activations']
                 )
             )
             appearance_module_list.append(

@@ -9,6 +9,7 @@ from src.models.inception3 import CustomInception3
 from src.models.utils import load_inception_weights
 from src.losses import temporal_separation_loss, inception_encoding_loss
 from src.utils.grad_flow import plot_grad_flow
+from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
 
 
@@ -42,11 +43,12 @@ class ULOSD_Agent(AbstractAgent):
             config=config
         ).to(self.device)
 
-        self.inception_net = CustomInception3().to(self.device)
-        load_inception_weights(self.inception_net, config)
+        if config['training']['reconstruction_loss'] in ['inception', 'Inception', 'INCEPTION']:
+            self.inception_net = CustomInception3().to(self.device)
+            load_inception_weights(self.inception_net, config)
 
         if config['multi_gpu'] is True and torch.cuda.device_count() >= 1:
-            #self.model = ULOSD_Dist_Parallel(
+            # self.model = ULOSD_Dist_Parallel(
             self.model = ULOSD_Parallel(
                 module=self.model,
                 device_ids=list(range(torch.cuda.device_count())),
@@ -109,7 +111,8 @@ class ULOSD_Agent(AbstractAgent):
         if rec_loss in ['mse', 'MSE']:
             N, T = target.shape[0], target.shape[1]
             loss = F.mse_loss(input=prediction.view((N * T, *tuple(target.shape[2:]))),
-                              target=target.view((N * T, *tuple(target.shape[2:]))))
+                              target=target.view((N * T, *tuple(target.shape[2:]))),
+                              reduction='sum')
             # loss /= (N*T)
 
         if rec_loss in ['Inception', 'inception', 'INCEPTION']:
@@ -196,17 +199,17 @@ class ULOSD_Agent(AbstractAgent):
 
         # Vision model
         feature_maps, observed_key_points = self.model.encode(sample)
-        reconstructed_images = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+        reconstructed_diff = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
 
         # NOTE: Clipping the prediction to (-1, 1) bcs. it is the predicted diff. between v_t and v_1
-        reconstructed_images = torch.clip(reconstructed_images, -1.0, 1.0)
+        reconstructed_diff = torch.clip(reconstructed_diff, -1.0, 1.0)
 
         # Dynamics model
         # TODO: Not used yet
 
         # Losses
         target_diff = sample - sample[:, 0, ...].unsqueeze(1)
-        reconstruction_loss = self.loss_func(prediction=reconstructed_images,
+        reconstruction_loss = self.loss_func(prediction=reconstructed_diff,
                                              target=target_diff,
                                              config=config)
 
@@ -230,9 +233,15 @@ class ULOSD_Agent(AbstractAgent):
 
         if mode == 'validation' and config['validation']['save_video']:
             with torch.no_grad():
-                reconstructed_image_series_tensor = reconstructed_images + sample[:, 0, ...].unsqueeze(1)
+                torch_img_series_tensor = gen_eval_imgs(sample=sample,
+                                                        reconstruction=reconstructed_diff,
+                                                        key_points=observed_key_points)
+                # reconstructed_image_series_tensor = reconstructed_diff + sample[:, 0, ...].unsqueeze(1)
+                # self.writer.add_video(tag='val/reconstruction_sample',
+                #                       vid_tensor=reconstructed_image_series_tensor[0, ...].detach(),
+                #                       global_step=global_epoch_number)
                 self.writer.add_video(tag='val/reconstruction_sample',
-                                      vid_tensor=reconstructed_image_series_tensor.detach(),
+                                      vid_tensor=torch_img_series_tensor,
                                       global_step=global_epoch_number)
                 self.writer.flush()
 
@@ -245,13 +254,24 @@ class ULOSD_Agent(AbstractAgent):
 
             L.backward()
 
-            if save_grad_flow_plot:
-                plot_grad_flow(named_parameters=self.model.named_parameters(),
-                               epoch=global_epoch_number,
-                               summary_writer=self.writer)
-
             # Clip gradient norm
             nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
+
+            with torch.no_grad():
+                if save_grad_flow_plot:
+                    plot_grad_flow(named_parameters=self.model.encoder.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='encoder')
+                    plot_grad_flow(named_parameters=self.model.appearance_net.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='appearance_net')
+                    plot_grad_flow(named_parameters=self.model.decoder.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='decoder')
+                    self.writer.flush()
 
             self.optim.step()
 

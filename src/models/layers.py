@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .utils import get_img_coordinates
+from .utils import get_img_coordinates, activation_dict
 
 
 class Conv2d(nn.Module):
@@ -26,7 +26,10 @@ class Conv2d(nn.Module):
                                  stride=stride,
                                  padding=padding)
 
-        self.activation = activation
+        if type(activation) == str:
+            self.activation = activation_dict[activation]()
+        else:
+            self.activation = activation
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _y = self.conv_2d(x)

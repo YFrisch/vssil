@@ -1,15 +1,29 @@
-import torch
-from src.models.utils import activation_dict
+from time import sleep
 
-prelu_func = activation_dict['prelu'](init=0.25)
-for n, p in prelu_func.named_parameters():
-    print(n)
-prelu_func2 = activation_dict['prelu'](init=0.5)
-for n, p in prelu_func2.named_parameters():
-    print(n)
-x = torch.ones((1, 3, 3))
-x[0, 1, 1] = -1
-y = prelu_func(x)
-y2 = prelu_func2(x)
-print(y)
-print(y2)
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import animation
+
+
+coord = np.array([0.5, 0.5])
+
+positions = []
+
+fig, ax = plt.subplots(1, 1)
+
+scatter_obj = ax.scatter(coord[0], coord[1], s=100)
+
+
+def animate(t: int):
+
+    coord[0] += (0.005 * np.sin(t)) + (0.005 * np.cos(t))
+    coord[1] += (0.005 * np.sin(t)) - (0.005 * np.cos(t))
+    scatter_obj.set_offsets([coord[0], coord[1]])
+    sleep(0.1)
+
+    return scatter_obj
+
+
+anim = animation.FuncAnimation(fig, animate, interval=1, repeat=True)
+
+plt.show()

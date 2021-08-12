@@ -253,8 +253,8 @@ class AbstractAgent:
 
                     sample, label = next(iter(self.train_data_loader))
 
-                    with torch.no_grad():
-                        sample, target = self.preprocess(sample, label, config)  # (N, T, C, H, W)
+                    # with torch.no_grad():
+                    sample, target = self.preprocess(sample, label, config)  # (N, T, C, H, W)
 
                     sample, target = sample.to(self.device), target.to(self.device)
 

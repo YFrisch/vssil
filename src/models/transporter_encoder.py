@@ -36,12 +36,9 @@ class TransporterBlock(nn.Module):
         self.skip_connections = skip_connections
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        id = x
-        x = self.conv(x)
-        x = self.batch_norm(x)
-        if self.skip_connections:
-            x = torch.cat([x, id], dim=1)
-        return self.activation(x)
+        _x = self.conv(x)
+        _x = self.batch_norm(_x)
+        return self.activation(_x)
 
 
 class TransporterEncoder(nn.Module):
