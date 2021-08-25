@@ -129,7 +129,9 @@ class AbstractAgent:
         self.model.load_state_dict(torch.load(chckpt_path))
 
     def reset_logged_values(self):
-        """ Resets all logged values (metrics, losses, ...). """
+        """ Resets all logged values (metrics, losses, ...).
+            Is called once per training epoch.
+         """
         self.loss_per_iter = []
 
     def log_values(self,
@@ -228,7 +230,7 @@ class AbstractAgent:
             )
             self.val_data_loader = DataLoader(
                 dataset=self.data_set,
-                batch_size=config['training']['batch_size'],
+                batch_size=config['validation']['batch_size'],
                 sampler=SubsetRandomSampler(val_ids),
                 num_workers=config['data']['num_workers'],
                 pin_memory=True
@@ -365,8 +367,8 @@ class AbstractAgent:
         loss_per_sample = []
 
         with torch.no_grad():
-            for i, sample in enumerate(tqdm(self.eval_data_loader)):
-                sample, target = self.preprocess(sample, config)
+            for i, (sample, label) in enumerate(tqdm(self.eval_data_loader)):
+                sample, target = self.preprocess(x=sample, label=label, config=config)
                 sample, target = sample.to(self.device), target.to(self.device)
 
                 prediction = self.model(sample)

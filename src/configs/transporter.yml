@@ -3,30 +3,30 @@ data:
   img_shape: (3, 64, 64)
 
 model:
-  n_frames: 2
+  n_frames: 3
   num_img_channels: 3
-  num_keypoints: 8
+  num_keypoints: 5
   activation: 'prelu'
-  gaussian_map_std: 0.1
+  gaussian_map_std: 0.25
   weight_init: 'he_uniform'
   skip_connections: False
 
 training:
-  epochs: 100
+  epochs: 400
   steps_per_epoch: 100  # 100
   optim: 'adam'
   k_folds: 1
-  initial_lr: 0.0005
+  initial_lr: 0.00005
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 30
-  batch_size: 64  # 128
-  loss_function: 'mse'
-  l2_weight_decay: 0.000000001
-  grad_clip_max_norm: 1.0
+  lr_scheduler_epoch_steps: 100
+  batch_size: 128  # 128
+  loss_function: 'sse'
+  l2_weight_decay: 0.0000001
+  grad_clip_max_norm: 2.0
 
 validation:
   freq: 5
-  batch_size: 64  # 128
+  batch_size: 4  # 128
   save_grad_plots: True
   save_eval_examples: True
 

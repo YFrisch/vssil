@@ -11,11 +11,9 @@ from src.utils.argparse import parse_arguments
 
 if __name__ == "__main__":
 
-    data_root_path = '/home/yannik/vssil/datasets/mime_processed'
-    annotations_file = os.path.join(data_root_path, 'annotations.txt')
-
     args = parse_arguments()
-    args.config = "/home/yannik/vssil/results/ulosd/2021_8_9_16_21/config.yml"
+    # args.config = "/home/yannik/vssil/results/ulosd/2021_8_9_16_21/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd/2021_8_22_13_43/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -28,10 +26,9 @@ if __name__ == "__main__":
         print(ulosd_conf['log_dir'])
         ulosd_conf['multi_gpu'] = False
         ulosd_conf['device'] = 'cpu'
-        ulosd_conf['model']['n_frames'] = 4
 
     npz_data_set = NPZ_Dataset(
-        num_timesteps=ulosd_conf['model']['n_frames'],
+        num_timesteps=100,
         root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
         key_word='images'
     )
@@ -46,7 +43,8 @@ if __name__ == "__main__":
                               config=ulosd_conf)
 
     ulosd_agent.eval_data_loader = eval_data_loader
-    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_8_9_16_21/checkpoints/chckpt_f0_e90.PTH")
+    # ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_8_9_16_21/checkpoints/chckpt_f0_e90.PTH")
+    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_8_22_13_43/checkpoints/chckpt_f0_e40.PTH")
 
     print("##### Evaluating:")
     with torch.no_grad():

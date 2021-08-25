@@ -28,7 +28,7 @@ def temporal_separation_loss(cfg: dict, coords: torch.Tensor) -> torch.Tensor:
     d = ((x_1 - x_2)**2 + (y_1 - y_2)**2)  # (N, T, C, C)
 
     # Average across time
-    d = torch.mean(d, dim=1)  # (N, 1, C, C)
+    #d = torch.mean(d, dim=1)  # (N, 1, C, C)
 
     # Transform by gaussian
     loss_matrix = torch.exp(-d / (2.0 * cfg['training']['separation_loss_sigma']**2))

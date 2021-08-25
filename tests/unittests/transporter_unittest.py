@@ -5,7 +5,10 @@ import unittest
 from src.models.transporter import Transporter, \
     TransporterKeypointer, TransporterEncoder, TransporterDecoder
 
+
 class TransporterUnitTest(unittest.TestCase):
+
+    """ Tests for input- / output-shapes of the Transporter model. """
 
     def setUp(self) -> None:
 
@@ -16,8 +19,6 @@ class TransporterUnitTest(unittest.TestCase):
         self.img_channels = self.config['model']['num_img_channels']
         self.num_features = 32
         self.num_keypoints = 1
-
-
 
     def test_encoder(self):
         out_channels = 128

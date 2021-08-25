@@ -16,7 +16,7 @@ from src.utils.argparse import parse_arguments
 
 if __name__ == "__main__":
 
-    data_root_path = '/home/yannik/vssil/datasets/mime_processed'
+    data_root_path = '/datasets/mime_processed'
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
     args = parse_arguments()

@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchsummary import summary
 
+from pytorch_ssim import SSIM
 from src.models.transporter import Transporter
 from src.utils.visualization import gen_eval_imgs
 from src.utils.grad_flow import plot_grad_flow
@@ -39,14 +40,27 @@ class TransporterAgent(AbstractAgent):
                    label: torch.Tensor,
                    config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
 
-        # assert x.shape[1] == 2
+        """ Uses the first frame of a sequence of images as source and the last frame as target.
+
+        :param x: Torch image series tensor in (N, T, C, H, W)
+        :param label: -
+        :param config: Additional args
+        :return: Source frame in (N, C, H, W), target frame in (N, C, H, W)
+        """
+
+        assert x.dim() == 5
         sample_frame = x[:, 0, ...] - 0.5
         target_frame = x[:, -1, ...] - 0.5
         return sample_frame, target_frame
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         if config['training']['loss_function'] in ['mse', 'l2', 'MSE']:
-            return F.mse_loss(input=prediction, target=target)
+            return F.mse_loss(input=prediction, target=target, reduction='mean')
+        elif config['training']['loss_function'] in ['sse', 'SSE']:
+            return F.mse_loss(input=prediction, target=target, reduction='sum')
+        elif config['training']['loss_function'] in ['ssim', 'SSIM']:
+            ssim_module = SSIM()
+            return ssim_module.forward(img1=prediction, img2=target)
         else:
             raise ValueError("Given loss function not implemented.")
 
@@ -86,19 +100,25 @@ class TransporterAgent(AbstractAgent):
                                tag_name='decoder',
                                summary_writer=self.writer)
 
-            #exit()
+            # exit()
 
             self.optim.step()
 
         if mode == 'validation' and config['validation']['save_eval_examples']:
             with torch.no_grad():
-                key_point_coordinates = self.model.keypointer(sample)[0][0, ...].unsqueeze(0)
-                img = gen_eval_imgs(sample[0, ...].unsqueeze(0) + 0.5,
-                                    target[0, ...].unsqueeze(0) + 0.5,
-                                    reconstruction[0, ...].unsqueeze(0) + 0.5,
-                                    key_points=key_point_coordinates).squeeze(0)
+                key_point_coordinates = torch.cat([self.model.keypointer(sample)[0].unsqueeze(1),
+                                                   self.model.keypointer(target)[0].unsqueeze(1)], dim=1)
+                # Adapt to visualization
+                key_point_coordinates[..., 1] *= -1
+                rec_diff = torch.cat([(sample - sample).unsqueeze(1), (reconstruction - sample).unsqueeze(1)], dim=1)
+                sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
+                torch_img_series_tensor = gen_eval_imgs(sample=sample,
+                                                        reconstructed_diff=rec_diff,
+                                                        key_points=key_point_coordinates)
 
-                self.writer.add_image(tag='val/example', img_tensor=img, global_step=global_epoch_number)
+                self.writer.add_video(tag='val/reconstruction_sample',
+                                      vid_tensor=torch_img_series_tensor,
+                                      global_step=global_epoch_number)
+                self.writer.flush()
 
         return loss
-

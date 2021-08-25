@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 import numpy as np
 
+from pytorch_ssim import SSIM
+
 from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import CustomInception3
 from src.models.utils import load_inception_weights
@@ -104,21 +106,30 @@ class ULOSD_Agent(AbstractAgent):
         :return: Reconstruction loss between prediction and target
         """
         rec_loss = config['training']['reconstruction_loss']
-        assert rec_loss in ['mse', 'MSE', 'Inception', 'inception']
 
+        N, T = target.shape[0], target.shape[1]
         loss = None
 
         if rec_loss in ['mse', 'MSE']:
-            N, T = target.shape[0], target.shape[1]
             loss = F.mse_loss(input=prediction.view((N * T, *tuple(target.shape[2:]))),
                               target=target.view((N * T, *tuple(target.shape[2:]))),
                               reduction='sum')
             # loss /= (N*T)
+            loss /= N
 
-        if rec_loss in ['Inception', 'inception', 'INCEPTION']:
+        elif rec_loss in ['Inception', 'inception', 'INCEPTION']:
             loss = inception_encoding_loss(inception_net=self.inception_net,
                                            prediction=prediction,
                                            target=target)
+
+        elif rec_loss in ['ssim', 'SSIM']:
+            ssim_module = SSIM()
+            # NOTE: SSIM is a metric, so we want to minimize 1 - loss
+            loss = 1 - ssim_module(img1=prediction.view((N * T, *tuple(target.shape[2:]))),
+                                   img2=target.view((N * T, *tuple(target.shape[2:]))))
+
+        else:
+            raise ValueError("Unknown error function.")
 
         return loss
 
@@ -199,6 +210,8 @@ class ULOSD_Agent(AbstractAgent):
 
         # Vision model
         feature_maps, observed_key_points = self.model.encode(sample)
+        observed_key_points[..., :2].clip_(-1.0, 1.0)
+        observed_key_points[..., 2].clip(0.0, 1.0)
         reconstructed_diff = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
 
         # NOTE: Clipping the prediction to (-1, 1) bcs. it is the predicted diff. between v_t and v_1
@@ -234,7 +247,7 @@ class ULOSD_Agent(AbstractAgent):
         if mode == 'validation' and config['validation']['save_video']:
             with torch.no_grad():
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
-                                                        reconstruction=reconstructed_diff,
+                                                        reconstructed_diff=reconstructed_diff,
                                                         key_points=observed_key_points)
                 # reconstructed_image_series_tensor = reconstructed_diff + sample[:, 0, ...].unsqueeze(1)
                 # self.writer.add_video(tag='val/reconstruction_sample',

@@ -39,11 +39,17 @@ def partial_load_state_dict(model: torch.nn.Module, loaded_dict: torch.Parameter
 
 def init_weights(m: torch.nn.Module, config: dict):
     if type(m) == nn.Conv2d:
-        if config['model']['weight_init'] == 'he_uniform':
+        if config['model']['weight_init'] in ['he_uniform', 'kaiming_uniform']:
             torch.nn.init.kaiming_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        if config['model']['weight_init'] == ['he_normal', 'kaiming_normal']:
+            torch.nn.init.kaiming_normal_(m.weight)
             m.bias.data.fill_(0.01)
         if config['model']['weight_init'] == 'xavier_uniform':
             torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+        if config['model']['weight_init'] == 'xavier_normal':
+            torch.nn.init.xavier_normal_(m.weight)
             m.bias.data.fill_(0.01)
         if config['model']['weight_init'] == 'ones':
             torch.nn.init.ones_(m.weight)
@@ -77,6 +83,8 @@ activation_dict = {
     'elu': nn.ELU,
     'LeakyRELU': nn.LeakyReLU,
     'LeakyReLU': nn.LeakyReLU,
+    'LeakyRelu': nn.LeakyReLU,
+    'PRELU': nn.PReLU,
     'PReLU': nn.PReLU,
     'prelu': nn.PReLU
 }

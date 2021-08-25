@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.models.utils import init_weights
 from .layers import Conv2d, Conv2DSamePadding
 from .ulosd_layers import FeatureMapsToCoordinates, FeatureMapsToKeyPoints,\
     KeyPointsToFeatureMaps, add_coord_channels
@@ -23,8 +24,6 @@ class ULOSD(nn.Module):
         self.feature_map_width = config['model']['feature_map_width']
         self.feature_map_height = config['model']['feature_map_height']
 
-        self.conv_weight_init = config['model']['conv_init']
-
         """ 
             Image encoder.
 
@@ -33,10 +32,10 @@ class ULOSD(nn.Module):
             feature maps is reached.
         """
         self.encoder, encoder_input_shape = make_encoder(input_shape, config)
-        self.encoder.apply(self.init_weights)
+        self.encoder.apply(lambda model: init_weights(m=model, config=config))
 
         self.appearance_net = make_appearance_encoder(input_shape, config)
-        self.appearance_net.apply(self.init_weights)
+        self.appearance_net.apply(lambda model: init_weights(m=model, config=config))
 
         """
             Image decoder.
@@ -46,7 +45,7 @@ class ULOSD(nn.Module):
             original input image is reached.
         """
         self.decoder = make_decoder(encoder_input_shape, config)
-        self.decoder.apply(self.init_weights)
+        self.decoder.apply(lambda model: init_weights(m=model, config=config))
 
         """
             Ops layers
@@ -54,21 +53,9 @@ class ULOSD(nn.Module):
         """
         self.maps_2_key_points = FeatureMapsToKeyPoints()
         self.key_points_2_maps = KeyPointsToFeatureMaps(
-            sigma=1.0,
+            sigma=config['model']['feature_map_gauss_sigma'],
             heatmap_width=config['model']['feature_map_width']
         )
-
-    def init_weights(self, m: torch.nn.Module):
-        if type(m) == nn.Conv2d:
-            if self.conv_weight_init == 'he_uniform':
-                torch.nn.init.kaiming_uniform_(m.weight)
-                m.bias.data.fill_(0.01)
-            if self.conv_weight_init == 'xavier_uniform':
-                torch.nn.init.xavier_uniform_(m.weight)
-                m.bias.data.fill_(0.01)
-            if self.conv_weight_init == 'ones':
-                torch.nn.init.ones_(m.weight)
-                m.bias.data.fill_(1.00)
 
     def encode(self, image_sequence: torch.Tensor, appearance: bool = False) -> (torch.Tensor, torch.Tensor):
         """ Encodes a series of images into a tuple of a series of feature maps and

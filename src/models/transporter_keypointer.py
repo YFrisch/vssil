@@ -45,7 +45,8 @@ class TransporterKeypointer(nn.Module):
 
         self.device = config['device']
 
-    def _keypoint_means_to_gaussian_maps(self, mean: torch.Tensor,
+    def _keypoint_means_to_gaussian_maps(self,
+                                         mean: torch.Tensor,
                                          map_size: tuple,
                                          inv_std: torch.Tensor,
                                          power: int = 2):
@@ -58,7 +59,7 @@ class TransporterKeypointer(nn.Module):
         :return: Reconstructed gaussian feature maps in (N, C, H', W')
         """
 
-        mean_y, mean_x = mean[..., 0].unsqueeze(-1), mean[..., 1].unsqueeze(-1)
+        mean_x, mean_y = mean[..., 1].unsqueeze(-1), mean[..., 0].unsqueeze(-1)
 
         y = torch.linspace(start=-1.0, end=1.0, steps=map_size[0],
                            dtype=torch.float32, requires_grad=False).view(1, 1, map_size[0], 1).to(self.device)
@@ -66,26 +67,13 @@ class TransporterKeypointer(nn.Module):
         x = torch.linspace(start=-1.0, end=1.0, steps=map_size[1],
                            dtype=torch.float32, requires_grad=False).view(1, 1, 1, map_size[1]).to(self.device)
 
-        mean_y, mean_x = mean_y.unsqueeze(-1), mean_x.unsqueeze(-1)
+        mean_x, mean_y = mean_x.unsqueeze(-1), mean_y.unsqueeze(-1)
 
-        g_y = torch.pow((y - mean_y), power)
         g_x = torch.pow((x - mean_x), power)
+        g_y = torch.pow((y - mean_y), power)
         inv_var = torch.pow(inv_std, power).to(self.device)
         dist = torch.mul((g_y + g_x), inv_var)
         g_yx = torch.exp(-dist)
-
-        """
-        g_y = torch.tensor(data=torch.pow(input=y - mean_y, exponent=power),
-                           dtype=torch.float32, requires_grad=True).to(self.device)
-        g_x = torch.tensor(data=torch.pow(input=x - mean_x, exponent=power),
-                           dtype=torch.float32, requires_grad=True).to(self.device)
-        inv_var = torch.tensor(data=torch.pow(input=inv_std, exponent=power),
-                               dtype=torch.float32, requires_grad=True).to(self.device)
-        dist = torch.tensor(data=(g_y + g_x) * inv_var,
-                            dtype=torch.float32, requires_grad=True).to(self.device)
-        g_yx = torch.tensor(data=torch.exp(-dist),
-                            dtype=torch.float32, requires_grad=True).to(self.device)
-        """
 
         return g_yx
 
@@ -96,7 +84,7 @@ class TransporterKeypointer(nn.Module):
         :param axis: Axis to extract (1 or 2)
         :return:
         """
-        B, K = feature_maps.shape[0], feature_maps.shape[1]
+        N, K = feature_maps.shape[0], feature_maps.shape[1]
         assert axis in [2, 3], "Axis needs to be 2 or 3!"
 
         other_axis = 3 if axis == 2 else 2
@@ -112,7 +100,7 @@ class TransporterKeypointer(nn.Module):
 
         coordinate = torch.sum(g_c_prob * scale, dim=-1)
 
-        assert tuple(coordinate.shape) == (B, K)
+        assert tuple(coordinate.shape) == (N, K)
 
         return coordinate
 
@@ -122,8 +110,8 @@ class TransporterKeypointer(nn.Module):
         :param feature_maps: Tensor of feature maps in (N, C, H', W')
         :return: Key-point coordinates in (N, C, 2), normalized to a range of (-1, 1)
         """
-        gauss_y = self._feature_maps_to_coordinate(feature_maps, axis=2)
         gauss_x = self._feature_maps_to_coordinate(feature_maps, axis=3)
+        gauss_y = self._feature_maps_to_coordinate(feature_maps, axis=2)
         # TODO: Check stacking dim
         gauss_mean = torch.stack([gauss_y, gauss_x], dim=2)
         return gauss_mean
