@@ -7,87 +7,6 @@ from PIL import Image
 from torchvision import transforms
 
 
-def make_annotated_tensor(image_series: torch.Tensor, feature_positions: torch.Tensor):
-    """ Modifies the input tensor cointaining a sequence of images to
-        be annotated at the given feature positions
-    :param image_series: Torch tensor of image series in (T, C, H, W) format
-    :param feature_positions: Torch tensor of 2D feature positions in (T, F, 2) format
-    """
-
-    new_img_series = torch.clone(image_series)
-    size = 2
-    for t in range(image_series.shape[0]):
-        for f in range(feature_positions.shape[1]):
-            feature_pos_2d = feature_positions[t, f, :].int()
-            x_start = feature_pos_2d[0] - size
-            x_stop = feature_pos_2d[0] + size
-            y_start = feature_pos_2d[1] - size
-            y_stop = feature_pos_2d[1] + size
-            new_img_series[t, 0, x_start:x_stop, y_start:y_stop] = 0  # R
-            new_img_series[t, 1, x_start:x_stop, y_start:y_stop] = 1  # G
-            new_img_series[t, 2, x_start:x_stop, y_start:y_stop] = 0  # B
-
-    return new_img_series
-
-
-def play_series_with_keypoints(image_series: torch.Tensor, keypoint_coords: torch.Tensor):
-    """ Plots the given image series together with the keypoint coordinates.
-
-    :param image_series: Image series tensor in (N, T, C, H, W)
-    :param keypoint_coords: Torch tensor of series of keypoint coordinates in (N, T, C, 3)
-                            where C is the number of key-points and the last dimension is its
-                            (x-coordinate (%), y-coordinate (%), intensity)
-    :return: None
-    """
-    assert image_series.dim() == 5, "Wrong shape of input image series!"
-    assert keypoint_coords.dim() == 4, "Wrong shape of input key-point coordinate series!"
-    assert image_series.shape[0:2] == keypoint_coords.shape[0:2], "Batch size or time-steps do not match!"
-
-    N, T = image_series.shape[0], image_series.shape[1]
-    C = image_series.shape[2]
-    assert C in [1, 3], "Only one or three channels supported for image series!"
-
-    image_width = image_series.shape[3]
-    image_height = image_series.shape[4]
-
-    # Permute to (N, T, H, W, C) for matplotlib
-    image_series = image_series.permute(0, 1, 3, 4, 2).detach().cpu().numpy()
-
-    frame = np.zeros((image_width, image_height, C))
-
-    n2 = np.min([N, 4])
-    n1 = int(np.ceil(N/4))
-    fig, ax = plt.subplots(n1, n2)
-
-    im_objects = []
-
-    for n in range(N):
-        n_k = n % 4
-        n_l = int(np.floor(n / 4))
-        if C == 1:
-            im = ax[n_l, n_k].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
-        else:
-            im = ax[n_l, n_k].imshow(frame)
-        im_objects.append(im)
-
-    def init():
-        for n_i in range(N):
-            if C == 1:
-                im_objects[n_i].set_data(image_series[n_i, 0, ...].squeeze())
-            else:
-                im_objects[n_i].set_data(image_series[n_i, 0, ...])
-
-    def animate(t: int):
-        for n_i in range(N):
-            frame = image_series[n_i, t, ...].squeeze()
-            im_objects[n_i].set_data(frame)
-            return im_objects
-
-    anim = animation.FuncAnimation(fig, animate, init_func=init, frames=T, interval=100)
-
-    plt.show()
-
-
 def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                                                   keypoint_coords: torch.Tensor,
                                                   reconstructed_diff: torch.Tensor = None,
@@ -96,9 +15,8 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
         together with its reconstruction and
         given predicted key-points.
 
-        TODO: Add NON-CHANGING colorspace for the key-points
-        TODO: Ensure only 'active' key-points are plotted
-        TODO: Ensure the scatter plots of each time-steps are deleted in the next time-step
+        TODO: Check why key-point colors are still inconsistent
+        TODO: Check if scatter plots of each time-steps are actually deleted in the next time-step?
 
     :param image_series: Tensor of images in (N, T, C, H, W)
     :param keypoint_coords: Tensor of key-point coordinates in (N, T, K, 2/3)
@@ -117,9 +35,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
         reconstructed_image_series = reconstructed_diff + image_series[:, 0, ...]
     else:
         assert reconstruction is not None
-        # TODO
         reconstructed_image_series = reconstruction
-        # raise NotImplementedError("Pass reconstructed difference!")
 
     (N, T, C, H, W) = tuple(image_series.shape)
     assert C in [1, 3], "Only one or three channels supported for plotting image series!"
@@ -134,29 +50,24 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     frame = np.zeros((W, H, C))
 
-    # fig, ax = plt.subplots(1, 3)
     fig, ax = plt.subplots(1, 2)
     ax[0].set_title('Sample + Key-Points')
     ax[1].set_title('Reconstruction')
     if C == 1:
         orig_im_obj = ax[0].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
         rec_im_obj = ax[1].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
-        #rec_diff_obj = ax[2].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
     else:
         orig_im_obj = ax[0].imshow(frame)
         rec_im_obj = ax[1].imshow(frame)
-        # rec_diff_obj = ax[2].imshow(frame)
 
     orig_scatter_objects = []
     rec_scatter_objects = []
     if C == 1:
         orig_im_obj.set_data(image_series[0, 0, ...].squeeze())
         rec_im_obj.set_data(reconstructed_image_series[0, 0, ...].squeeze())
-        #rec_diff_obj.set_data(reconstructed_diff_series[0, 0, ...].squeeze())
     else:
         orig_im_obj.set_data(image_series[0, 0, ...])
         rec_im_obj.set_data(reconstructed_image_series[0, 0, ...])
-        #rec_diff_obj.set_data(reconstructed_diff_series[0, 0, ...])
     for n_keypoint in range(keypoint_coords.shape[2]):
         if keypoint_coords.shape[3] == 2:
             intensity = 1.0
@@ -164,21 +75,16 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
             intensity = keypoint_coords[0, 0, n_keypoint, 2]
         if intensity > 0.0:
             orig_scatter_obj = ax[0].scatter(0, 0, cmap=viridis, alpha=0.5)
-            # orig_scatter_obj = ax[0].scatter(0, 0, color=f'C{n_keypoint}')
-            # rec_scatter_obj = ax[1].scatter(0, 0)
             orig_scatter_objects.append(orig_scatter_obj)
-            # rec_scatter_objects.append(rec_scatter_obj)
 
     def animate(t: int):
         im_frame = image_series[0, t, ...].squeeze()
         orig_im_obj.set_data(im_frame)
         rec_frame = reconstructed_image_series[0, t, ...].squeeze()
         rec_im_obj.set_data(rec_frame)
-        #rec_diff_frame = reconstructed_diff_series[0, t, ...].squeeze()
-        #rec_diff_obj.set_data(rec_diff_frame)
         for n_keypoint in range(keypoint_coords.shape[2]):
             # NOTE: The predicted keypoints are in [y(width), x(height)] coordinates
-            #       in the range [-1.0, -1.0] to [1.0, 1.0]
+            #       in the ranges [-1.0; -1.0] to [1.0; 1.0]
             x1 = int((keypoint_coords[0, t, n_keypoint, 0] + 1.0)/2 * W)
             x2 = int((-keypoint_coords[0, t, n_keypoint, 1] + 1.0)/2 * H)
 
@@ -188,7 +94,6 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                 intensity = keypoint_coords[0, 0, n_keypoint, 2]
             if intensity > 0.9:
                 orig_scatter_objects[n_keypoint].set_offsets([x1, x2])
-                # rec_scatter_objects[n_keypoint].set_offsets([x1, x2])
             else:
                 orig_scatter_objects[n_keypoint].set_offsets([0.0, 0.0])
 
@@ -196,7 +101,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     anim = animation.FuncAnimation(fig, animate, frames=T, interval=10, repeat=False)
 
-    # Set up formatting for the movie files
+    # Set up formatting for the video files
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
     anim.save('anim.mp4', writer=writer)
@@ -243,8 +148,6 @@ def gen_eval_imgs(sample: torch.Tensor,
         ax[3].set_title('predicted difference')
         ax[4].imshow((reconstructed_diff[0, t, ...] + sample[0, 0, ...]).clip(0.0, 1.0).permute(1, 2, 0).cpu().numpy())
         ax[4].set_title('reconstruction')
-
-        # plt.show()
 
         memory_buffer = io.BytesIO()
         plt.savefig(memory_buffer, format='png')
