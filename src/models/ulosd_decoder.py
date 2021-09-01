@@ -41,7 +41,7 @@ def make_decoder(encoder_input_shape: tuple, config: dict):
             nn.BatchNorm2d(num_features=num_out_channels)
         )
 
-        for _ in range(config['model']['n_convolutions_per_res'] - 1):
+        for _ in range(config['model']['n_convolutions_per_res']):
             decoder_module_list.append(
                 Conv2DSamePadding(
                     in_channels=num_out_channels,

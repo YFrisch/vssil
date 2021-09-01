@@ -212,10 +212,14 @@ class AbstractAgent:
         if config['training']['k_folds'] > 1:
             folds = enumerate(self.kfold.split(self.data_set))
 
-        else:
+        elif config['training']['k_folds'] == 1:
             # Use 10% of the data for validation, if no fold for x-validation is given
             train_ids = range(0, int(len(self.data_set) * 0.9))
             val_ids = range(int(len(self.data_set) * 0.9) + 1, len(self.data_set))
+            folds = [(0, (train_ids, val_ids))]
+        else:
+            train_ids = range(0, len(self.data_set))
+            val_ids = range(0, len(self.data_set))
             folds = [(0, (train_ids, val_ids))]
 
         for fold, (train_ids, val_ids) in folds:
@@ -316,7 +320,9 @@ class AbstractAgent:
         epochs_per_fold = config['training']['epochs']
         global_epoch = training_fold * epochs_per_fold + training_epoch
 
-        for i, (sample, label) in enumerate(tqdm(self.val_data_loader)):
+        # for i, (sample, label) in enumerate(tqdm(self.val_data_loader)):
+        for i in tqdm(range(config['validation']['steps'])):
+            sample, label = next(iter(self.val_data_loader))
             sample, target = self.preprocess(sample, label, config)  # Sample is in (N, T, C, H, W)
             sample, target = sample.to(self.device), target.to(self.device)
 
@@ -335,21 +341,26 @@ class AbstractAgent:
 
             loss_per_sample.append(sample_loss.cpu().numpy())
 
+            del sample, label, target
+
         avg_loss = np.mean(loss_per_sample)
         self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=global_epoch)
         print("##### Average loss:", avg_loss)
         print("\n")
         time.sleep(0.1)
 
+        # Save current model
         if self.best_val_loss is None:
             self.best_val_loss = avg_loss
             torch.save(self.model.state_dict(),
                        self.log_dir + f'checkpoints/chckpt_f{training_fold}_e{training_epoch}.PTH')
         elif avg_loss < self.best_val_loss:
             self.best_val_loss = avg_loss
-            # Save current model
             torch.save(self.model.state_dict(),
                        self.log_dir + f'checkpoints/chckpt_f{training_fold}_e{training_epoch}.PTH')
+        elif training_epoch == config['training']['epochs'] - 1:
+            torch.save(self.model.state_dict(),
+                       self.log_dir + f'checkpoints/chckpt_final.PTH')
         else:
             pass
 

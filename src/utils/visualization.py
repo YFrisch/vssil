@@ -61,7 +61,6 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
         rec_im_obj = ax[1].imshow(frame)
 
     orig_scatter_objects = []
-    rec_scatter_objects = []
     if C == 1:
         orig_im_obj.set_data(image_series[0, 0, ...].squeeze())
         rec_im_obj.set_data(reconstructed_image_series[0, 0, ...].squeeze())
@@ -85,6 +84,15 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
         for n_keypoint in range(keypoint_coords.shape[2]):
             # NOTE: The predicted keypoints are in [y(width), x(height)] coordinates
             #       in the ranges [-1.0; -1.0] to [1.0; 1.0]
+            #                   ^
+            #                   |
+            #                   |    x[0.5, 0.5]
+            #                   |
+            #         ---------------------->
+            #                   |
+            #              x    |
+            #     [-0.5, -0.5]  |
+            #                   |
             x1 = int((keypoint_coords[0, t, n_keypoint, 0] + 1.0)/2 * W)
             x2 = int((-keypoint_coords[0, t, n_keypoint, 1] + 1.0)/2 * H)
 
@@ -97,13 +105,13 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
             else:
                 orig_scatter_objects[n_keypoint].set_offsets([0.0, 0.0])
 
-        return im_frame, rec_frame, orig_scatter_objects, rec_scatter_objects  # , rec_diff_frame
+        return im_frame, rec_frame, orig_scatter_objects
 
     anim = animation.FuncAnimation(fig, animate, frames=T, interval=10, repeat=False)
 
     # Set up formatting for the video files
     Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+    writer = Writer(fps=15, metadata=dict(artist='me'), bitrate=1800)
     anim.save('anim.mp4', writer=writer)
 
     plt.show()
@@ -134,7 +142,7 @@ def gen_eval_imgs(sample: torch.Tensor,
         viridis = cm.get_cmap('viridis', key_points.shape[2])
         ax[0].imshow(sample[0, t, ...].permute(1, 2, 0).cpu().numpy())
         for kp in range(key_points.shape[2]):
-            if key_points.shape[-1] == 2 or key_points[0, t, kp, 2] > 0.75:
+            if key_points.shape[-1] == 2 or key_points[0, t, kp, 2] > 0.5:
                 # NOTE: pyplot.scatter uses x as height and y as width, with the origin in the top left
                 key_point_x1 = int(((key_points[0, t, kp, 0] + 1.0) / 2.0) * sample.shape[4])  # Width
                 key_point_x2 = int(((-key_points[0, t, kp, 1] + 1.0) / 2.0) * sample.shape[3])  # Height

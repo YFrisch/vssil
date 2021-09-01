@@ -111,11 +111,15 @@ class ULOSD_Agent(AbstractAgent):
         loss = None
 
         if rec_loss in ['mse', 'MSE']:
-            loss = F.mse_loss(input=prediction.view((N * T, *tuple(target.shape[2:]))),
-                              target=target.view((N * T, *tuple(target.shape[2:]))),
-                              reduction='sum')
-            # loss /= (N*T)
-            loss /= N
+            # loss = F.mse_loss(input=prediction.view((N * T, *tuple(target.shape[2:]))),
+            #                   target=target.view((N * T, *tuple(target.shape[2:]))),
+            #                   reduction='sum')
+            loss = F.mse_loss(input=prediction, target=target, reduction='mean') * 0.5
+            loss /= (N*T)
+
+        if rec_loss in ['sse', 'SSE']:
+            loss = F.mse_loss(input=prediction, target=target, reduction='sum') * 0.5
+            loss /= (N * T)
 
         elif rec_loss in ['Inception', 'inception', 'INCEPTION']:
             loss = inception_encoding_loss(inception_net=self.inception_net,
@@ -206,32 +210,33 @@ class ULOSD_Agent(AbstractAgent):
         assert mode in ['training', 'validation']
 
         if mode == 'training':
+            #self.optim.zero_grad(set_to_none=True)
             self.optim.zero_grad()
 
         # Vision model
         feature_maps, observed_key_points = self.model.encode(sample)
         observed_key_points[..., :2].clip_(-1.0, 1.0)
-        observed_key_points[..., 2].clip(0.0, 1.0)
-        reconstructed_diff = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+        observed_key_points[..., 2].clip_(0.0, 1.0)
+
+        # reconstructed_diff = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+        reconstruction = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
 
         # NOTE: Clipping the prediction to (-1, 1) bcs. it is the predicted diff. between v_t and v_1
-        reconstructed_diff = torch.clip(reconstructed_diff, -1.0, 1.0)
+        # reconstructed_diff = torch.clip(reconstructed_diff, -1.0, 1.0)
+        reconstruction.clip_(reconstruction, -0.5, 0.5)
 
         # Dynamics model
         # TODO: Not used yet
 
         # Losses
-        target_diff = sample - sample[:, 0, ...].unsqueeze(1)
-        reconstruction_loss = self.loss_func(prediction=reconstructed_diff,
-                                             target=target_diff,
-                                             config=config)
+        # target_diff = sample - sample[:, 0, ...].unsqueeze(1)
+        # reconstruction_loss = self.loss_func(prediction=reconstructed_diff, target=target_diff, config=config)
+        reconstruction_loss = self.loss_func(prediction=reconstruction, target=sample, config=config)
 
-        separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points,
-                                               config=config)
+        separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
 
         # feature-map (L1) regularization of the activations of the last layer
-        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps,
-                                                config=config)
+        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
         # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
 
         # TODO: Losses for the dynamics model, not used yet
@@ -246,17 +251,15 @@ class ULOSD_Agent(AbstractAgent):
 
         if mode == 'validation' and config['validation']['save_video']:
             with torch.no_grad():
+                rec_diff = (reconstruction - sample[:, 0, ...].unsqueeze(1)).clip(-1.0, 1.0)
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
-                                                        reconstructed_diff=reconstructed_diff,
+                                                        reconstructed_diff=rec_diff,
                                                         key_points=observed_key_points)
-                # reconstructed_image_series_tensor = reconstructed_diff + sample[:, 0, ...].unsqueeze(1)
-                # self.writer.add_video(tag='val/reconstruction_sample',
-                #                       vid_tensor=reconstructed_image_series_tensor[0, ...].detach(),
-                #                       global_step=global_epoch_number)
                 self.writer.add_video(tag='val/reconstruction_sample',
                                       vid_tensor=torch_img_series_tensor,
                                       global_step=global_epoch_number)
                 self.writer.flush()
+                del rec_diff, torch_img_series_tensor
 
         # Log values and backprop. during training
         if mode == 'training':
@@ -287,5 +290,7 @@ class ULOSD_Agent(AbstractAgent):
                     self.writer.flush()
 
             self.optim.step()
+
+        del reconstruction, feature_maps, observed_key_points
 
         return L

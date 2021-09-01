@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from cv2 import VideoWriter, VideoWriter_fourcc
+from cv2 import VideoWriter, VideoWriter_fourcc,\
+    normalize, NORM_MINMAX, CV_32F
 
 
 class NPZ_Dataset(Dataset):
@@ -43,28 +44,36 @@ def read_npz_data(path: str):
     }
 
 
-def nump_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi'):
+def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi'):
+    """ Takes a numpy array in (T, H, W, C) format and makes a video out of it."""
     width = 64
     height = 64
     fps = 25
+    # Convert to 255 RGB
+    norm_img_array = normalize(img_array, None, alpha=0, beta=255,
+                               norm_type=NORM_MINMAX, dtype=CV_32F)
+    norm_img_array = norm_img_array.astype(np.uint8)
     assert img_array.shape[0] % fps == 0
     sec = int(img_array.shape[0]/fps)
     fourcc = VideoWriter_fourcc(*'MPEG')
     video = VideoWriter(target_path, fourcc, float(fps), (width, height))
     for frame_count in range(fps*sec):
-        video.write(img_array[frame_count, ...])
+        video.write(norm_img_array[frame_count, ...])
     video.release()
 
 
 if __name__ == "__main__":
     npz_data_set = NPZ_Dataset(
-        num_timesteps=8,
-        root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
+        num_timesteps=25,
+        root_path='/home/yannik/vssil/video_structure/testdata/'
+                  'acrobot_swingup_random_repeat40_00006887be28ecb8_short_sequences.npz',
         key_word='images')
 
-    data_loader = DataLoader(dataset=npz_data_set, batch_size=32, shuffle=False)
+    data_loader = DataLoader(dataset=npz_data_set, batch_size=1, shuffle=True)
     print(f'Read {len(npz_data_set)} samples.')
     for i, (sample, label) in enumerate(data_loader):
         print(sample.mean())
-        # nump_to_mp4(img_array=sample.permute(0, 2, 3, 1).cpu().numpy())
+        print(sample.shape)
+        numpy_to_mp4(img_array=sample.squeeze(0).permute(0, 2, 3, 1).cpu().numpy(),
+                     target_path='acrobot_npz_test.avi')
         exit()

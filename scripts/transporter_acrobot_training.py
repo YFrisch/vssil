@@ -20,7 +20,8 @@ if __name__ == "__main__":
 
     npz_data_set = NPZ_Dataset(
         num_timesteps=transporter_conf['model']['n_frames'],
-        root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
+        root_path='/home/yannik/vssil/video_structure/testdata/'
+                  'acrobot_swingup_random_repeat40_00006887be28ecb8_short_sequences.npz',
         key_word='images'
     )
 

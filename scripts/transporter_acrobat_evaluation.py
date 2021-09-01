@@ -12,7 +12,7 @@ from src.utils.visualization import play_series_and_reconstruction_with_keypoint
 if __name__ == "__main__":
 
     args = parse_arguments()
-    args.config = '/home/yannik/vssil/results/transporter/2021_8_24_12_56/config.yml'
+    args.config = '/home/yannik/vssil/results/transporter/2021_8_28_10_8/config.yml'
 
     with open(args.config, 'r') as stream:
         transporter_conf = yaml.safe_load(stream)
@@ -27,7 +27,7 @@ if __name__ == "__main__":
         transporter_conf['device'] = 'cpu'
 
     npz_data_set = NPZ_Dataset(
-        num_timesteps=100,  # 200
+        num_timesteps=200,  # 200
         root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
         key_word='images'
     )
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     transporter_agent = TransporterAgent(dataset=npz_data_set, config=transporter_conf)
     transporter_agent.load_checkpoint(
-        '/home/yannik/vssil/results/transporter/2021_8_24_12_56/checkpoints/chckpt_f0_e205.PTH')
+        '/home/yannik/vssil/results/transporter/2021_8_28_10_8/checkpoints/chckpt_f0_e80.PTH')
 
     print("##### Evaluating:")
     with torch.no_grad():

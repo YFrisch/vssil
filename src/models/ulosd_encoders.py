@@ -35,7 +35,7 @@ def make_encoder(input_shape: tuple, config: dict):
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
-    for _ in range(config['model']['n_convolutions_per_res'] - 1):
+    for _ in range(config['model']['n_convolutions_per_res']):
         encoder_module_list.append(
             Conv2DSamePadding(
                 in_channels=num_channels,
@@ -65,7 +65,7 @@ def make_encoder(input_shape: tuple, config: dict):
         )
 
         # Apply additional layers
-        for _ in range(config['model']['n_convolutions_per_res'] - 1):
+        for _ in range(config['model']['n_convolutions_per_res']):
             encoder_module_list.append(
                 Conv2DSamePadding(
                     in_channels=num_channels * 2,
@@ -121,7 +121,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
-    for _ in range(config['model']['n_convolutions_per_res'] - 1):
+    for _ in range(config['model']['n_convolutions_per_res']):
         appearance_module_list.append(
             Conv2DSamePadding(
                 in_channels=num_channels,
@@ -150,7 +150,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             nn.BatchNorm2d(num_features=num_channels * 2)
         )
         # Apply additional layers
-        for _ in range(config['model']['n_convolutions_per_res'] - 1):
+        for _ in range(config['model']['n_convolutions_per_res']):
             appearance_module_list.append(
                 Conv2DSamePadding(
                     in_channels=num_channels * 2,

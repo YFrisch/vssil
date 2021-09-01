@@ -7,7 +7,8 @@ from torchvision import transforms
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 
 if __name__ == "__main__":
-    data_root_path = '/home/yannik/vssil/datasets/mime_processed'
+    # data_root_path = '/media/yannik/samsung_ssd/data/mime_processed'
+    data_root_path = '/media/yannik/samsung_ssd/data/human_3.6m_processed'
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
     preprocess = transforms.Compose([
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
-        shuffle=True
+        shuffle=False
     )
 
     for i, sample in enumerate(data_loader):

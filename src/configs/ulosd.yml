@@ -1,22 +1,25 @@
 data:
   img_shape: (64, 64)
-  num_workers: 4
+  num_workers: 3
 
 model:
-  n_frames: 8
+  n_frames: 16
   n_feature_maps: 64
   feature_map_width: 16
   feature_map_height: 16
+  feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
   n_init_filters: 32
-  n_convolutions_per_res: 2
+  n_convolutions_per_res: 2  # 'layers_per_scale' in the keras code
   conv_kernel_size: 3
-  conv_kernel_regularization: 1e-4
-  conv_init: 'he_uniform'
-  dense_init: 'he_uniform'
+  conv_kernel_regularization: 1e-4  # This can be removed?
+  decoder_hidden_activations: LeakyReLU
+  encoder_hidden_activations: LeakyReLU
+  weight_init: he_uniform
   inception_url: 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth'
 
+
 training:
-  k_folds: 1
+  k_folds: 0
   epochs: 100
   steps_per_epoch: 100  # 100
   optim: 'Adam'
@@ -24,20 +27,25 @@ training:
   feature_map_regularization: 5.0
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 30
-  initial_lr: 0.001
+  initial_lr: 0.0001
   min_lr: 0.0001
   clip_norm: 10
-  batch_size: 32  # 32
-  reconstruction_loss: 'MSE'
+  batch_size: 4  # 32
+  reconstruction_loss: 'SSE'
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
 
 validation:
-  freq: 5
-  batch_size: 32  # 32
+  steps: 10
+  freq: 3
+  batch_size: 4  # 32
+  save_video: true
 
 evaluation:
 
 device: 'cuda:0'
-multi_gpu: True
+multi_gpu: false
 log_dir: "results/ulosd"
+warm_start: false
+warm_start_checkpoint: ''
+warm_start_config: ''

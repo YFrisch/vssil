@@ -5,20 +5,20 @@ data:
 model:
   n_frames: 3
   num_img_channels: 3
-  num_keypoints: 5
+  num_keypoints: 2
   activation: 'prelu'
-  gaussian_map_std: 0.25
+  gaussian_map_std: 0.15
   weight_init: 'he_uniform'
   skip_connections: False
 
 training:
-  epochs: 400
+  epochs: 200
   steps_per_epoch: 100  # 100
   optim: 'adam'
   k_folds: 1
   initial_lr: 0.00005
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 100
+  lr_scheduler_epoch_steps: 60
   batch_size: 128  # 128
   loss_function: 'sse'
   l2_weight_decay: 0.0000001
