@@ -14,11 +14,10 @@ def temporal_separation_loss(cfg: dict, coords: torch.Tensor) -> torch.Tensor:
     :param coords: Key-point coordinates tensor in (N, T, C, 3)
     :return: The separation loss
     """
-    x_coordinates, y_coordinates = coords[..., 0], coords[..., 1]  # (N, T, C)
 
     # Trajectories are centered first
-    x_coordinates -= torch.mean(x_coordinates, dim=1, keepdim=True)  # (N, T, C)
-    y_coordinates -= torch.mean(y_coordinates, dim=1, keepdim=True)
+    x_coordinates = coords[..., 0] - torch.mean(coords[..., 0], dim=1, keepdim=True)  # (N, T, C)
+    y_coordinates = coords[..., 1] - torch.mean(coords[..., 1], dim=1, keepdim=True)
 
     # Compute the pair-wise distance matrix
     x_1 = x_coordinates.unsqueeze(-1)  # (N, T, C, 1)
@@ -28,7 +27,7 @@ def temporal_separation_loss(cfg: dict, coords: torch.Tensor) -> torch.Tensor:
     d = ((x_1 - x_2)**2 + (y_1 - y_2)**2)  # (N, T, C, C)
 
     # Average across time
-    #d = torch.mean(d, dim=1)  # (N, 1, C, C)
+    d = torch.mean(d, dim=1)  # (N, 1, C, C)
 
     # Transform by gaussian
     loss_matrix = torch.exp(-d / (2.0 * cfg['training']['separation_loss_sigma']**2))
@@ -36,9 +35,9 @@ def temporal_separation_loss(cfg: dict, coords: torch.Tensor) -> torch.Tensor:
     loss = torch.sum(loss_matrix)
 
     # Substract values on diagonal (1 per key-point)
-    loss -= cfg['model']['n_feature_maps']
+    loss = loss - cfg['model']['n_feature_maps']
 
     # Normalize to [0, 1]
-    loss /= cfg['model']['n_feature_maps'] * (cfg['model']['n_feature_maps'] - 1)
+    loss = loss / (cfg['model']['n_feature_maps'] * (cfg['model']['n_feature_maps'] - 1))
 
     return loss

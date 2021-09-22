@@ -134,5 +134,6 @@ datasets/
 results/
 vssil.egg-info/
 old/
+src/models/loaded/
 video_structure/
 NOTES.md

@@ -1,2 +1,4 @@
 from .temporal_separation_loss import temporal_separation_loss
-from .inception_net_encoding_loss import inception_encoding_loss
+from .perception_encoding_loss import perception_loss
+from .spatial_consistency_loss import spatial_consistency_loss
+from .time_contrastive_loss import time_contrastive_triplet_loss

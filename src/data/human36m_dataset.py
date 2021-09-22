@@ -42,30 +42,42 @@ def process_human_36m(root_path: str, target_path: str):
                 assert os.path.isfile(video_path)
                 if not video_file.endswith('.mp4'):
                     continue
-                # TODO: Make the im_target_path 'save' by replacing whitespaces and points with underscores
+
+                video_file = video_file[:-4]
+                video_file = video_file.replace(' ', '_')
+                video_file = video_file.replace('.', '_')
+
                 img_target_path = os.path.join(
                     os.path.join(target_path, subject),
                     video_file
                 )
+
                 os.makedirs(img_target_path, exist_ok=True)
                 vidcap = cv2.VideoCapture(video_path)
                 success, image = vidcap.read()
                 if not success:
                     print(f'Could not read {video_path}!')
-                count = 0
+                frame_count = 0
+                target_frame_count = 0
+                sample_freq = 10
+                target_shape = (128, 128)
                 print()
                 while success:
-                    print(f'{video_path}: {count}\r', end="")
-                    cv2.imwrite(os.path.join(img_target_path, f'img_{count:05}.jpg'), image)
+                    print(f'{video_path}: {frame_count}\r', end="")
+                    if frame_count % sample_freq == 0:
+                        # Down-sample image
+                        image = cv2.resize(image, dsize=target_shape)
+                        cv2.imwrite(os.path.join(img_target_path, f'img_{target_frame_count:05}.jpg'), image)
+                        target_frame_count += 1
                     success, image = vidcap.read()
-                    count += 1
+                    frame_count += 1
                 with open(os.path.join(target_path, 'annotations.txt'), 'a') as annotations_file:
-                    annotations_file.write(f'{subject}/{video_file} 0 {count} 0\n')
+                    annotations_file.write(f'{subject}/{video_file} 0 {target_frame_count - 1} 0\n')
 
 
 if __name__ == "__main__":
     process_human_36m(
         root_path='/media/yannik/samsung_ssd/data/human_3.6m/',
-        target_path='/media/yannik/samsung_ssd/data/human_3.6m_processed/'
+        target_path='/media/yannik/samsung_ssd/data/human_36m_processed_128pix/'
     )
 

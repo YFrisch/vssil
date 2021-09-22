@@ -109,7 +109,7 @@ class TransporterAgent(AbstractAgent):
                 key_point_coordinates = torch.cat([self.model.keypointer(sample)[0].unsqueeze(1),
                                                    self.model.keypointer(target)[0].unsqueeze(1)], dim=1)
                 # Adapt to visualization
-                key_point_coordinates[..., 1] *= -1
+                key_point_coordinates[..., 1] = key_point_coordinates[..., 1] * (-1)
                 rec_diff = torch.cat([(sample - sample).unsqueeze(1), (reconstruction - sample).unsqueeze(1)], dim=1)
                 sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,

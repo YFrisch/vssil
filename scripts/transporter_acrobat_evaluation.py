@@ -12,7 +12,7 @@ from src.utils.visualization import play_series_and_reconstruction_with_keypoint
 if __name__ == "__main__":
 
     args = parse_arguments()
-    args.config = '/home/yannik/vssil/results/transporter/2021_8_28_10_8/config.yml'
+    args.config = '/home/yannik/vssil/results/ulosd_acrobat_consistency/2021_9_14_21_22/config.yml'
 
     with open(args.config, 'r') as stream:
         transporter_conf = yaml.safe_load(stream)
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     transporter_agent = TransporterAgent(dataset=npz_data_set, config=transporter_conf)
     transporter_agent.load_checkpoint(
-        '/home/yannik/vssil/results/transporter/2021_8_28_10_8/checkpoints/chckpt_f0_e80.PTH')
+        '/home/yannik/vssil/results/ulosd_acrobat_consistency/2021_9_14_21_22/checkpoints/chckpt_f0_e192.PTH')
 
     print("##### Evaluating:")
     with torch.no_grad():

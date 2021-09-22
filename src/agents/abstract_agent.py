@@ -2,6 +2,7 @@
     Already implements common methods.
 """
 import os
+import psutil
 import sys
 import shutil
 import time
@@ -15,6 +16,7 @@ from torch.utils.data import Dataset, DataLoader, random_split, SubsetRandomSamp
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from sklearn.model_selection import KFold
+from pynvml import *
 
 from src.utils.json import pretty_json
 
@@ -150,6 +152,12 @@ class AbstractAgent:
                 lr=config['training']['initial_lr'],
                 weight_decay=config['training']['l2_weight_decay']
             )
+        elif config['training']['optim'] in ['AdamW', 'adamw', 'ADAMW']:
+            self.optim = torch.optim.AdamW(
+                params=self.model.parameters(),
+                lr=config['training']['initial_lr'],
+                weight_decay=config['training']['l2_weight_decay']
+            )
         elif config['training']['optim'] in ['rprop', 'RPROP']:
             self.optim = torch.optim.Rprop(
                 params=self.model.parameters(),
@@ -246,22 +254,33 @@ class AbstractAgent:
 
                 print(f"##### Fold {fold} Epoch {epoch}:")
                 time.sleep(0.01)
+                start_time = time.time()
 
                 self.model.train()
 
                 self.reset_logged_values()
 
-                # # Iterate over samples
-                # for i, sample in enumerate(tqdm(self.train_data_loader)):
+                # TODO: Right now this will only train for 59 steps if there are only 59 samples
 
-                # Iterate over steps
-                for i in tqdm(range(config['training']['steps_per_epoch'])):
+                generator = iter(self.train_data_loader)
 
-                    sample, label = next(iter(self.train_data_loader))
+                if config['training']['steps_per_epoch'] == -1:
+                    n_samples = len(self.train_data_loader)
+                else:
+                    n_samples = config['training']['steps_per_epoch']
+
+                for i in tqdm(range(n_samples)):
+
+                # for i, (sample, label) in enumerate(tqdm(self.train_data_loader)):
+
+                    try:
+                        sample, label = next(generator)
+                    except StopIteration:
+                        generator = iter(self.train_data_loader)
+                        sample, label = next(generator)
 
                     # with torch.no_grad():
                     sample, target = self.preprocess(sample, label, config)  # (N, T, C, H, W)
-
                     sample, target = sample.to(self.device), target.to(self.device)
 
                     if i == 0:
@@ -278,10 +297,13 @@ class AbstractAgent:
                                      mode='training')
 
                     assert loss is not None, "No loss returned during training."
-                    self.loss_per_iter.append(loss.detach().cpu().numpy())
+                    #self.loss_per_iter.append(loss.detach().cpu().numpy())
+                    self.loss_per_iter.append(loss.item())
 
-                    del sample, target, loss
-                    gc.collect()
+                    #del sample, target, loss
+
+                    #if i == config['training']['steps_per_epoch']:
+                    #    break
 
                 avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
@@ -293,16 +315,40 @@ class AbstractAgent:
                                            global_step=fold * epochs_per_fold + epoch)
 
                 # Validate
-                if not epoch % config['validation']['freq']:
+                if config['validation']['freq'] > 0 and not epoch % config['validation']['freq']:
                     with torch.no_grad():
                         self.validate(training_fold=fold, training_epoch=epoch, config=config)
 
-                sys.stdout.flush()
+                # Logs for ressources (memory usage etc.)
+
+                pid = os.getpid()
+                python_process = psutil.Process(pid)
+                memory_use = python_process.memory_info()[0] / 2. ** 30
+                nvmlInit()
+                h = nvmlDeviceGetHandleByIndex(0)
+                info = nvmlDeviceGetMemoryInfo(h)
+                self.writer.add_scalar(tag='res/ram_usage[GB]',
+                                       scalar_value=memory_use,
+                                       global_step=epoch)
+                self.writer.add_scalar(tag='res/epoch_secs',
+                                       scalar_value=time.time()-start_time,
+                                       global_step=epoch)
+                self.writer.add_scalar(tag='res/gpu_total[GB]', scalar_value=info.total/1024.0**3,
+                                       global_step=epoch)
+                self.writer.add_scalar(tag='res/gpu_used[GB]', scalar_value=info.used/1024.0**3,
+                                       global_step=epoch)
+                self.writer.add_scalar(tag='res/gpu_free[GB]', scalar_value=info.free/1024.0**3,
+                                       global_step=epoch)
 
                 if self.scheduler is not None:
                     self.scheduler.step()
 
+                sys.stdout.flush()
+                #torch.cuda.empty_cache()   # TODO: remove?
+                #gc.collect()               # TODO: remove?
+
             # Reset scheduler for each fold
+            # TODO: This should also reset the model ...
             self.reset_optim_and_scheduler(config)
 
     def validate(self,
@@ -311,7 +357,7 @@ class AbstractAgent:
                  config: dict = None):
 
         print("##### Validating:")
-        time.sleep(0.1)
+        time.sleep(0.01)
 
         self.model.eval()
 
@@ -320,9 +366,19 @@ class AbstractAgent:
         epochs_per_fold = config['training']['epochs']
         global_epoch = training_fold * epochs_per_fold + training_epoch
 
-        # for i, (sample, label) in enumerate(tqdm(self.val_data_loader)):
-        for i in tqdm(range(config['validation']['steps'])):
-            sample, label = next(iter(self.val_data_loader))
+        generator = iter(self.val_data_loader)
+
+        if config['validation']['steps'] == -1:
+            n_samples = len(self.val_data_loader)
+        else:
+            n_samples = config['validation']['steps']
+
+        for i in tqdm(range(n_samples)):
+
+        #for i, (sample, label) in enumerate(tqdm(self.val_data_loader)):
+
+            sample, label = generator.next()
+
             sample, target = self.preprocess(sample, label, config)  # Sample is in (N, T, C, H, W)
             sample, target = sample.to(self.device), target.to(self.device)
 
@@ -339,15 +395,19 @@ class AbstractAgent:
                                     config=config,
                                     mode='validation')
 
-            loss_per_sample.append(sample_loss.cpu().numpy())
+            # loss_per_sample.append(sample_loss.cpu().numpy())
+            loss_per_sample.append(sample_loss.item())
 
-            del sample, label, target
+            #del sample, label, target, sample_loss
+
+            #if i == config['validation']['steps']:
+            #    break
 
         avg_loss = np.mean(loss_per_sample)
         self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=global_epoch)
         print("##### Average loss:", avg_loss)
         print("\n")
-        time.sleep(0.1)
+        time.sleep(0.01)
 
         # Save current model
         if self.best_val_loss is None:
@@ -364,6 +424,8 @@ class AbstractAgent:
         else:
             pass
 
+        del avg_loss
+
         return loss_per_sample
 
     def evaluate(self, config: dict = None):
@@ -372,8 +434,6 @@ class AbstractAgent:
         time.sleep(0.1)
 
         self.model.eval()
-
-        # TODO: Load model from config['evaluation']['chckpt_path']
 
         loss_per_sample = []
 
@@ -386,6 +446,9 @@ class AbstractAgent:
 
                 sample_loss = self.loss_func(prediction, target, config=config)
                 loss_per_sample.append(sample_loss.cpu().numpy())
+
+                if i == config['evaluation']['steps']:
+                    break
 
         print("##### Average loss:", np.mean(loss_per_sample))
         time.sleep(0.1)

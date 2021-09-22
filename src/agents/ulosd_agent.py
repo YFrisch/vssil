@@ -7,9 +7,10 @@ import numpy as np
 from pytorch_ssim import SSIM
 
 from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
-from src.models.inception3 import CustomInception3
-from src.models.utils import load_inception_weights
-from src.losses import temporal_separation_loss, inception_encoding_loss
+from src.models.inception3 import perception_inception_net
+from src.models.alexnet import perception_alex_net
+from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
+    time_contrastive_triplet_loss
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
@@ -40,14 +41,13 @@ class ULOSD_Agent(AbstractAgent):
         W = eval(config['data']['img_shape'])[1]
         input_shape = (T, C, H, W)
 
-        self.model = ULOSD(
-            input_shape=input_shape,
-            config=config
-        ).to(self.device)
+        self.model = ULOSD(input_shape=input_shape, config=config).to(self.device)
 
         if config['training']['reconstruction_loss'] in ['inception', 'Inception', 'INCEPTION']:
-            self.inception_net = CustomInception3().to(self.device)
-            load_inception_weights(self.inception_net, config)
+            self.perception_net = perception_inception_net(config['log_dir']).to(self.device)
+
+        if config['training']['reconstruction_loss'] in ['alexnet', 'AlexNet', 'ALEXNET']:
+            self.perception_net = perception_alex_net(config['log_dir']).to(self.device)
 
         if config['multi_gpu'] is True and torch.cuda.device_count() >= 1:
             # self.model = ULOSD_Dist_Parallel(
@@ -63,6 +63,8 @@ class ULOSD_Agent(AbstractAgent):
         # Logged values
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
+        self.cons_loss_per_iter = []  # Extension
+        self.tc_loss_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
@@ -80,9 +82,9 @@ class ULOSD_Agent(AbstractAgent):
         :param config:
         :return:
         """
-        assert x.max() <= 1
-        assert x.min() >= 0
-        x = x - 0.5
+        #assert x.max() <= 1
+        #assert x.min() >= 0
+        x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
         return x, torch.empty([])
 
     def loss_func(self,
@@ -108,29 +110,28 @@ class ULOSD_Agent(AbstractAgent):
         rec_loss = config['training']['reconstruction_loss']
 
         N, T = target.shape[0], target.shape[1]
+
         loss = None
 
         if rec_loss in ['mse', 'MSE']:
-            # loss = F.mse_loss(input=prediction.view((N * T, *tuple(target.shape[2:]))),
-            #                   target=target.view((N * T, *tuple(target.shape[2:]))),
-            #                   reduction='sum')
             loss = F.mse_loss(input=prediction, target=target, reduction='mean') * 0.5
-            loss /= (N*T)
+            # loss /= (N*T)
 
-        if rec_loss in ['sse', 'SSE']:
+        elif rec_loss in ['sse', 'SSE']:
             loss = F.mse_loss(input=prediction, target=target, reduction='sum') * 0.5
-            loss /= (N * T)
-
-        elif rec_loss in ['Inception', 'inception', 'INCEPTION']:
-            loss = inception_encoding_loss(inception_net=self.inception_net,
-                                           prediction=prediction,
-                                           target=target)
+            loss = loss / (N * T)
 
         elif rec_loss in ['ssim', 'SSIM']:
             ssim_module = SSIM()
             # NOTE: SSIM is a metric, so we want to minimize 1 - loss
             loss = 1 - ssim_module(img1=prediction.view((N * T, *tuple(target.shape[2:]))),
                                    img2=target.view((N * T, *tuple(target.shape[2:]))))
+
+        elif rec_loss in ['Inception', 'inception', 'INCEPTION', 'alexnet', 'AlexNet', 'ALEXNET']:
+            loss = perception_loss(perception_net=self.perception_net,
+                                   prediction=prediction,
+                                   target=target)
+            loss = loss / (N * T)
 
         else:
             raise ValueError("Unknown error function.")
@@ -141,8 +142,15 @@ class ULOSD_Agent(AbstractAgent):
         separation_loss_scale = config['training']['separation_loss_scale']
         return temporal_separation_loss(cfg=config, coords=keypoint_coordinates) * separation_loss_scale
 
+    def consistency_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
+        scale = config['training']['consistency_loss_scale']
+        return spatial_consistency_loss(coords=keypoint_coordinates, cfg=config)*scale
+
+    def tc_triplet_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
+        scale = config['training']['tc_loss_scale']
+        return time_contrastive_triplet_loss(coords=keypoint_coordinates, cfg=config)*scale
+
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
-        # return config['model']['feature_map_regularization'] * torch.norm(feature_maps, p=1)
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
         penalty = torch.mean(torch.abs(feature_map_mean))
         return config['training']['feature_map_regularization'] * penalty
@@ -161,7 +169,7 @@ class ULOSD_Agent(AbstractAgent):
                 if l2_reg is None:
                     l2_reg = param.norm(2) ** 2
                 else:
-                    l2_reg += param.norm(2) ** 2
+                    l2_reg = l2_reg + param.norm(2) ** 2
 
         return config['training']['l2_kernel_reg_lambda'] * l2_reg
 
@@ -169,6 +177,8 @@ class ULOSD_Agent(AbstractAgent):
         super(ULOSD_Agent, self).reset_logged_values()
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
+        self.cons_loss_per_iter = []  # Extension
+        self.tc_loss_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
@@ -176,12 +186,18 @@ class ULOSD_Agent(AbstractAgent):
         global_epoch = fold * epochs_per_fold + epoch
         avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
         avg_separation_loss = np.mean(self.sep_loss_per_iter)
+        avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
+        avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
         avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
         avg_total_loss = np.mean(self.total_loss_per_iter)
         self.writer.add_scalar(tag="train/reconstruction_loss",
                                scalar_value=avg_reconstruction_loss, global_step=global_epoch)
         self.writer.add_scalar(tag="train/separation_loss",
                                scalar_value=avg_separation_loss, global_step=global_epoch)
+        self.writer.add_scalar(tag="train/consistency_loss",
+                               scalar_value=avg_consistency_loss, global_step=global_epoch)  # Extension
+        self.writer.add_scalar(tag="train/tc_triplet_loss",
+                               scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
         self.writer.add_scalar(tag="train/l1_activation_penalty",
                                scalar_value=avg_l1_penalty, global_step=global_epoch)
         self.writer.add_scalar(tag="train/total_loss",
@@ -210,20 +226,23 @@ class ULOSD_Agent(AbstractAgent):
         assert mode in ['training', 'validation']
 
         if mode == 'training':
-            #self.optim.zero_grad(set_to_none=True)
+            # self.optim.zero_grad(set_to_none=True)
             self.optim.zero_grad()
 
         # Vision model
         feature_maps, observed_key_points = self.model.encode(sample)
-        observed_key_points[..., :2].clip_(-1.0, 1.0)
-        observed_key_points[..., 2].clip_(0.0, 1.0)
-
+        #observed_key_points[..., :2] = torch.clamp(observed_key_points[..., :2], min=-1.0, max=1.0)
+        #observed_key_points[..., 2] = torch.clamp(observed_key_points[..., 2], min=0.0, max=1.0)
+        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
         # reconstructed_diff = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
         reconstruction = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
+        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
+        #reconstruction = torch.clamp(reconstruction, min=-0.5, max=0.5)
 
         # NOTE: Clipping the prediction to (-1, 1) bcs. it is the predicted diff. between v_t and v_1
         # reconstructed_diff = torch.clip(reconstructed_diff, -1.0, 1.0)
-        reconstruction.clip_(reconstruction, -0.5, 0.5)
+
+        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
 
         # Dynamics model
         # TODO: Not used yet
@@ -234,6 +253,19 @@ class ULOSD_Agent(AbstractAgent):
         reconstruction_loss = self.loss_func(prediction=reconstruction, target=sample, config=config)
 
         separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
+
+        # Extension
+        if config['training']['consistency_loss_scale'] > 0:
+            consistency_loss = self.consistency_loss(keypoint_coordinates=observed_key_points, config=config)
+        else:
+            consistency_loss = torch.Tensor([0.0]).to(self.device)
+
+        if config['training']['tc_loss_scale'] > 0:
+            tc_triplet_loss = self.tc_triplet_loss(keypoint_coordinates=observed_key_points, config=config)
+        else:
+            tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
+
+        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
 
         # feature-map (L1) regularization of the activations of the last layer
         l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
@@ -246,27 +278,34 @@ class ULOSD_Agent(AbstractAgent):
         kl_loss *= kl_loss_scale
 
         # total loss
-        L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss
+        L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss + consistency_loss +\
+            tc_triplet_loss
         # L = reconstruction_loss
 
-        if mode == 'validation' and config['validation']['save_video']:
+        if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
+            # NOTE: This part seems to cause a linear increase in CPU memory usage
+            #       Maybe the videos should be saved to the hard-drive instead
+
             with torch.no_grad():
-                rec_diff = (reconstruction - sample[:, 0, ...].unsqueeze(1)).clip(-1.0, 1.0)
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
-                                                        reconstructed_diff=rec_diff,
+                                                        reconstruction=reconstruction.detach().clamp(-0.5, 0.5),
                                                         key_points=observed_key_points)
+
                 self.writer.add_video(tag='val/reconstruction_sample',
                                       vid_tensor=torch_img_series_tensor,
                                       global_step=global_epoch_number)
                 self.writer.flush()
-                del rec_diff, torch_img_series_tensor
+                del torch_img_series_tensor
 
         # Log values and backprop. during training
         if mode == 'training':
-            self.rec_loss_per_iter.append(reconstruction_loss.detach().cpu().numpy())
-            self.sep_loss_per_iter.append(separation_loss.detach().cpu().numpy())
-            self.l1_penalty_per_iter.append(l1_penalty.detach().cpu().numpy())
-            self.total_loss_per_iter.append(L.detach().cpu().numpy())
+
+            self.rec_loss_per_iter.append(reconstruction_loss.item())
+            self.sep_loss_per_iter.append(separation_loss.item())
+            self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
+            self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
+            self.l1_penalty_per_iter.append(l1_penalty.item())
+            self.total_loss_per_iter.append(L.item())
 
             L.backward()
 
@@ -291,6 +330,6 @@ class ULOSD_Agent(AbstractAgent):
 
             self.optim.step()
 
-        del reconstruction, feature_maps, observed_key_points
+        # del reconstruction, feature_maps, observed_key_points
 
         return L

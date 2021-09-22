@@ -107,7 +107,7 @@ class TCN_Agent(AbstractAgent):
             neg = anchor_embedding@negative_embedding
 
             loss = max(0, neg-pos)
-            loss_sum += loss
+            loss_sum = loss_sum + loss
 
         loss = torch.Tensor([loss_sum/n])
         loss.requires_grad = True

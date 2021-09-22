@@ -1,41 +1,43 @@
 data:
-  img_shape: (64, 64)
+  img_shape: (128, 128)
   num_workers: 0
 
 model:
-  n_frames: 16
+  n_frames: 8  # 16
   n_feature_maps: 64
-  feature_map_width: 16
-  feature_map_height: 16
+  feature_map_width: 32
+  feature_map_height: 32
   feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
-  n_init_filters: 32
-  n_convolutions_per_res: 2  # 'layers_per_scale' in the keras code
+  n_init_filters: 64
+  n_convolutions_per_res: 3  # 'layers_per_scale' in the keras code
   conv_kernel_size: 3
   conv_kernel_regularization: 1e-4  # This can be removed?
-  decoder_hidden_activations: prelu  # LeakyReLU
-  encoder_hidden_activations: prelu  # LeakyReLU
+  decoder_hidden_activations: LeakyReLU  # prelu
+  encoder_hidden_activations: LeakyReLU  # prelu
   weight_init: he_uniform
 
 training:
   k_folds: 0
   epochs: 100
-  steps_per_epoch: 200  # 100
+  steps_per_epoch: 100  # 100
   optim: 'AdamW'
-  l2_weight_decay: 0.000005
+  l2_weight_decay: 0.00001
   feature_map_regularization: 5.0
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 30
-  initial_lr: 0.00005
+  lr_scheduler_epoch_steps: 10
+  initial_lr: 0.001
   min_lr: 0.0001
   clip_norm: 10
-  batch_size: 4 # 32
+  batch_size: 2  # 32
   reconstruction_loss: 'sse'
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
-  consistency_loss_scale: 10.0  # Set to 0 to not use this loss
+  consistency_loss_scale: 0.0
+  tc_loss_alpha: 5
+  tc_loss_scale: 1.0
 
 validation:
-  steps: -1
+  steps: 100
   freq: 3
   batch_size: 4  # 32
   save_video: true
@@ -45,7 +47,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd"
+log_dir: "results/ulosd_human36m_tc_triplet"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

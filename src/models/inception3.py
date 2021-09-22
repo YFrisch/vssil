@@ -1,6 +1,15 @@
+import os
+
 import torch
 import torch.nn as nn
 from torchvision.models.inception import BasicConv2d, InceptionA
+from torchvision.models.utils import load_state_dict_from_url
+
+from src.models.utils import partial_load_state_dict
+
+model_urls = {
+    'inception_v3': 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth',
+}
 
 
 class CustomInception3(nn.Module):
@@ -59,3 +68,24 @@ class CustomInception3(nn.Module):
         x = self.mixed_5d(x)
         # N x 288 x 35 x 35
         return x
+
+
+def perception_inception_net(log_dir: str):
+
+    log_dir = 'src/models/loaded/'
+
+    if not os.path.isfile(os.path.join(log_dir, 'inception_v3.pth')):
+        os.makedirs(name=log_dir, exist_ok=True)
+        state_dict = load_state_dict_from_url(model_urls['inception_v3'])
+        torch.save(state_dict, f=os.path.join(log_dir, "inception_v3.pth"))
+    else:
+        state_dict = torch.load(os.path.join(log_dir, 'inception_v3.pth'))
+
+    inception_net = CustomInception3()
+
+    partial_load_state_dict(
+        model=inception_net,
+        loaded_dict=state_dict
+    )
+
+    return inception_net

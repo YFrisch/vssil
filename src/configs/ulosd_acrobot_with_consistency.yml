@@ -18,21 +18,21 @@ model:
 
 training:
   k_folds: 0
-  epochs: 100
-  steps_per_epoch: 200  # 100
+  epochs: 200
+  steps_per_epoch: 100  # 100
   optim: 'AdamW'
-  l2_weight_decay: 0.000005
+  l2_weight_decay: 0.00001
   feature_map_regularization: 5.0
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 30
-  initial_lr: 0.00005
+  initial_lr: 0.0001
   min_lr: 0.0001
-  clip_norm: 10
-  batch_size: 4 # 32
+  clip_norm: 10.0
+  batch_size: 8 # 32
   reconstruction_loss: 'sse'
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
-  consistency_loss_scale: 10.0  # Set to 0 to not use this loss
+  consistency_loss_scale: 0.5  # Set to 0 to not use this loss
 
 validation:
   steps: -1
@@ -45,7 +45,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd"
+log_dir: "results/ulosd_acrobat_consistency/"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

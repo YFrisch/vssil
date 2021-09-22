@@ -53,7 +53,7 @@ class FeatureMapsToKeyPoints(nn.Module):
         map_scales = torch.mean(feature_maps, dim=[2, 3]).to(self.device)
 
         # Normalize map scales to [0.0, 1.0] across key-points
-        map_scales /= (EPSILON + torch.max(map_scales, dim=1, keepdim=True)[0])
+        map_scales = map_scales / (EPSILON + torch.max(map_scales, dim=1, keepdim=True)[0])
 
         return torch.stack([x_coordinates, y_coordinates, map_scales], dim=2)
 
@@ -85,7 +85,7 @@ class FeatureMapsToCoordinates(nn.Module):
 
         # Normalize heatmaps to a prob. distr. (Sum to 1)
         weights = torch.sum(maps + EPSILON, dim=marginalize_dim, keepdim=True).to(self.device)
-        weights /= torch.sum(weights, dim=self.axis, keepdim=True)
+        weights = weights / torch.sum(weights, dim=self.axis, keepdim=True)
 
         # Computer center of mass of marginalized maps to obtain scalar coordinates:
         coordinates = torch.sum(weights*grid, dim=self.axis, keepdim=True).to(self.device)

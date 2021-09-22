@@ -1,11 +1,5 @@
-import os
-from os.path import isfile, join
-
 import torch
 import torch.nn as nn
-from torchvision.models.utils import load_state_dict_from_url
-
-from .inception3 import CustomInception3
 
 
 def get_img_coordinates(h: int, w: int, normalize: bool):
@@ -54,21 +48,6 @@ def init_weights(m: torch.nn.Module, config: dict):
         if config['model']['weight_init'] == 'ones':
             torch.nn.init.ones_(m.weight)
             m.bias.data.fill_(1.00)
-
-
-def load_inception_weights(inception_net: CustomInception3, config: dict):
-    """ Loads inception net weight (pretrained on ImageNet) from file or url. """
-    if not isfile(join(config['log_dir'], "inception.pth")):
-        # Create dir if it does not exist
-        os.makedirs(name=config['log_dir'], exist_ok=True)
-        # Load state dict from url
-        state_dict = load_state_dict_from_url(config['model']['inception_url'])
-        torch.save(state_dict, f=join(config['log_dir'], "inception.pth"))
-    else:
-        state_dict = torch.load(join(config['log_dir'], "inception.pth"))
-
-    # Only get the relevant parts of the state dict needed for the custom module
-    partial_load_state_dict(inception_net, state_dict)
 
 
 activation_dict = {
