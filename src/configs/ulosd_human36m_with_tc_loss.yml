@@ -1,6 +1,6 @@
 data:
   img_shape: (128, 128)
-  num_workers: 0
+  num_workers: 4
 
 model:
   n_frames: 8  # 16
@@ -18,7 +18,7 @@ model:
 
 training:
   k_folds: 0
-  epochs: 100
+  epochs: 200
   steps_per_epoch: 100  # 100
   optim: 'AdamW'
   l2_weight_decay: 0.00001
@@ -28,18 +28,18 @@ training:
   initial_lr: 0.001
   min_lr: 0.0001
   clip_norm: 10
-  batch_size: 2  # 32
+  batch_size: 32  # 32
   reconstruction_loss: 'sse'
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
   consistency_loss_scale: 0.0
   tc_loss_alpha: 5
-  tc_loss_scale: 1.0
+  tc_loss_scale: 0.1
 
 validation:
   steps: 100
   freq: 3
-  batch_size: 4  # 32
+  batch_size: 32  # 32
   save_video: true
 
 evaluation:

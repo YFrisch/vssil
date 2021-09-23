@@ -32,11 +32,21 @@ class NPZ_Dataset(Dataset):
 def read_npz_data(path: str):
     npz_file = np.load(path)
 
-    np_images = npz_file['image'].transpose(0, 3, 1, 2)
-    np_actions = npz_file['action']
-    np_rewards = npz_file['reward']
-    np_orientations = npz_file['orientations']
-    np_velocities = npz_file['velocity']
+    try:
+        np_images = npz_file['image'].transpose(0, 3, 1, 2)
+    except KeyError:
+        np_images = npz_file['images']
+        print(np_images.shape)
+    try:
+        np_actions = npz_file['action']
+        np_rewards = npz_file['reward']
+        np_orientations = npz_file['orientations']
+        np_velocities = npz_file['velocity']
+    except KeyError:
+        np_actions = None
+        np_rewards = None
+        np_orientations = None
+        np_velocities = None
     return {
         'images': np_images,
         'actions': np_actions,
