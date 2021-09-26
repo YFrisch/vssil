@@ -23,7 +23,7 @@ def time_contrastive_triplet_loss(coords: torch.Tensor, cfg: dict) -> torch.Tens
     """
 
     alpha = np.floor(((cfg['training']['tc_loss_alpha']-1)/2))
-    eps = 0.001
+    eps = 0.1
 
     loss = 0
 

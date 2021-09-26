@@ -131,7 +131,7 @@ class ULOSD_Agent(AbstractAgent):
             loss = perception_loss(perception_net=self.perception_net,
                                    prediction=prediction,
                                    target=target)
-            loss = loss / (N * T)
+            # loss = loss / (N * T)
 
         else:
             raise ValueError("Unknown error function.")
@@ -229,32 +229,46 @@ class ULOSD_Agent(AbstractAgent):
             # self.optim.zero_grad(set_to_none=True)
             self.optim.zero_grad()
 
+        #
         # Vision model
+        #
+
         feature_maps, observed_key_points = self.model.encode(sample)
-        #observed_key_points[..., :2] = torch.clamp(observed_key_points[..., :2], min=-1.0, max=1.0)
-        #observed_key_points[..., 2] = torch.clamp(observed_key_points[..., 2], min=0.0, max=1.0)
-        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
-        # reconstructed_diff = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
-        reconstruction = self.model.decode(observed_key_points, sample[:, 0, ...].unsqueeze(1))
-        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
-        #reconstruction = torch.clamp(reconstruction, min=-0.5, max=0.5)
-
-        # NOTE: Clipping the prediction to (-1, 1) bcs. it is the predicted diff. between v_t and v_1
-        # reconstructed_diff = torch.clip(reconstructed_diff, -1.0, 1.0)
-
         assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
 
+        reconstruction = self.model.decode(observed_key_points, sample[:, 0:1, ...])
+
+        #
         # Dynamics model
+        #
+
         # TODO: Not used yet
 
-        # Losses
-        # target_diff = sample - sample[:, 0, ...].unsqueeze(1)
-        # reconstruction_loss = self.loss_func(prediction=reconstructed_diff, target=target_diff, config=config)
+        #
+        # Reconstruction loss for reconstructing the input image sequence
+        #
+
         reconstruction_loss = self.loss_func(prediction=reconstruction, target=sample, config=config)
+
+        #
+        # Seperation loss for key-point trajectories
+        #
 
         separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
 
-        # Extension
+        #
+        # Feature-map (L1) regularization of the activations of the last layer
+        # (Sparsity Loss)
+        #
+
+        # feature-map (L1) regularization of the activations of the last layer
+        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
+        # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
+
+        #
+        # Extensions
+        #
+
         if config['training']['consistency_loss_scale'] > 0:
             consistency_loss = self.consistency_loss(keypoint_coordinates=observed_key_points, config=config)
         else:
@@ -265,22 +279,20 @@ class ULOSD_Agent(AbstractAgent):
         else:
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
-        assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
+        #
+        # Losses for the dynamics model
+        # TODO: not used yet
+        #
 
-        # feature-map (L1) regularization of the activations of the last layer
-        l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
-        # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
-
-        # TODO: Losses for the dynamics model, not used yet
         coord_pred_loss = 0
         kl_loss = 0
         kl_loss_scale = 0
-        kl_loss *= kl_loss_scale
+        kl_loss = kl_loss * kl_loss_scale
 
         # total loss
-        L = reconstruction_loss + separation_loss + l1_penalty + coord_pred_loss + kl_loss + consistency_loss +\
-            tc_triplet_loss
-        # L = reconstruction_loss
+        L = reconstruction_loss + separation_loss + l1_penalty +\
+            coord_pred_loss + kl_loss +\
+            consistency_loss + tc_triplet_loss
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
@@ -329,7 +341,5 @@ class ULOSD_Agent(AbstractAgent):
                     self.writer.flush()
 
             self.optim.step()
-
-        # del reconstruction, feature_maps, observed_key_points
 
         return L

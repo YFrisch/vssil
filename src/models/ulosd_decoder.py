@@ -22,7 +22,8 @@ def make_decoder(encoder_input_shape: tuple, config: dict):
         decoder_module_list.append(
             nn.Upsample(
                 scale_factor=(2.0, 2.0),
-                mode='bilinear',
+                #mode='bilinear',
+                mode='bicubic',
                 align_corners=True
             )
         )

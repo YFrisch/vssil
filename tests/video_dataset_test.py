@@ -7,8 +7,8 @@ from torchvision import transforms
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 
 if __name__ == "__main__":
-    # data_root_path = '/media/yannik/samsung_ssd/data/mime_processed'
-    data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
+    data_root_path = '/media/yannik/samsung_ssd/data/mime_processed_256pix'
+    # data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
     preprocess = transforms.Compose([
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         root_path=data_root_path,
         annotationfile_path=annotations_file,
         num_segments=1,
-        frames_per_segment=16,
+        frames_per_segment=8,
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=True,
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         shuffle=False
     )
 
-    time_diff = 10
+    time_diff = 1
     for i, sample in enumerate(data_loader):
         frames, labels = sample
         t0_frame = frames[0, 0, ...].permute(1, 2, 0).cpu().numpy()

@@ -8,12 +8,12 @@ model:
   feature_map_width: 32
   feature_map_height: 32
   feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
-  n_init_filters: 64
-  n_convolutions_per_res: 3  # 'layers_per_scale' in the keras code
+  n_init_filters: 128
+  n_convolutions_per_res: 4  # 'layers_per_scale' in the keras code
   conv_kernel_size: 3
   conv_kernel_regularization: 1e-4  # This can be removed?
-  decoder_hidden_activations: LeakyReLU  # prelu
-  encoder_hidden_activations: LeakyReLU  # prelu
+  decoder_hidden_activations: prelu
+  encoder_hidden_activations: prelu
   weight_init: he_uniform
 
 training:
@@ -24,12 +24,12 @@ training:
   l2_weight_decay: 0.00001
   feature_map_regularization: 5.0
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 10
-  initial_lr: 0.001
+  lr_scheduler_epoch_steps: 50
+  initial_lr: 0.00005
   min_lr: 0.0001
-  clip_norm: 10
-  batch_size: 32  # 32
-  reconstruction_loss: 'sse'
+  clip_norm: 2
+  batch_size: 4  # 32
+  reconstruction_loss: 'alexnet'  # 'sse'
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
   consistency_loss_scale: 0.0
@@ -39,7 +39,7 @@ training:
 validation:
   steps: 100
   freq: 3
-  batch_size: 32  # 32
+  batch_size: 4  # 32
   save_video: true
 
 evaluation:

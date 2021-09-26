@@ -15,5 +15,5 @@ def perception_loss(perception_net: torch.nn.Module,
     # alpha = 0.1
     pred_encoding = perception_net(prediction.view((N*T, *prediction.shape[2:])))
     tar_encoding = perception_net(target.view((N*T, *target.shape[2:])))
-    return F.mse_loss(input=pred_encoding, target=tar_encoding, reduction='sum') * 0.5
+    return F.mse_loss(input=pred_encoding, target=tar_encoding, reduction='mean') * 0.5
     # return torch.mean(alpha * torch.sqrt(torch.norm(pred_encoding - tar_encoding, 2)))

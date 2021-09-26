@@ -64,7 +64,7 @@ class CustomAlexNet(nn.Module):
         # x = self.avgpool(x)
         x = torch.flatten(x, 1)
         # x = self.classifier(x)
-        x = self.sigmoid(x)
+        # TODO: x = self.sigmoid(x) ?
         return x
 
 
