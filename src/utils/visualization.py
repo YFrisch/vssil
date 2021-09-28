@@ -1,4 +1,6 @@
 import io
+import os.path
+
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -45,7 +47,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
     :param intensity_threshold: Intensity threshold above which the key-points are plotted
     :param key_point_trajectory: Set true to also plot the trajectories of the predicted key-points
     :param trajectory_length: Length of the key-point trajectories to plot
-    :return:
+    :return: list of ids (of keypoint_coords tensor) of "active" key-points
     """
 
     assert keypoint_coords.dim() == 4
@@ -69,11 +71,17 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
             "Use at least 'trajectory_length' time-steps to plot the key-point trajectories!"
 
     # Make colormap
-    indexable_cmap = cm.get_cmap('prism', keypoint_coords.shape[1])
+    indexable_cmap = cm.get_cmap('prism', keypoint_coords.shape[2])
 
     # Permute to (N, T, H, W, C) for matplotlib
     image_series = (image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
     reconstructed_image_series = (reconstructed_image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
+
+    # Filter for "active" key-point, i.e. key-points with an avg intensity above the threshold
+    active_kp_ids = []
+    for kp in range(keypoint_coords.shape[2]):
+        if keypoint_coords.shape[3] == 2 or np.mean(keypoint_coords[0, :, kp, 2].cpu().numpy()) > intensity_threshold:
+            active_kp_ids.append(kp)
 
     frame = np.zeros((W, H, C))
 
@@ -88,7 +96,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
         rec_im_obj = ax[1].imshow(frame)
 
     if key_point_trajectory:
-        key_point_pos_buffer = [[] for _ in range(keypoint_coords.shape[2])]
+        key_point_pos_buffer = [[] for _ in range(len(active_kp_ids))]
     line_objects = []
     orig_scatter_objects = []
     if C == 1:
@@ -97,20 +105,19 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
     else:
         orig_im_obj.set_data(image_series[0, 0, ...])
         rec_im_obj.set_data(reconstructed_image_series[0, 0, ...])
-    for n_keypoint in range(keypoint_coords.shape[2]):
+    for n_keypoint in range(len(active_kp_ids)):
         if keypoint_coords.shape[3] == 2:
             intensity = 1.0
         else:
-            intensity = keypoint_coords[0, 0, n_keypoint, 2]
-        if intensity > 0.0:
-            #orig_scatter_obj = ax[0].scatter(0, 0, cmap=viridis, alpha=0.5)
-            orig_scatter_obj = ax[0].scatter(0, 0, color=indexable_cmap(n_keypoint/keypoint_coords.shape[2]), alpha=0.5)
+            # intensity = keypoint_coords[0, 0, n_keypoint, 2]
+            intensity = keypoint_coords[0, 0, active_kp_ids[n_keypoint], 2]
+        if intensity >= 0.0:
+            orig_scatter_obj = ax[0].scatter(0, 0, color=indexable_cmap(n_keypoint / len(active_kp_ids)),
+                                             alpha=0.5)
             orig_scatter_objects.append(orig_scatter_obj)
             if key_point_trajectory:
-                #line_obj = ax[0].plot([0, 0], [0, 0], color='yellow', alpha=0.25)[0]
                 line_obj = ax[0].plot([0, 0], [0, 0],
-                                      #color=viridis.colors[n_keypoint],
-                                      color=indexable_cmap(n_keypoint/keypoint_coords.shape[2]),
+                                      color=indexable_cmap(n_keypoint / len(active_kp_ids)),
                                       alpha=0.5)[0]
                 line_objects.append(line_obj)
 
@@ -119,7 +126,8 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
         orig_im_obj.set_data(im_frame)
         rec_frame = reconstructed_image_series[0, t, ...].squeeze()
         rec_im_obj.set_data(rec_frame)
-        for n_keypoint in range(keypoint_coords.shape[2]):
+
+        for n_keypoint in range(len(active_kp_ids)):
             # NOTE: The predicted keypoints are in [y(height), x(width)] coordinates
             #       in the ranges [-1.0; -1.0] to [1.0; 1.0]
             #                   ^
@@ -131,31 +139,20 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
             #              x    |
             #     [-0.5, -0.5]  |
             #                   |
-            # x1 = int((keypoint_coords[0, t, n_keypoint, 0] + 1.0)/2 * W)
-            # x2 = int((-keypoint_coords[0, t, n_keypoint, 1] + 1.0)/2 * H)
-            x_coord = int((-keypoint_coords[0, t, n_keypoint, 1] + 1.0) / 2 * W)
-            y_coord = int((keypoint_coords[0, t, n_keypoint, 0] + 1.0)/2 * H)
 
-            if keypoint_coords.shape[3] == 2:
-                intensity = 1.0
-            else:
-                intensity = keypoint_coords[0, 0, n_keypoint, 2]
-            if intensity > intensity_threshold:
-                orig_scatter_objects[n_keypoint].set_offsets([x_coord, y_coord])
+            x_coord = int((-keypoint_coords[0, t, active_kp_ids[n_keypoint], 1] + 1.0) / 2 * W)
+            y_coord = int((keypoint_coords[0, t, active_kp_ids[n_keypoint], 0] + 1.0) / 2 * H)
 
-                if key_point_trajectory:
-                    if len(key_point_pos_buffer[n_keypoint]) < trajectory_length:
-                            key_point_pos_buffer[n_keypoint].append([x_coord, y_coord])
-                    else:
-                        key_point_pos_buffer[n_keypoint].pop(0)
-                        key_point_pos_buffer[n_keypoint].append([x_coord, y_coord])
-                    combined_np_array = np.concatenate([key_point_pos_buffer[n_keypoint]])
-                    #assert combined_np_array.shape == (trajectory_length, 2),\
-                    #    f'{combined_np_array.shape} != ({trajectory_length}, 2)'
-                    line_objects[n_keypoint].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
-            else:
-                pass
-                # orig_scatter_objects[n_keypoint].set_offsets([0.0, 0.0])
+            orig_scatter_objects[n_keypoint].set_offsets([x_coord, y_coord])
+
+            if key_point_trajectory:
+                if len(key_point_pos_buffer[n_keypoint]) < trajectory_length:
+                    key_point_pos_buffer[n_keypoint].append([x_coord, y_coord])
+                else:
+                    key_point_pos_buffer[n_keypoint].pop(0)
+                    key_point_pos_buffer[n_keypoint].append([x_coord, y_coord])
+                combined_np_array = np.concatenate([key_point_pos_buffer[n_keypoint]])
+                line_objects[n_keypoint].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
 
         return im_frame, rec_frame, orig_scatter_objects, line_objects
 
@@ -167,6 +164,8 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
     anim.save('anim.mp4', writer=writer)
 
     plt.show()
+
+    return active_kp_ids
 
 
 def gen_eval_imgs(sample: torch.Tensor,
@@ -181,6 +180,7 @@ def gen_eval_imgs(sample: torch.Tensor,
     :param sample: Torch tensor of sample image sequence in (N, T, C, H, W)
     :param reconstruction: Torch tensor of reconstructed image series (N, T, C, H, W)
     :param key_points: Torch tensor of key-point coordinates in (N, T, C, 3) or (N, T, C, 2)
+    :param key_point_trajectory: Set true to include trajectories of key-points into the plot
     :return: Series of images as torch tensor in (1, T, C, H, W) in range [0, 1]
     """
     assert sample.ndim == 5
@@ -271,8 +271,53 @@ def gen_eval_imgs(sample: torch.Tensor,
         else:
             torch_img_series_tensor = torch.cat([torch_img_series_tensor, pil_to_tensor])
 
-        #del pil_img, pil_to_tensor, memory_buffer, fig, ax, viridis, x_coord, y_coord
-
-    #del sample, reconstruction, key_points
     assert torch_img_series_tensor.ndim == 4
     return torch_img_series_tensor[:, :3, ...].unsqueeze(0)
+
+
+def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
+                             target_path: str,
+                             intensity_threshold: float = 0.5):
+    """ Plots the amplitudes of the x- and y-coordinates separately for each
+        active key-point.
+
+    :param keypoint_coordinates: Torch tensor of key-point coordinates in (1, T, K, 2/3)
+    :param target_path: Path to save plot to.
+    :param intensity_threshold: Threshold for avg. intensity to define a keypoint as active (In range [0, 1]).
+        If key-points do not have intensity values, e.g. their last dim is of size 2,
+        then they are all assumed as active.
+    :return:
+    """
+    assert os.path.isdir(target_path)
+    assert keypoint_coordinates.dim() == 4
+    assert keypoint_coordinates.shape[-1] in [2, 3]
+    assert 0.0 <= intensity_threshold <= 1.0
+
+    T = keypoint_coordinates.shape[1]
+    indexable_cmap = cm.get_cmap('prism', keypoint_coordinates.shape[2])
+
+    fig, ax = plt.subplots(3, 1, figsize=(10, 15))
+    ax[0].set_title(f"x coordinate (mean. int > {intensity_threshold})")
+    ax[1].set_title(f"y coordinate (mean. int > {intensity_threshold})")
+    ax[2].set_title("intensity")
+    for n_keypoint in range(keypoint_coordinates.shape[2]):
+
+        mean_int = np.mean(keypoint_coordinates[0, :, n_keypoint, 2].cpu().numpy().squeeze())
+
+        if mean_int >= intensity_threshold:
+            ax[0].plot(np.arange(0, T),
+                       keypoint_coordinates[0:1, :, n_keypoint, 0].cpu().numpy().squeeze(),
+                       color=indexable_cmap(n_keypoint/keypoint_coordinates.shape[2]))
+            ax[1].plot(np.arange(0, T),
+                       keypoint_coordinates[0:1, :, n_keypoint, 1].cpu().numpy().squeeze(),
+                       color=indexable_cmap(n_keypoint/keypoint_coordinates.shape[2]))
+        if keypoint_coordinates.shape[3] == 3:
+            ax[2].plot(np.arange(0, T),
+                       keypoint_coordinates[0:1, :, n_keypoint, 2].cpu().numpy().squeeze(),
+                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
+        else:
+            ax[2].plot(np.arange(0, T),
+                       np.array([1]*T),
+                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
+    plt.savefig(f'{target_path}/kp_amps.png')
+    plt.close()
