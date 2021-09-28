@@ -137,4 +137,5 @@ vssil.egg-info/
 old/
 src/models/loaded/
 video_structure/
+pytorch-ssim/
 NOTES.md
