@@ -132,6 +132,7 @@ dmypy.json
 .idea/
 datasets/
 results/
+result_videos/
 vssil.egg-info/
 old/
 src/models/loaded/

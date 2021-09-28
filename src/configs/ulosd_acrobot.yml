@@ -9,7 +9,7 @@ model:
   feature_map_height: 16
   feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
   n_init_filters: 32
-  n_convolutions_per_res: 2  # 'layers_per_scale' in the keras code
+  n_convolutions_per_res: 3  # 'layers_per_scale' in the keras code
   conv_kernel_size: 3
   conv_kernel_regularization: 1e-4  # This can be removed?
   decoder_hidden_activations: prelu  # LeakyReLU
@@ -18,7 +18,7 @@ model:
 
 training:
   k_folds: 0
-  epochs: 100
+  epochs: 200
   steps_per_epoch: 200  # 100
   optim: 'AdamW'
   l2_weight_decay: 0.000005
@@ -27,12 +27,14 @@ training:
   lr_scheduler_epoch_steps: 30
   initial_lr: 0.00005
   min_lr: 0.0001
-  clip_norm: 10
+  clip_norm: 5
   batch_size: 4 # 32
   reconstruction_loss: 'sse'
+  reconstruction_loss_scale: 1.0
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
-  consistency_loss_scale: 10.0  # Set to 0 to not use this loss
+  consistency_loss_scale: 0.0  # Set to 0 to not use this loss
+  tc_loss_scale: 0.0
 
 validation:
   steps: -1
@@ -45,7 +47,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd"
+log_dir: "results/ulosd_acrobot"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

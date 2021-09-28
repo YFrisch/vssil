@@ -5,14 +5,14 @@ from torch.utils.data import DataLoader
 
 from src.data.npz_dataset import NPZ_Dataset
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, numpy_to_mp4
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
 from src.utils.argparse import parse_arguments
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_acrobat_tc_triplet/2021_9_21_15_55/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_acrobot/2021_9_28_11_14/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -43,9 +43,11 @@ if __name__ == "__main__":
 
     ulosd_agent.eval_data_loader = eval_data_loader
     # NOTE: Change checkpoint to evaluate here:
-    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd_acrobat_tc_triplet/2021_9_21_15_55/checkpoints/chckpt_f0_e69.PTH")
+    ulosd_agent.load_checkpoint(
+        "/home/yannik/vssil/results/ulosd_acrobot/2021_9_28_11_14/checkpoints/chckpt_f0_e171.PTH"
+    )
 
-    intensity_threshold = 0.7
+    intensity_threshold = 0.6
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -53,15 +55,6 @@ if __name__ == "__main__":
 
             sample, _ = ulosd_agent.preprocess(sample, label, ulosd_conf)
             sample.to(ulosd_agent.device)
-
-            """
-            numpy_to_mp4(
-                img_array=sample[0, ...].permute(0, 2, 3, 1).cpu().numpy(),
-                target_path='../pytorch_sample_test.avi'
-            )
-
-            exit()
-            """
 
             feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)
 
@@ -84,6 +77,10 @@ if __name__ == "__main__":
                                                           intensity_threshold=intensity_threshold,
                                                           key_point_trajectory=True,
                                                           trajectory_length=20)
+
+            plot_keypoint_amplitudes(keypoint_coordinates=key_points,
+                                     intensity_threshold=intensity_threshold,
+                                     target_path='/home/yannik/vssil')
 
             if i == 0:
                 exit()

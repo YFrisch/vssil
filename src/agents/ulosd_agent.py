@@ -131,12 +131,12 @@ class ULOSD_Agent(AbstractAgent):
             loss = perception_loss(perception_net=self.perception_net,
                                    prediction=prediction,
                                    target=target)
-            # loss = loss / (N * T)
+            loss = loss / (N * T)
 
         else:
             raise ValueError("Unknown error function.")
 
-        return loss
+        return loss * config['training']['reconstruction_loss_scale']
 
     def separation_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         separation_loss_scale = config['training']['separation_loss_scale']
