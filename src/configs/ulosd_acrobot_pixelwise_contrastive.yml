@@ -3,7 +3,7 @@ data:
   num_workers: 4
 
 model:
-  n_frames: 16
+  n_frames: 8
   n_feature_maps: 64
   feature_map_width: 16
   feature_map_height: 16
@@ -19,7 +19,7 @@ model:
 training:
   k_folds: 0
   epochs: 200
-  steps_per_epoch: 200  # 100
+  steps_per_epoch: 100  # 100
   optim: 'AdamW'
   l2_weight_decay: 0.000005
   feature_map_regularization: 5.0
@@ -34,10 +34,15 @@ training:
   separation_loss_scale: 10.0
   separation_loss_sigma: 0.1
   consistency_loss_scale: 0.0  # Set to 0 to not use this loss
+  tc_loss_alpha: 5.0
   tc_loss_scale: 0.0
+  pixelwise_contrastive_scale: 100.0
+  pixelwise_contrastive_patch_size: (11, 11)
+  pixelwise_contrastive_time_window: 7
+  pixelwise_contrastive_alpha: 0.5
 
 validation:
-  steps: -1
+  steps: 10
   freq: 5
   batch_size: 1  # 32
   save_video: true
@@ -47,7 +52,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd_acrobot"
+log_dir: "results/ulosd_acrobot_pixelwise_contrastive"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

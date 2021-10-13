@@ -11,11 +11,11 @@ from cv2 import VideoWriter, VideoWriter_fourcc,\
     normalize, NORM_MINMAX, CV_32F
 
 
-def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi'):
+def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi', fps: int = 20):
     """ Takes a numpy array in (T, H, W, C) format and makes a video out of it."""
-    width = 64
-    height = 64
-    fps = 16
+    width = img_array.shape[2]
+    height = img_array.shape[1]
+
     # Convert to 255 RGB
     norm_img_array = normalize(img_array, None, alpha=0, beta=255,
                                norm_type=NORM_MINMAX, dtype=CV_32F)

@@ -23,7 +23,8 @@ def time_contrastive_triplet_loss(coords: torch.Tensor, cfg: dict) -> torch.Tens
     """
 
     alpha = np.floor(((cfg['training']['tc_loss_alpha']-1)/2))
-    eps = 0.1
+    eps = 0.5
+    # eps = alpha
 
     loss = 0
 
@@ -38,13 +39,21 @@ def time_contrastive_triplet_loss(coords: torch.Tensor, cfg: dict) -> torch.Tens
             pos_indices = np.arange(int(np.clip(a=t-alpha, a_min=0, a_max=T)),
                                     int(np.clip(a=t+alpha+1, a_min=0, a_max=T)))
             pt = torch.argmax(torch.norm(input=coords[n, pos_indices, ...] - f_a, p=2)**2, dim=0)
+            pt = pos_indices[pt]
             f_p = coords[n, pt, ...]
 
             neg_indices = np.concatenate([np.arange(0, pos_indices[0]), np.arange(pos_indices[-1]+1, T)])
             nt = torch.argmin(torch.norm(input=coords[n, neg_indices, ...] - f_a, p=2)**2, dim=0)
+            nt = neg_indices[nt]
             f_n = coords[n, nt, ...]
 
-            loss = loss + torch.norm(f_a - f_p, p=2)**2 + torch.norm(f_a - f_n, p=2)**2 + eps
+            #print(torch.norm(f_a - f_p, p=2)**2 - torch.norm(f_a - f_n, p=2)**2)
+
+            loss = loss + torch.norm(f_a - f_p, p=2)**2 - torch.norm(f_a - f_n, p=2)**2 + eps
+
+            #print(f't: {t}\t +: {pos_indices}\t -: {neg_indices}\t pt: {pt}\t nt: {nt}')
+            #print(f'loss: {loss}')
+            #print()
 
     loss = loss / (T * N)
 
@@ -53,16 +62,22 @@ def time_contrastive_triplet_loss(coords: torch.Tensor, cfg: dict) -> torch.Tens
 
 if __name__ == "__main__":
 
-    # Very abrupt movement
-    fake_coords5 = torch.zeros(size=(16, 15, 3, 3))
-    fake_coords5[..., 2] = 1
-    fake_coords5[0, 10:, :, :2] = 0.9
+    fake_cfg = {
+        'training': {
+            'tc_loss_alpha': 5
+        }
+    }
 
     # Abrupt movement
     fake_coords = torch.zeros(size=(16, 15, 3, 3))
     fake_coords[..., 2] = 1
     fake_coords[0, 5:10, :, :2] = 0.25
     fake_coords[0, 10:, :, :2] = 0.75
+
+    # Very abrupt movement
+    fake_coords5 = torch.zeros(size=(16, 15, 3, 3))
+    fake_coords5[..., 2] = 1
+    fake_coords5[0, 10:, :, :2] = 0.9
 
     # Smooth movement
     fake_coords2 = torch.zeros(size=(16, 15, 3, 3))
@@ -75,20 +90,14 @@ if __name__ == "__main__":
     fake_coords2[0, 10:12, :, :2] = 0.6
     fake_coords2[0, 12:-1, :, :2] = 0.5
 
-    fake_cfg = {
-        'training': {
-            'tc_loss_alpha': 5
-        }
-    }
-
     # Random coordinates
     fake_coords3 = torch.rand(size=(16, 15, 3, 3))
 
     # No movement
     fake_coords4 = torch.ones_like(fake_coords3)*0.5
 
-    print('Very abrupt movement: ', time_contrastive_triplet_loss(fake_coords5, fake_cfg))
     print('Abrupt movement: ', time_contrastive_triplet_loss(fake_coords, fake_cfg))
+    print('Very abrupt movement: ', time_contrastive_triplet_loss(fake_coords5, fake_cfg))
     print('Smooth movement: ', time_contrastive_triplet_loss(fake_coords2, fake_cfg))
     print('Random coordinates: ', time_contrastive_triplet_loss(fake_coords3, fake_cfg))
     print('No movement: ', time_contrastive_triplet_loss(fake_coords4, fake_cfg))

@@ -10,7 +10,7 @@ from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
-    time_contrastive_triplet_loss
+    time_contrastive_triplet_loss, pixelwise_contrastive_loss
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
@@ -65,6 +65,7 @@ class ULOSD_Agent(AbstractAgent):
         self.sep_loss_per_iter = []
         self.cons_loss_per_iter = []  # Extension
         self.tc_loss_per_iter = []  # Extension
+        self.pi_co_loss_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
@@ -150,6 +151,17 @@ class ULOSD_Agent(AbstractAgent):
         scale = config['training']['tc_loss_scale']
         return time_contrastive_triplet_loss(coords=keypoint_coordinates, cfg=config)*scale
 
+    def pixelwise_contrastive_loss(self,
+                                   keypoint_coordinates: torch.Tensor,
+                                   image_sequence: torch.Tensor,
+                                   config: dict) -> torch.Tensor:
+        scale = config['training']['pixelwise_contrastive_scale']
+        return pixelwise_contrastive_loss(keypoint_coordinates=keypoint_coordinates,
+                                          image_sequence=image_sequence,
+                                          patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
+                                          time_window=config['training']['pixelwise_contrastive_time_window'],
+                                          alpha=config['training']['pixelwise_contrastive_alpha']) * scale
+
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
         penalty = torch.mean(torch.abs(feature_map_mean))
@@ -179,6 +191,7 @@ class ULOSD_Agent(AbstractAgent):
         self.sep_loss_per_iter = []
         self.cons_loss_per_iter = []  # Extension
         self.tc_loss_per_iter = []  # Extension
+        self.pi_co_loss_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
@@ -188,8 +201,10 @@ class ULOSD_Agent(AbstractAgent):
         avg_separation_loss = np.mean(self.sep_loss_per_iter)
         avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
         avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
+        avg_pi_co_loss = np.mean(self.pi_co_loss_per_iter)  # Extension
         avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
         avg_total_loss = np.mean(self.total_loss_per_iter)
+
         self.writer.add_scalar(tag="train/reconstruction_loss",
                                scalar_value=avg_reconstruction_loss, global_step=global_epoch)
         self.writer.add_scalar(tag="train/separation_loss",
@@ -198,6 +213,8 @@ class ULOSD_Agent(AbstractAgent):
                                scalar_value=avg_consistency_loss, global_step=global_epoch)  # Extension
         self.writer.add_scalar(tag="train/tc_triplet_loss",
                                scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
+        self.writer.add_scalar(tag="train/pixelwise_contrastive_loss",
+                               scalar_value=avg_pi_co_loss, global_step=global_epoch)  # Extension
         self.writer.add_scalar(tag="train/l1_activation_penalty",
                                scalar_value=avg_l1_penalty, global_step=global_epoch)
         self.writer.add_scalar(tag="train/total_loss",
@@ -279,6 +296,15 @@ class ULOSD_Agent(AbstractAgent):
         else:
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
+        if config['training']['pixelwise_contrastive_scale'] > 0:
+            pixelwise_contrastive_loss = self.pixelwise_contrastive_loss(
+                keypoint_coordinates=observed_key_points,
+                image_sequence=sample,
+                config=config
+            )
+        else:
+            pixelwise_contrastive_loss = torch.Tensor([0.0]).to(self.device)
+
         #
         # Losses for the dynamics model
         # TODO: not used yet
@@ -292,7 +318,7 @@ class ULOSD_Agent(AbstractAgent):
         # total loss
         L = reconstruction_loss + separation_loss + l1_penalty +\
             coord_pred_loss + kl_loss +\
-            consistency_loss + tc_triplet_loss
+            consistency_loss + tc_triplet_loss + pixelwise_contrastive_loss
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
@@ -316,6 +342,7 @@ class ULOSD_Agent(AbstractAgent):
             self.sep_loss_per_iter.append(separation_loss.item())
             self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
             self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
+            self.pi_co_loss_per_iter.append(pixelwise_contrastive_loss.item())  # Extension
             self.l1_penalty_per_iter.append(l1_penalty.item())
             self.total_loss_per_iter.append(L.item())
 
