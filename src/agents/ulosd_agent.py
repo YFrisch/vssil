@@ -4,8 +4,6 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 import numpy as np
 
-from pytorch_ssim import SSIM
-
 from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
