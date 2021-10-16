@@ -31,6 +31,7 @@ h_max = torch.ones(size=(N, 1), dtype=torch.long) * 5
 w_min = torch.zeros(size=(N, 1), dtype=torch.long)
 w_max = torch.ones(size=(N, 1), dtype=torch.long) * 5
 
+"""
 patches = None
 for n in range(N):
     patch = img_tensor[n:n+1, :, h_min[n]:h_max[n], w_min[n]:w_max[n]]
@@ -38,6 +39,7 @@ for n in range(N):
 
 print(patches.shape)
 exit()
+"""
 
 center = int(grid.shape[1]/2)
 grid[:, center, center, 0] = key_points[:, 0, 0]
@@ -64,5 +66,7 @@ plt.show()
 L = torch.norm(patch, p=2)
 
 L.backward()
+
+print(key_points.grad)
 
 
