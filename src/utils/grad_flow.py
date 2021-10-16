@@ -9,7 +9,8 @@ def pyplot_fig_to_rgb_array(fig, expand=True):
     buf = fig.canvas.tostring_rgb()
     ncols, nrows = fig.canvas.get_width_height()
     shape = (nrows, ncols, 3) if not expand else (1, nrows, ncols, 3)
-    return np.fromstring(buf, dtype=np.uint8).reshape(shape)
+    # return np.fromstring(buf, dtype=np.uint8).reshape(shape)
+    return np.frombuffer(buf, dtype=np.uint8).reshape(shape)
 
 
 def plot_grad_flow(named_parameters,
