@@ -9,6 +9,35 @@ from kornia.feature.tfeat import TFeat
 from src.models.hog_layer import HoGLayer
 
 
+def get_patch_by_gridsampling(keypoint_coordinates: torch.Tensor,
+                              image: torch.Tensor,
+                              patch_size: tuple):
+
+    N, C, H, W = image.shape
+
+    grid = torch.zeros(size=(N, patch_size[0], patch_size[1], 2))
+
+    center = int(grid.shape[1]/2)
+    grid[:, center, center, 0] = keypoint_coordinates[:, 0]
+    grid[:, center, center, 1] = keypoint_coordinates[:, 1]
+    step_h = (1 / H)
+    step_w = (1 / W)
+
+    for h_i in range(grid.shape[1]):
+        for w_i in range(grid.shape[2]):
+            step_size_h = h_i - center
+            step_size_w = w_i - center
+            grid[:, h_i, w_i, 0] = keypoint_coordinates[:, 0] + step_size_h * step_h
+            grid[:, h_i, w_i, 1] = keypoint_coordinates[:, 1] + step_size_w * step_w
+
+    patches = F.grid_sample(input=image, grid=grid, align_corners=False)
+
+    assert tuple(patches.shape[-2:]) == patch_size, f'{tuple(patches.shape[-2:])} != {patch_size}'
+    assert patches.dim() == 4
+
+    return patches
+
+
 def get_image_patch(keypoint_coordinates: torch.Tensor,
                     image: torch.Tensor,
                     patch_size: tuple):
@@ -170,8 +199,9 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
 
     pos_range = max(int(time_window / 2), 1) if time_window > 1 else 0
 
-    # patches = torch.empty(size=(N, T, K, C, patch_size[0], patch_size[1]))
-    patches = {}
+    patches = torch.empty(size=(N, T, K, C, patch_size[0], patch_size[1]))
+    patches_ids = []
+    # patches = {}
 
     # Calculate loss per time-step per key-points
     # The patches are extracted online and dynamically
@@ -182,7 +212,7 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
     # non_match_losses = []
     for t in range(0, T):
 
-        patches[t] = {}
+        # patches[t] = {}
 
         loss_per_timestep = torch.tensor([0.0]).to(image_sequence.device)
         loss_per_timestep.requires_grad_(True)
@@ -198,6 +228,7 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                            k_j in range(0, K) if k_j != k]
 
             # Anchor patch
+            """
             try:
                 anchor_patch = patches[t][k]
             except KeyError:
@@ -206,6 +237,14 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                                                patch_size=patch_size)
                 # patches[:, t, k, :, :, :] = anchor_patch
                 patches[t][k] = anchor_patch
+            """
+            if (t, k) in patches_ids:
+                anchor_patch = patches[:, t, k, ...]
+            else:
+                anchor_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t, k, ...],
+                                               image=image_sequence[:, t, ...],
+                                               patch_size=patch_size)
+                patches[:, t, k, ...] = anchor_patch
 
             """
                 Match (positive) patches
@@ -215,6 +254,7 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
             L_match = torch.tensor([0.0]).to(image_sequence.device)
             L_match.requires_grad_(True)
             for t_i, k_i in matches:
+                """
                 try:
                     match_patch = patches[t_i][k_i]
                 except KeyError:
@@ -226,11 +266,21 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                     except KeyError:
                         patches[t_i] = {}
                         patches[t_i][k_i] = match_patch
+                """
+                if (t_i, k_i) in patches_ids:
+                    match_patch = patches[:, t_i, k_i, ...]
+                else:
+                    match_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t_i, k_i, ...],
+                                                  image=image_sequence[:, t_i, ...],
+                                                  patch_size=patch_size)
+                    patches[:, t_i, k_i, ...] = match_patch
+
                 L_match = L_match + patch_diff(anchor_patch=anchor_patch,
                                                contrast_patch=match_patch,
                                                anchor_keypoint_coords=keypoint_coordinates[:, t, k, ...],
                                                contrast_keypoint_coords=keypoint_coordinates[:, t_i, k_i, ...],
                                                mode=patch_diff_mode)
+
             L_match = L_match / len(matches)
 
             """
@@ -240,6 +290,7 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
             L_non_match = torch.tensor([0.0]).to(image_sequence.device)
             L_non_match.requires_grad_(True)
             for t_j, k_j in non_matches:
+                """
                 try:
                     non_match_patch = patches[t_j][k_j]
                 except KeyError:
@@ -251,6 +302,14 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                     except KeyError:
                         patches[t_j] = {}
                         patches[t_j][k_j] = non_match_patch
+                """
+                if (t_j, k_j) in patches_ids:
+                    non_match_patch = patches[:, t_j, k_j, ...]
+                else:
+                    non_match_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t_j, k_j, ...],
+                                                      image=image_sequence[:, t_j, ...],
+                                                      patch_size=patch_size)
+                    patches[:, t_j, k_j, ...] = non_match_patch
                 L_non_match = L_non_match + patch_diff(anchor_patch=anchor_patch,
                                                        contrast_patch=non_match_patch,
                                                        anchor_keypoint_coords=keypoint_coordinates[:, t, k, ...],
