@@ -14,8 +14,6 @@ def get_image_patch(keypoint_coordinates: torch.Tensor,
                     patch_size: tuple):
     """ Return the patch of size (H', W') of the input image around the input key-point.
 
-        TODO: Handle patches at the borders of the image -> Ensure patch_size
-
     :param keypoint_coordinates: Coordinates (batch) of a single key-point in (N, 2/3)
     :param image: Image (batch) to extract patch from in (N, C, H, W)
     :param patch_size: Shape of the image patch
@@ -39,17 +37,12 @@ def get_image_patch(keypoint_coordinates: torch.Tensor,
     zeros = torch.zeros_like(h)
     max_height = torch.ones_like(h) * H
     max_width = torch.ones_like(w) * W
-
-    # h_min = torch.tensor(torch.floor(torch.maximum(h - int(patch_size[0] / 2), zeros)) + 1, dtype=torch.long)
-    # h_max = torch.tensor(torch.floor(torch.minimum(h + int(patch_size[0] / 2), max_height)) + 1, dtype=torch.long)
-    # w_min = torch.tensor(torch.floor(torch.maximum(h - int(patch_size[1] / 2), zeros)) + 1, dtype=torch.long)
-    # w_max = torch.tensor(torch.floor(torch.minimum(h + int(patch_size[1] / 2), max_width)) + 1, dtype=torch.long)
     h_min = torch.floor(torch.maximum(h - int(patch_size[0] / 2), zeros)) + 1
     h_max = torch.floor(torch.minimum(h + int(patch_size[0] / 2), max_height)) + 1
     w_min = torch.floor(torch.maximum(h - int(patch_size[1] / 2), zeros)) + 1
     w_max = torch.floor(torch.minimum(h + int(patch_size[1] / 2), max_width)) + 1
 
-    # Extract patch (individually per entry of batch
+    # Extract patch (individually per entry of batch)
     patches = None
     for n in range(N):
         patch = image[n:n + 1, :, h_min[n].long():h_max[n].long(), w_min[n].long():w_max[n].long()]
@@ -57,42 +50,10 @@ def get_image_patch(keypoint_coordinates: torch.Tensor,
         if not tuple(patch.shape[-2:]) == patch_size:
             patch = F.interpolate(patch, size=patch_size, align_corners=False, mode='bilinear')
         patches = patch if patches is None else torch.cat([patches, patch], dim=0)
+
     assert tuple(patches.shape[-2:]) == patch_size, f'{tuple(patches.shape[-2:])} != {patch_size}'
-
-    """
-
-    grid = torch.zeros(size=(N, patch_size[0], patch_size[1], 2))
-
-    center = int(grid.shape[1]/2)
-
-    grid[:, center, center, 0] = keypoint_coordinates[:, 0]
-    grid[:, center, center, 0] = keypoint_coordinates[:, 1]
-
-    step_h = (1/H)
-    step_w = (1/W)
-
-    for h_i in range(grid.shape[1]):
-        for w_i in range(grid.shape[2]):
-            step_size_h = h_i - center
-            step_size_w = w_i - center
-            grid[:, h_i, w_i, 0] = keypoint_coordinates[:, 0] + step_size_w * step_w
-            grid[:, h_i, w_i, 1] = - keypoint_coordinates[:, 1] + step_size_h * step_h
-
-    patches = F.grid_sample(input=image, grid=grid, align_corners=True)
-
     assert patches.dim() == 4
 
-    fig, ax = plt.subplots(nrows=1, ncols=patches.shape[0])
-    for n in range(patches.shape[0]):
-        if patches.shape[0] == 1:
-            ax.imshow(patches[n, ...].permute(1, 2, 0).cpu().numpy())
-        else:
-            ax[n].imshow(patches[n, ...].permute(1, 2, 0).cpu().numpy())
-    plt.show()
-    plt.close()
-    """
-
-    assert patches.dim() == 4
     return patches
 
 
@@ -123,7 +84,7 @@ def patch_diff(anchor_patch: torch.Tensor,
         center_w = int(Wp / 2)
         center_mask = torch.zeros_like(anchor_patch)
         center_mask[:, :, center_h - center_height: center_h + center_height,
-        center_w - center_width: center_w + center_width] = 1
+                    center_w - center_width: center_w + center_width] = 1
         off_center_mask = torch.ones_like(anchor_patch) - center_mask
 
         batch_anchor_features = None
@@ -215,6 +176,7 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
     # Calculate loss per time-step per key-points
     # The patches are extracted online and dynamically
     total_loss = torch.tensor([0.0]).to(image_sequence.device)
+    total_loss.requires_grad_(True)
 
     # match_losses = []
     # non_match_losses = []
@@ -223,6 +185,7 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
         patches[t] = {}
 
         loss_per_timestep = torch.tensor([0.0]).to(image_sequence.device)
+        loss_per_timestep.requires_grad_(True)
 
         for k in range(0, K):
 
@@ -244,8 +207,13 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                 # patches[:, t, k, :, :, :] = anchor_patch
                 patches[t][k] = anchor_patch
 
-            # Match (positive) patches
+            """
+                Match (positive) patches
+            
+            """
+
             L_match = torch.tensor([0.0]).to(image_sequence.device)
+            L_match.requires_grad_(True)
             for t_i, k_i in matches:
                 try:
                     match_patch = patches[t_i][k_i]
@@ -265,8 +233,12 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                                                mode=patch_diff_mode)
             L_match = L_match / len(matches)
 
-            # Non-match (negative) patches
+            """
+                Non-match (negative) patches
+            
+            """
             L_non_match = torch.tensor([0.0]).to(image_sequence.device)
+            L_non_match.requires_grad_(True)
             for t_j, k_j in non_matches:
                 try:
                     non_match_patch = patches[t_j][k_j]
@@ -286,92 +258,10 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                                                        mode=patch_diff_mode)
             L_non_match = L_non_match / len(non_matches)
 
-            # match_losses.append(L_match)
-            # non_match_losses.append(L_non_match)
             loss_per_timestep = loss_per_timestep + \
                                 (max(L_match - L_non_match + alpha, torch.tensor([0.0]).to(image_sequence.device)))
             loss_per_timestep = loss_per_timestep / (K * (time_window * K - 1))
 
-            # print(f't: {t} k: {k} L: {loss_per_timestep}')
-
-        total_loss = total_loss + loss_per_timestep
-
-    # print(match_losses)
-    # print(non_match_losses)
-
-    return total_loss
-
-    """
-    # Iterate over time-steps:
-    for t in range(0, T):
-
-        print(f't = {t + 1}')
-
-        loss_per_timestep = torch.tensor([0.0]).to(image_sequence.device)
-
-        # Iterate over key-points:
-        for k in range(0, K):
-
-            if verbose and t == T - 1:
-                print()
-                print(f't: {t} k: {k}')
-
-            # Anchor image patch
-            anchor_patch = get_image_patch(keypoint_coordinates=keypoint_coordinates[:, t, k, ...],
-                                           image=image_sequence[:, t, ...],
-                                           patch_size=patch_size)
-
-            if verbose and t == T - 1:
-                print(f'anchor: ({t}, {keypoint_coordinates[:, t, k, ...].cpu().numpy()})')
-
-            # Matches / positives
-            match_timesteps = [*range(max(t - pos_range, 0), min(t + pos_range, T))] if time_window > 1 else []
-            if len(match_timesteps) > 1:
-                match_timesteps.remove(t)
-            match_latents = [keypoint_coordinates[:, c, k, ...] for c in match_timesteps]
-            match_patches = [get_image_patch(keypoint_coordinates=match_latents[lat],
-                                             image=image_sequence[:, match_timesteps[lat], ...],
-                                             patch_size=patch_size) for lat in range(0, len(match_latents))]
-            if verbose and t == T - 1:
-                print('matches: ', match_latents)
-
-            # Match loss
-            L_match = torch.tensor([0.0]).to(image_sequence.device)
-            for match_patch in match_patches:
-                # TODO: Replace norm of distance with more complex distance measure
-                L_match = L_match + torch.norm(input=(anchor_patch - match_patch), p=2)
-            # L_match = L_match / (patch_size[0] * patch_size[1])
-            if verbose and t == T - 1:
-                print('L_match: ', L_match)
-
-            # Non-matches / negatives
-            kpts = [*range(K)]
-            kpts.remove(k)
-            non_match_timesteps = [*range(max(t - pos_range, 0), min(t + pos_range, T))] if time_window > 1 else [t]
-            non_match_latents = [(c, keypoint_coordinates[:, c, l, ...])
-                                 for c in non_match_timesteps for l in kpts]
-            if verbose and t == T - 1:
-                print('non-matches: ', non_match_latents)
-
-            non_match_patches = [get_image_patch(keypoint_coordinates=non_match_latents[l][1],
-                                                 image=image_sequence[:, non_match_latents[l][0], ...],
-                                                 patch_size=patch_size) for l in range(len(non_match_latents))]
-
-            # Non-match loss
-            L_non_match = torch.tensor([0.0]).to(image_sequence.device)
-            for non_match_patch in non_match_patches:
-                L_non_match = L_non_match + torch.norm(input=(anchor_patch - non_match_patch), p=2)
-            # L_non_match = L_non_match / (patch_size[0] * patch_size[1])
-            if verbose and t == T - 1:
-                print('L_non_match: ', L_non_match)
-                print()
-
-            loss_per_timestep = loss_per_timestep + \
-                                (max(L_match - L_non_match + alpha, torch.tensor([0.0]).to(image_sequence.device)))
-
-            # loss_per_timestep = loss_per_timestep / (K * (time_window * K - 1))
-
         total_loss = total_loss + loss_per_timestep
 
     return total_loss
-    """
