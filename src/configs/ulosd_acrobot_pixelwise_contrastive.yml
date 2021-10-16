@@ -4,7 +4,7 @@ data:
 
 model:
   n_frames: 8
-  n_feature_maps: 64
+  n_feature_maps: 8  # 64
   feature_map_width: 16
   feature_map_height: 16
   feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
@@ -22,24 +22,25 @@ training:
   steps_per_epoch: 100  # 100
   optim: 'AdamW'
   l2_weight_decay: 0.000005
-  feature_map_regularization: 5.0
+  feature_map_regularization: 5.0  # 5.0
   lr_scheduler: 'StepLR'
   lr_scheduler_epoch_steps: 60
   initial_lr: 0.00005
   min_lr: 0.0001
   clip_norm: 10
-  batch_size: 4 # 32
+  batch_size: 1 # 32
   reconstruction_loss: 'sse'
-  reconstruction_loss_scale: 1.0
-  separation_loss_scale: 10.0
+  reconstruction_loss_scale: 1.0  # 1.0
+  separation_loss_scale: 10.0  # 10.0
   separation_loss_sigma: 0.1
   consistency_loss_scale: 0.0  # Set to 0 to not use this loss
   tc_loss_alpha: 5.0
-  tc_loss_scale: 0.0
-  pixelwise_contrastive_scale: 100.0
-  pixelwise_contrastive_patch_size: (11, 11)
-  pixelwise_contrastive_time_window: 7
-  pixelwise_contrastive_alpha: 0.5
+  tc_loss_scale: 0.0  # Set to 0 to not use this loss
+  pixelwise_contrastive_scale: 10.0
+  pixelwise_contrastive_distance: 'norm'
+  pixelwise_contrastive_patch_size: (5, 5)
+  pixelwise_contrastive_time_window: 3  # 5
+  pixelwise_contrastive_alpha: 10.0
 
 validation:
   steps: 10

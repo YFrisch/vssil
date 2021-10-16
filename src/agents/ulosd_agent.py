@@ -158,7 +158,8 @@ class ULOSD_Agent(AbstractAgent):
                                           image_sequence=image_sequence,
                                           patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
                                           time_window=config['training']['pixelwise_contrastive_time_window'],
-                                          alpha=config['training']['pixelwise_contrastive_alpha']) * scale
+                                          alpha=config['training']['pixelwise_contrastive_alpha'],
+                                          patch_diff_mode=config['training']['pixelwise_contrastive_distance']) * scale
 
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
@@ -295,13 +296,13 @@ class ULOSD_Agent(AbstractAgent):
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
         if config['training']['pixelwise_contrastive_scale'] > 0:
-            pixelwise_contrastive_loss = self.pixelwise_contrastive_loss(
+            pc_loss = self.pixelwise_contrastive_loss(
                 keypoint_coordinates=observed_key_points,
                 image_sequence=sample,
                 config=config
             )
         else:
-            pixelwise_contrastive_loss = torch.Tensor([0.0]).to(self.device)
+            pc_loss = torch.Tensor([0.0]).to(self.device)
 
         #
         # Losses for the dynamics model
@@ -316,7 +317,7 @@ class ULOSD_Agent(AbstractAgent):
         # total loss
         L = reconstruction_loss + separation_loss + l1_penalty +\
             coord_pred_loss + kl_loss +\
-            consistency_loss + tc_triplet_loss + pixelwise_contrastive_loss
+            consistency_loss + tc_triplet_loss + pc_loss
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
@@ -340,7 +341,7 @@ class ULOSD_Agent(AbstractAgent):
             self.sep_loss_per_iter.append(separation_loss.item())
             self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
             self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
-            self.pi_co_loss_per_iter.append(pixelwise_contrastive_loss.item())  # Extension
+            self.pi_co_loss_per_iter.append(pc_loss.item())  # Extension
             self.l1_penalty_per_iter.append(l1_penalty.item())
             self.total_loss_per_iter.append(L.item())
 

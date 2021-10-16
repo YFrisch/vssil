@@ -155,17 +155,11 @@ class PatchLossTest(unittest.TestCase):
 
         """
 
-        fake_fnn = torch.nn.Linear(in_features=20 * 3 * 2, out_features=20 * 3 * 2, bias=False)
-        fake_fnn2 = torch.nn.Linear(in_features=20 * 3 * 2, out_features=20 * 3 * 2, bias=False)
-
-        patch_size = (5, 5)
-        time_window = 9
-        alpha = 0.5
+        patch_size = (15, 15)
+        time_window = 7
+        alpha = 1.0
 
         fake_kpts = self.each_kp_diff_patch(self.fake_img_series)
-        print(fake_kpts.shape)
-        print(torch.flatten(fake_kpts, start_dim=1).shape)
-        fake_kpts = fake_fnn2(fake_fnn(torch.flatten(fake_kpts, start_dim=1))).view(1, 20, 3, 2)
         fake_kpts2 = self.two_kpts_same_patch(self.fake_img_series)
         fake_kpts3 = self.all_kpts_same_patch(self.fake_img_series)
 
@@ -213,9 +207,9 @@ class PatchLossTest(unittest.TestCase):
 
         """
 
-        patch_size = (5, 5)
-        time_window = 9
-        alpha = 0.5
+        patch_size = (15, 15)
+        time_window = 7
+        alpha = 1.0
 
         fake_kpts = self.each_kp_diff_patch(self.fake_img_series)
         fake_kpts4 = self.kpts_changing_patches(self.fake_img_series)

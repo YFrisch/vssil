@@ -30,7 +30,7 @@ def get_patch_by_gridsampling(keypoint_coordinates: torch.Tensor,
             grid[:, h_i, w_i, 0] = keypoint_coordinates[:, 0] + step_size_h * step_h
             grid[:, h_i, w_i, 1] = keypoint_coordinates[:, 1] + step_size_w * step_w
 
-    patches = F.grid_sample(input=image, grid=grid, align_corners=False)
+    patches = F.grid_sample(input=image, grid=grid, padding_mode='border', align_corners=False)
 
     assert tuple(patches.shape[-2:]) == patch_size, f'{tuple(patches.shape[-2:])} != {patch_size}'
     assert patches.dim() == 4
