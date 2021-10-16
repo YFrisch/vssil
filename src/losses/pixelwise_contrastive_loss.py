@@ -15,7 +15,7 @@ def get_patch_by_gridsampling(keypoint_coordinates: torch.Tensor,
 
     N, C, H, W = image.shape
 
-    grid = torch.zeros(size=(N, patch_size[0], patch_size[1], 2))
+    grid = torch.zeros(size=(N, patch_size[0], patch_size[1], 2)).to(image.device)
 
     center = int(grid.shape[1]/2)
     grid[:, center, center, 0] = keypoint_coordinates[:, 0]
