@@ -3,15 +3,15 @@ import unittest
 import random
 
 import torch
+from torch.autograd import gradcheck
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-from src.losses.pixelwise_contrastive_loss import pixelwise_contrastive_loss
+from src.losses.pixelwise_contrastive_loss import pixelwise_contrastive_loss, get_image_patch
 
 
 def play_img_and_keypoints(image_series: torch.Tensor, kpts: torch.Tensor, title: str):
-
     fig = plt.figure()
     ax = plt.axes()
     ax.set_title(title)
@@ -22,7 +22,8 @@ def play_img_and_keypoints(image_series: torch.Tensor, kpts: torch.Tensor, title
     N, T, C, H, W = image_series.shape
 
     if C == 1:
-        im_buff = ax.imshow(image_series[0, 0, ...].permute(1, 2, 0).detach().cpu().numpy(), cmap='gray', vmin=0, vmax=1)
+        im_buff = ax.imshow(image_series[0, 0, ...].permute(1, 2, 0).detach().cpu().numpy(), cmap='gray', vmin=0,
+                            vmax=1)
     else:
         im_buff = ax.imshow(image_series[0, 0, ...].permute(1, 2, 0).detach().cpu().numpy(), vmin=0, vmax=1)
 
@@ -51,6 +52,7 @@ class PatchLossTest(unittest.TestCase):
         np.random.seed(123)
 
         # Fake image series with 3 moving squares
+        # fake_img_series = torch.zeros(size=(1, 20, 3, 32, 32), dtype=torch.double)
         fake_img_series = torch.zeros(size=(1, 20, 3, 32, 32))
         for t in range(0, fake_img_series.shape[1]):
             fake_img_series[:, t, :, t + 1:t + 5, t + 1:t + 5] = 0.5
@@ -58,10 +60,11 @@ class PatchLossTest(unittest.TestCase):
             fake_img_series[:, t, :, 1:5, t + 1:t + 5] = 0.8
 
         self.fake_img_series = fake_img_series
-        self.fake_img_series.requires_grad_(True)
+        #self.fake_img_series.requires_grad_(True)
 
     def each_kp_diff_patch(self, image_series: torch.Tensor) -> torch.Tensor:
         # All key-points on a different patch
+        #kpts = torch.zeros(size=(1, 20, 3, 3), dtype=torch.double)
         kpts = torch.zeros(size=(1, 20, 3, 3))
         kpts[..., 2] = 1
         for t in range(0, image_series.shape[1]):
@@ -155,20 +158,33 @@ class PatchLossTest(unittest.TestCase):
 
         """
 
+        fake_fnn = torch.nn.Linear(in_features=20*3*2, out_features=20*3*2, bias=False)
+        fake_fnn2 = torch.nn.Linear(in_features=20*3*2, out_features=20*3*2, bias=False)
+
         patch_size = (5, 5)
         time_window = 9
         alpha = 0.5
 
         fake_kpts = self.each_kp_diff_patch(self.fake_img_series)
-        fake_kpts.requires_grad_(True)
+        print(fake_kpts.shape)
+        print(torch.flatten(fake_kpts, start_dim=1).shape)
+        fake_kpts = fake_fnn2(fake_fnn(torch.flatten(fake_kpts, start_dim=1))).view(1, 20, 3, 2)
+        #fake_kpts.requires_grad_(True)
         fake_kpts2 = self.two_kpts_same_patch(self.fake_img_series)
-        fake_kpts2.requires_grad_(True)
+        #fake_kpts2.requires_grad_(True)
         fake_kpts3 = self.all_kpts_same_patch(self.fake_img_series)
-        fake_kpts3.requires_grad_(True)
+        #fake_kpts3.requires_grad_(True)
 
         # play_img_and_keypoints(self.fake_img_series, fake_kpts, title='1')
         # play_img_and_keypoints(self.fake_img_series, fake_kpts2, title='2')
         # play_img_and_keypoints(self.fake_img_series, fake_kpts3, title='3')
+
+        """
+        print(gradcheck(lambda kpts, img: pixelwise_contrastive_loss(kpts, img, patch_size, time_window, alpha),
+                        inputs=(fake_kpts, self.fake_img_series),
+                        ))
+        exit()
+        """
 
         print('\n##### All key-points on different objects')
         L1 = pixelwise_contrastive_loss(keypoint_coordinates=fake_kpts,
@@ -178,6 +194,14 @@ class PatchLossTest(unittest.TestCase):
                                         alpha=alpha,
                                         patch_diff_mode='TFeat')
         print(L1)
+        L1.retain_grad()
+        L1.backward()
+        print(L1.grad)
+        fake_fnn.weight.retain_grad()
+        print(fake_fnn.weight.grad)
+        fake_fnn2.weight.retain_grad()
+        print(fake_fnn.weight.grad)
+        exit()
 
         print('##### Two key-points on the same object')
         L2 = pixelwise_contrastive_loss(keypoint_coordinates=fake_kpts2,
@@ -253,6 +277,26 @@ class PatchLossTest(unittest.TestCase):
         print()
 
         assert L1 <= L4 <= L5
+
+    def testGradientFlow(self):
+
+        fake_fnn = torch.nn.Linear(in_features=20 * 3 * 2, out_features=20 * 3 * 2, bias=False)
+        fake_fnn2 = torch.nn.Linear(in_features=20 * 3 * 2, out_features=20 * 3 * 2, bias=False)
+
+        patch_size = (5, 5)
+        time_window = 9
+        alpha = 0.5
+
+        self.fake_img_series.requires_grad_(True)
+        fake_kpts = self.each_kp_diff_patch(self.fake_img_series)
+        fake_kpts.requires_grad_(True)
+        fake_kpts = fake_fnn2(fake_fnn(torch.flatten(fake_kpts, start_dim=1))).view(1, 20, 3, 2)
+        fake_patch = get_image_patch(keypoint_coordinates=fake_kpts[0, 10:11, 0, :],
+                                     image=self.fake_img_series[0, 10:11, ...],
+                                     patch_size=(5, 5))
+        L = fake_patch.norm(p=2)
+        grad = L.backward()
+        print(grad)
 
 
 if __name__ == "__main__":
