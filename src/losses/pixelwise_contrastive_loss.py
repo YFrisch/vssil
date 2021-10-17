@@ -12,14 +12,13 @@ from src.models.hog_layer import HoGLayer
 def get_patch_by_gridsampling(keypoint_coordinates: torch.Tensor,
                               image: torch.Tensor,
                               patch_size: tuple):
-
     N, C, H, W = image.shape
 
     grid = torch.zeros(size=(N, patch_size[0], patch_size[1], 2)).to(image.device)
 
-    center = int(grid.shape[1]/2)
-    grid[:, center, center, 0] = keypoint_coordinates[:, 0]
-    grid[:, center, center, 1] = keypoint_coordinates[:, 1]
+    center = int(grid.shape[1] / 2)
+    grid[:, center, center, 0] = - keypoint_coordinates[:, 1]  # Height
+    grid[:, center, center, 1] = keypoint_coordinates[:, 0]  # Width
     step_h = (1 / H)
     step_w = (1 / W)
 
@@ -30,7 +29,7 @@ def get_patch_by_gridsampling(keypoint_coordinates: torch.Tensor,
             grid[:, h_i, w_i, 0] = keypoint_coordinates[:, 0] + step_size_h * step_h
             grid[:, h_i, w_i, 1] = keypoint_coordinates[:, 1] + step_size_w * step_w
 
-    patches = F.grid_sample(input=image, grid=grid, padding_mode='border', align_corners=False)
+    patches = F.grid_sample(input=image, grid=grid, padding_mode='zeros', align_corners=False)
 
     assert tuple(patches.shape[-2:]) == patch_size, f'{tuple(patches.shape[-2:])} != {patch_size}'
     assert patches.dim() == 4
@@ -113,7 +112,7 @@ def patch_diff(anchor_patch: torch.Tensor,
         center_w = int(Wp / 2)
         center_mask = torch.zeros_like(anchor_patch)
         center_mask[:, :, center_h - center_height: center_h + center_height,
-                    center_w - center_width: center_w + center_width] = 1
+        center_w - center_width: center_w + center_width] = 1
         off_center_mask = torch.ones_like(anchor_patch) - center_mask
 
         batch_anchor_features = None
@@ -138,9 +137,9 @@ def patch_diff(anchor_patch: torch.Tensor,
             batch_contrast_features = contrast_features.unsqueeze(0) if batch_contrast_features is None \
                 else torch.cat([batch_contrast_features, contrast_features.unsqueeze(0)])
             assert batch_anchor_features.shape == batch_contrast_features.shape
-            return torch.norm(input=batch_anchor_features-batch_contrast_features, p=2)
+            return torch.norm(input=batch_anchor_features - batch_contrast_features, p=2)
     elif mode == 'hog':
-        stretched_img_shape = (anchor_patch.shape[2]*2, anchor_patch.shape[3])
+        stretched_img_shape = (anchor_patch.shape[2] * 2, anchor_patch.shape[3])
         hog_layer = HoGLayer(img_shape=stretched_img_shape,
                              cell_size=(2, 1)).to(anchor_patch.device)
         stretched_anchor_patch = F.interpolate(anchor_patch, stretched_img_shape)
@@ -208,18 +207,17 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
     total_loss = torch.tensor([0.0]).to(image_sequence.device)
     total_loss.requires_grad_(True)
 
-    # match_losses = []
-    # non_match_losses = []
     for t in range(0, T):
-
-        # patches[t] = {}
 
         loss_per_timestep = torch.tensor([0.0]).to(image_sequence.device)
         loss_per_timestep.requires_grad_(True)
 
         for k in range(0, K):
 
-            # anchor = (t, k)
+            """
+                Anchor patch
+                
+            """
 
             matches = [(t_i, k) for t_i in
                        range(max(t - pos_range, 0), min(t + pos_range, T))] if time_window > 1 else []
@@ -228,22 +226,12 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                            k_j in range(0, K) if k_j != k]
 
             # Anchor patch
-            """
-            try:
-                anchor_patch = patches[t][k]
-            except KeyError:
-                anchor_patch = get_image_patch(keypoint_coordinates=keypoint_coordinates[:, t, k, ...],
-                                               image=image_sequence[:, t, ...],
-                                               patch_size=patch_size)
-                # patches[:, t, k, :, :, :] = anchor_patch
-                patches[t][k] = anchor_patch
-            """
             if (t, k) in patches_ids:
                 anchor_patch = patches[:, t, k, ...]
             else:
                 anchor_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t, k, ...],
-                                               image=image_sequence[:, t, ...],
-                                               patch_size=patch_size)
+                                                         image=image_sequence[:, t, ...],
+                                                         patch_size=patch_size)
                 patches[:, t, k, ...] = anchor_patch
 
             """
@@ -254,25 +242,12 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
             L_match = torch.tensor([0.0]).to(image_sequence.device)
             L_match.requires_grad_(True)
             for t_i, k_i in matches:
-                """
-                try:
-                    match_patch = patches[t_i][k_i]
-                except KeyError:
-                    match_patch = get_image_patch(keypoint_coordinates=keypoint_coordinates[:, t_i, k_i, ...],
-                                                  image=image_sequence[:, t_i, ...],
-                                                  patch_size=patch_size)
-                    try:
-                        patches[t_i][k_i] = match_patch
-                    except KeyError:
-                        patches[t_i] = {}
-                        patches[t_i][k_i] = match_patch
-                """
                 if (t_i, k_i) in patches_ids:
                     match_patch = patches[:, t_i, k_i, ...]
                 else:
                     match_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t_i, k_i, ...],
-                                                  image=image_sequence[:, t_i, ...],
-                                                  patch_size=patch_size)
+                                                            image=image_sequence[:, t_i, ...],
+                                                            patch_size=patch_size)
                     patches[:, t_i, k_i, ...] = match_patch
 
                 L_match = L_match + patch_diff(anchor_patch=anchor_patch,
@@ -280,35 +255,23 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                                                anchor_keypoint_coords=keypoint_coordinates[:, t, k, ...],
                                                contrast_keypoint_coords=keypoint_coordinates[:, t_i, k_i, ...],
                                                mode=patch_diff_mode)
-
             L_match = L_match / len(matches)
 
             """
                 Non-match (negative) patches
             
             """
+
             L_non_match = torch.tensor([0.0]).to(image_sequence.device)
             L_non_match.requires_grad_(True)
             for t_j, k_j in non_matches:
-                """
-                try:
-                    non_match_patch = patches[t_j][k_j]
-                except KeyError:
-                    non_match_patch = get_image_patch(keypoint_coordinates=keypoint_coordinates[:, t_j, k_j, ...],
-                                                      image=image_sequence[:, t_j, ...],
-                                                      patch_size=patch_size)
-                    try:
-                        patches[t_j][k_j] = non_match_patch
-                    except KeyError:
-                        patches[t_j] = {}
-                        patches[t_j][k_j] = non_match_patch
-                """
                 if (t_j, k_j) in patches_ids:
                     non_match_patch = patches[:, t_j, k_j, ...]
                 else:
-                    non_match_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t_j, k_j, ...],
-                                                      image=image_sequence[:, t_j, ...],
-                                                      patch_size=patch_size)
+                    non_match_patch = get_patch_by_gridsampling(
+                        keypoint_coordinates=keypoint_coordinates[:, t_j, k_j, ...],
+                        image=image_sequence[:, t_j, ...],
+                        patch_size=patch_size)
                     patches[:, t_j, k_j, ...] = non_match_patch
                 L_non_match = L_non_match + patch_diff(anchor_patch=anchor_patch,
                                                        contrast_patch=non_match_patch,
