@@ -7,7 +7,8 @@ from torchvision import transforms
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 
 if __name__ == "__main__":
-    data_root_path = '/media/yannik/samsung_ssd/data/mime_processed_256pix'
+    # data_root_path = '/media/yannik/samsung_ssd/data/mime_processed_256pix'
+    data_root_path = '/media/yannik/samsung_ssd/data/ball_processed_64pix'
     # data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
@@ -40,6 +41,8 @@ if __name__ == "__main__":
         batch_size=1,
         shuffle=False
     )
+
+    print(len(data_set))
 
     time_diff = 1
     for i, sample in enumerate(data_loader):

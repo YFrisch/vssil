@@ -3,12 +3,11 @@ import unittest
 import random
 
 import torch
-from torch.autograd import gradcheck
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-from src.losses.pixelwise_contrastive_loss import pixelwise_contrastive_loss, get_image_patch, get_patch_by_gridsampling
+from src.losses.pixelwise_contrastive_loss import pixelwise_contrastive_loss, get_patch_by_gridsampling
 
 
 def play_img_and_keypoints(image_series: torch.Tensor, kpts: torch.Tensor, title: str):
