@@ -51,7 +51,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd_acrobot_pixelwise_contrastive"
+log_dir: "results/ulosd_acrobot"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''
