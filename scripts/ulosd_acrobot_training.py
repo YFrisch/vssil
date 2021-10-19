@@ -11,7 +11,6 @@ if __name__ == "__main__":
 
     # NOTE: This line might produce non-deterministic results
     torch.backends.cudnn.benchmark = True
-    #torch.autograd.set_detect_anomaly(True)
 
     args = parse_arguments()
 
@@ -26,12 +25,13 @@ if __name__ == "__main__":
         print(ulosd_conf['log_dir'])
         ulosd_conf['multi_gpu'] = False
 
-    tran = transforms.RandomApply([
-        transforms.ColorJitter(brightness=.5, hue=.3),
-        transforms.RandomAdjustSharpness(sharpness_factor=2.0),
-        # transforms.RandomEqualize(),
-        transforms.RandomHorizontalFlip(p=0.9),
-        transforms.RandomVerticalFlip(p=0.9)
+    tran = transforms.Compose([
+        transforms.RandomApply([
+            transforms.RandomHorizontalFlip(p=0.9),
+            transforms.RandomVerticalFlip(p=0.9),
+            transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
+        ]),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     npz_data_set = NPZ_Dataset(

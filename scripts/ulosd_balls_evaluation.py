@@ -1,18 +1,20 @@
+import os
 import yaml
 
 import torch
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
-from src.data.npz_dataset import NPZ_Dataset
-from src.agents.ulosd_agent import ULOSD_Agent
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
 from src.utils.argparse import parse_arguments
+from src.agents.ulosd_agent import ULOSD_Agent
+from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_acrobot_pixelwise_contrastive/2021_10_18_14_12/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_human36m/2021_9_26_12_58/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -21,33 +23,41 @@ if __name__ == "__main__":
                 old_conf = yaml.safe_load(stream2)
                 ulosd_conf['log_dir'] = old_conf['log_dir'][:-1] + "_resume/"
         else:
-            ulosd_conf['log_dir'] = ulosd_conf['log_dir'] + f"/{args.id}/"
+            ulosd_conf['log_dir'] = ulosd_conf['log_dir']+f"/{args.id}/"
         print(ulosd_conf['log_dir'])
         ulosd_conf['multi_gpu'] = False
         ulosd_conf['device'] = 'cpu'
 
-    npz_data_set = NPZ_Dataset(
-        num_timesteps=200,
-        root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
-        key_word='images'
+    # Apply any number of torchvision transforms here as pre-processing
+    preprocess = transforms.Compose([
+        # NOTE: The first transform already converts the image range to (0, 1)
+        ImglistToTensor(),
+    ])
+
+    data_set = VideoFrameDataset(
+        root_path=args.data,
+        annotationfile_path=os.path.join(args.data, 'annotations.txt'),
+        num_segments=1,
+        frames_per_segment=100,
+        imagefile_template='img_{:05d}.jpg',
+        transform=preprocess,
+        random_shift=True,
+        test_mode=False
     )
 
     eval_data_loader = DataLoader(
-        dataset=npz_data_set,
+        dataset=data_set,
         batch_size=1,
         shuffle=True
     )
 
-    ulosd_agent = ULOSD_Agent(dataset=npz_data_set,
+    ulosd_agent = ULOSD_Agent(dataset=data_set,
                               config=ulosd_conf)
 
     ulosd_agent.eval_data_loader = eval_data_loader
-    # NOTE: Change checkpoint to evaluate here:
-    ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_acrobot_pixelwise_contrastive/2021_10_18_14_12/checkpoints/chckpt_f0_e115.PTH"
-    )
+    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd_human36m/2021_9_26_12_58/checkpoints/chckpt_f0_e84.PTH")
 
-    intensity_threshold = 0.2
+    intensity_threshold = 0.8
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -61,9 +71,7 @@ if __name__ == "__main__":
             for t in range(key_points.shape[1]):
                 count = 0
                 for scales in key_points[:, t, :, 2].cpu().numpy():
-
                     for scale in scales:
-
                         if scale > intensity_threshold:
                             count += 1
                 print(f't: {t}\t #scales > {intensity_threshold}: {count}')
@@ -84,5 +92,3 @@ if __name__ == "__main__":
 
             if i == 0:
                 exit()
-
-    # ulosd_agent.evaluate(config=ulosd_conf)
