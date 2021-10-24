@@ -375,9 +375,11 @@ class AbstractAgent:
 
         for i in tqdm(range(n_samples)):
 
-        #for i, (sample, label) in enumerate(tqdm(self.val_data_loader)):
-
-            sample, label = generator.next()
+            try:
+                sample, label = next(generator)
+            except StopIteration:
+                generator = iter(self.val_data_loader)
+                sample, label = next(generator)
 
             sample, target = self.preprocess(sample, label, config)  # Sample is in (N, T, C, H, W)
             sample, target = sample.to(self.device), target.to(self.device)
