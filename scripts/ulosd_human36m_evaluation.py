@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_human36m/21900890/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_human36m/21984900/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -56,10 +56,10 @@ if __name__ == "__main__":
 
     ulosd_agent.eval_data_loader = eval_data_loader
     ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_human36m/21900890/checkpoints/chckpt_f0_e60.PTH"
+        "/home/yannik/vssil/results/ulosd_human36m/21984900/checkpoints/chckpt_f0_e99.PTH"
     )
 
-    intensity_threshold = 0.1
+    intensity_threshold = 0.5
 
     print("##### Evaluating:")
     with torch.no_grad():

@@ -30,7 +30,7 @@ if __name__ == "__main__":
             transforms.RandomVerticalFlip(p=0.5),
             transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
         ]),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize with standard score
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize with standard score
     ])
 
     data_set = VideoFrameDataset(

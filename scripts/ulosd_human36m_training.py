@@ -32,7 +32,7 @@ if __name__ == "__main__":
             transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
             #transforms.RandomApply([transforms.ColorJitter(brightness=.5, hue=.3)], p=0.3)
         ]),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     data_set = VideoFrameDataset(

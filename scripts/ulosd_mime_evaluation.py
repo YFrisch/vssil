@@ -10,8 +10,7 @@ from torchvision import transforms
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.utils import play_video
-from src.utils.visualization import make_annotated_tensor, play_series_with_keypoints,\
-    play_series_and_reconstruction_with_keypoints
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints
 from src.utils.argparse import parse_arguments
 
 if __name__ == "__main__":
@@ -20,7 +19,7 @@ if __name__ == "__main__":
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
     args = parse_arguments()
-    args.config = "/home/yannik/vssil/results/ulosd/2021_8_1_18_11/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_human36m/21984900/config.yml"
 
     preprocess = transforms.Compose([
         # NOTE: The first transform already converts the range to (0, 1)
@@ -56,7 +55,7 @@ if __name__ == "__main__":
                               config=ulosd_conf)
 
     ulosd_agent.eval_data_loader = eval_data_loader
-    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd/2021_8_1_18_11/checkpoints/chckpt_f0_e45.PTH")
+    ulosd_agent.load_checkpoint("/home/yannik/vssil/results/ulosd_human36m/21984900/checkpoints/chckpt_f0_e99.PTH")
 
     print("##### Evaluating:")
     with torch.no_grad():
