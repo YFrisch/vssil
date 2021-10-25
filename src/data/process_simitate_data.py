@@ -100,9 +100,12 @@ def process_simitate(root_path: str,
 
                             target_frame_count += 1
 
+                    with open(os.path.join(target_path, 'annotations.txt'), 'a') as annotations_file:
+                        annotations_file.write(f'{motion}_{movement}/{subject}_{exp_id} 0 {target_frame_count - 1} 0\n')
+
 
 if __name__ == "__main__":
     process_simitate(root_path='/media/yannik/samsung_ssd/data/simitate/',
-                     target_path='/media/yannik/samsung_ssd/data/simitate_simple_processed_128pix/',
-                     target_img_shape=(128, 128),
-                     sample_freq=1)
+                     target_path='/media/yannik/samsung_ssd/data/simitate_processed_64pix/',
+                     target_img_shape=(64, 64),
+                     sample_freq=5)

@@ -81,7 +81,7 @@ def process_human_36m(root_path: str,
 if __name__ == "__main__":
     process_human_36m(
         root_path='/media/yannik/samsung_ssd/data/human_3.6m/',
-        target_path='/media/yannik/samsung_ssd/data/human_36m_processed_256pix/',
-        target_img_shape=(256, 256)
+        target_path='/media/yannik/samsung_ssd/data/human_36m_processed_64pix/',
+        target_img_shape=(64, 64)
     )
 
