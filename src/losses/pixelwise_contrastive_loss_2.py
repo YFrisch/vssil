@@ -5,187 +5,70 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 from kornia.feature.hardnet import HardNet8
 from kornia.feature.tfeat import TFeat
+from kornia.morphology import erosion
 
 from src.models.hog_layer import HoGLayer
 
 
-def get_patch_by_gridsampling(keypoint_coordinates: torch.Tensor,
-                              image: torch.Tensor,
-                              patch_size: tuple):
+def get_representation(keypoint_coordinates: torch.Tensor,
+                       image: torch.Tensor,
+                       feature_map: torch.Tensor) -> torch.Tensor:
+    """
+
+    :param keypoint_coordinates: Tensor of key-point coordinates in (N, 2/3)
+    :param image: Tensor of current image in (N, C, H, W)
+    :param feature_map: Tensor of feature map for key-point in (N, H', W')
+    :return:
+    """
+
     N, C, H, W = image.shape
 
-    grid = torch.zeros(size=(N, patch_size[0], patch_size[1], 2)).to(image.device)
+    # Feature maps are converted to 0-1 masks given a threshold
+    alpha = 0.5
+    mask = torch.round(feature_map).unsqueeze(1)  # (N, H', W'), rounds to the closest integer
 
-    center = int(grid.shape[1] / 2)
-    grid[:, center, center, 0] = - keypoint_coordinates[:, 1]  # Height
-    grid[:, center, center, 1] = keypoint_coordinates[:, 0]  # Width
-    step_h = (1 / H)
-    step_w = (1 / W)
+    # Use erosion iteratively
+    intensities = []
+    erosion_kernel = torch.ones(size=(3, 3)).to(image.device)
+    _img = mask
 
-    for h_i in range(grid.shape[1]):
-        for w_i in range(grid.shape[2]):
-            step_size_h = h_i - center
-            step_size_w = w_i - center
-            grid[:, h_i, w_i, 0] = keypoint_coordinates[:, 0] + step_size_h * step_h
-            grid[:, h_i, w_i, 1] = keypoint_coordinates[:, 1] + step_size_w * step_w
+    while True:
+        _morphed = erosion(_img,
+                           kernel=erosion_kernel,
+                           engine='convolution')
+        _morphed = F.interpolate(input=_morphed, size=(H, W))
+        _img = torch.mul(_morphed, image)
+        intensity = _img.sum(dim=(1, 2, 3))
+        intensities.append(intensity)
+        if - 1e-3 <= intensity.mean() <= 1e-3:
+            break
 
-    # patches = F.grid_sample(input=image, grid=grid, padding_mode='zeros', align_corners=False)
-    # patches = F.grid_sample(input=image, grid=grid, padding_mode='border', align_corners=False)
-    patches = F.grid_sample(input=image, grid=grid, padding_mode='reflection', align_corners=False)
+    features = torch.empty(size=(image.shape[0], 5)).to(image.device)
 
-    assert tuple(patches.shape[-2:]) == patch_size, f'{tuple(patches.shape[-2:])} != {patch_size}'
-    assert patches.dim() == 4
+    for n in range(image.shape[0]):
 
-    return patches
+        features[n, ...] = torch.tensor([
+            keypoint_coordinates[n, 0],
+            keypoint_coordinates[n, 1],
+            intensities[-1][n],
+            intensities[-2][n] if len(intensities) >= 2 else intensities[-1][n],
+            intensities[-3][n] if len(intensities) >= 3 else intensities[-1][n]
+        ])
 
-
-'''
-def get_image_patch(keypoint_coordinates: torch.Tensor,
-                    image: torch.Tensor,
-                    patch_size: tuple):
-    """ Return the patch of size (H', W') of the input image around the input key-point.
-
-    :param keypoint_coordinates: Coordinates (batch) of a single key-point in (N, 2/3)
-    :param image: Image (batch) to extract patch from in (N, C, H, W)
-    :param patch_size: Shape of the image patch
-    :return: Extracted image patch in (N, C, H', W')
-    """
-
-    assert keypoint_coordinates.dim() == 2
-    assert keypoint_coordinates.shape[1] in [2, 3]
-    assert image.dim() == 4
-    assert image.shape[0] == keypoint_coordinates.shape[0]
-    assert patch_size[0] <= image.shape[2]
-    assert patch_size[1] <= image.shape[3]
-
-    N, _, H, W = image.shape
-
-    # Convert key-point representation to image pixel coordinates
-    h = (keypoint_coordinates[:, 0] + 1) / 2 * H  # (N, 1)
-    w = (-keypoint_coordinates[:, 1] + 1) / 2 * W  # (N, 1
-
-    # Calculate ranges of image patch while ensuring image boundaries
-    zeros = torch.zeros_like(h)
-    max_height = torch.ones_like(h) * H
-    max_width = torch.ones_like(w) * W
-    h_min = torch.floor(torch.maximum(h - int(patch_size[0] / 2), zeros)) + 1
-    h_max = torch.floor(torch.minimum(h + int(patch_size[0] / 2), max_height)) + 1
-    w_min = torch.floor(torch.maximum(h - int(patch_size[1] / 2), zeros)) + 1
-    w_max = torch.floor(torch.minimum(h + int(patch_size[1] / 2), max_width)) + 1
-
-    # Extract patch (individually per entry of batch)
-    patches = None
-    for n in range(N):
-        patch = image[n:n + 1, :, h_min[n].long():h_max[n].long(), w_min[n].long():w_max[n].long()]
-        # If patch does not have query size, interpolate to query size
-        if not tuple(patch.shape[-2:]) == patch_size:
-            patch = F.interpolate(patch, size=patch_size, align_corners=False, mode='bilinear')
-        patches = patch if patches is None else torch.cat([patches, patch], dim=0)
-
-    assert tuple(patches.shape[-2:]) == patch_size, f'{tuple(patches.shape[-2:])} != {patch_size}'
-    assert patches.dim() == 4
-
-    return patches
-'''
-
-
-def patch_diff(anchor_patch: torch.Tensor,
-               contrast_patch: torch.Tensor,
-               anchor_keypoint_coords: torch.Tensor = None,
-               contrast_keypoint_coords: torch.Tensor = None,
-               mode: str = 'norm'):
-    """ Returns the distance between anchor and the patch to contrast.
-
-    :param anchor_patch: The anchor image patch in (N, C, H', W')
-    :param contrast_patch: The patch to compare to in (N, C, H', W')
-    :param anchor_keypoint_coords: Tensor of current anchor key-point's coordinates in (N, 2/3)
-    :param contrast_keypoint_coords: Tensor of key-point coordinates that are to contrast to anchor in (N, 2/3)
-    :param mode: What difference/distance measure to use
-    :return: Patch difference
-    """
-    if mode == 'norm':
-        return torch.norm(input=(anchor_patch - contrast_patch), p=2)
-    elif mode == 'vssil':
-        assert anchor_keypoint_coords is not None and contrast_keypoint_coords is not None, \
-            "Key point coordinates are required for this mode."
-
-        N, C, Hp, Wp = anchor_patch.shape
-        center_height = int(Hp / 4)
-        center_width = int(Wp / 4)
-        center_h = int(Hp / 2)
-        center_w = int(Wp / 2)
-        center_mask = torch.zeros_like(anchor_patch)
-        center_mask[:, :, center_h - center_height: center_h + center_height,
-        center_w - center_width: center_w + center_width] = 1
-        off_center_mask = torch.ones_like(anchor_patch) - center_mask
-
-        batch_anchor_features = None
-        batch_contrast_features = None
-        for n in range(anchor_keypoint_coords.shape[0]):
-            anchor_features = torch.tensor([
-                anchor_keypoint_coords[n, 0],
-                anchor_keypoint_coords[n, 1],
-                anchor_keypoint_coords[n, 2] if anchor_keypoint_coords.shape[1] == 3 else 0,
-                (1 / Hp) * torch.sum(anchor_patch[n, :] * center_mask),
-                (1 / Hp ** 2) * torch.sum(anchor_patch[n, :] * off_center_mask)
-            ])
-            contrast_features = torch.tensor([
-                contrast_keypoint_coords[n, 0],
-                contrast_keypoint_coords[n, 1],
-                contrast_keypoint_coords[n, 2] if contrast_keypoint_coords.shape[1] == 3 else 0,
-                (1 / Hp) * torch.sum(contrast_patch[n, :] * center_mask),
-                (1 / Hp ** 2) * torch.sum(contrast_patch[n, :] * off_center_mask)
-            ])
-            batch_anchor_features = anchor_features.unsqueeze(0) if batch_anchor_features is None \
-                else torch.cat([batch_anchor_features, anchor_features.unsqueeze(0)])
-            batch_contrast_features = contrast_features.unsqueeze(0) if batch_contrast_features is None \
-                else torch.cat([batch_contrast_features, contrast_features.unsqueeze(0)])
-            assert batch_anchor_features.shape == batch_contrast_features.shape
-            return torch.norm(input=batch_anchor_features - batch_contrast_features, p=2)
-    elif mode == 'hog':
-        stretched_img_shape = (anchor_patch.shape[2] * 2, anchor_patch.shape[3])
-        hog_layer = HoGLayer(img_shape=stretched_img_shape,
-                             cell_size=(2, 1)).to(anchor_patch.device)
-        stretched_anchor_patch = F.interpolate(anchor_patch, stretched_img_shape)
-        strechted_contrast_patch = F.interpolate(contrast_patch, stretched_img_shape)
-        return torch.norm(input=hog_layer(stretched_anchor_patch)[0] - hog_layer(strechted_contrast_patch)[0], p=2)
-    elif mode == 'HardNet8':
-        hard_net8 = HardNet8()
-        grey = T.Grayscale()
-        upscaled_anchor_patch = F.interpolate(anchor_patch, size=(32, 32))
-        grey_upscaled_anchor_patch = grey(upscaled_anchor_patch)
-        upscaled_contrast_patch = F.interpolate(contrast_patch, size=(32, 32))
-        gray_upscaled_contrast_patch = grey(upscaled_contrast_patch)
-        with torch.no_grad():
-            anchor_ft = hard_net8(grey_upscaled_anchor_patch)
-            contrast_ft = hard_net8(gray_upscaled_contrast_patch)
-        return torch.norm(input=anchor_ft - contrast_ft, p=2)
-    elif mode == 'TFeat':
-        tfeat = TFeat()
-        grey = T.Grayscale()
-        upscaled_anchor_patch = F.interpolate(anchor_patch, size=(32, 32))
-        grey_upscaled_anchor_patch = grey(upscaled_anchor_patch)
-        upscaled_contrast_patch = F.interpolate(contrast_patch, size=(32, 32))
-        gray_upscaled_contrast_patch = grey(upscaled_contrast_patch)
-        anchor_ft = tfeat(grey_upscaled_anchor_patch)
-        contrast_ft = tfeat(gray_upscaled_contrast_patch)
-        return torch.norm(input=anchor_ft - contrast_ft, p=2)
-    else:
-        raise NotImplemented("Unknown patch distance method.")
+    return features
 
 
 def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                                image_sequence: torch.Tensor,
-                               patch_size: tuple = (8, 8),
+                               feature_map_seq: torch.Tensor,
                                time_window: int = 3,
                                alpha: float = 0.1,
-                               patch_diff_mode: str = 'norm',
                                verbose: bool = False) -> torch.Tensor:
     """ Encourages key-points to represent different patches of the input image.
 
     :param keypoint_coordinates: Tensor of key-point coordinates in (N, T, K, 2/3)
     :param image_sequence: Tensor of image sequence in (N, T, C, H, W)
-    :param patch_size: Size of the image patch around each key-point position
+    :param feature_map_seq: Tensor of feature maps per key-point in (N, T, K, H', W')
     :param time_window: Amount of time-steps for positive/negative matching
     :param alpha: Margin for matches vs. non-matches
     :param verbose: Set true for additional output prints
@@ -202,12 +85,11 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
 
     pos_range = max(int(time_window / 2), 1) if time_window > 1 else 0
 
-    patches = torch.empty(size=(N, T, K, C, patch_size[0], patch_size[1]))
-    patches_ids = []
-    # patches = {}
-
     # Calculate loss per time-step per key-points
-    # The patches are extracted online and dynamically
+    # The features are extracted and their ids (time-step, # key-point) saved to a list to look them up again if needed
+    features = torch.empty(size=(N, T, K, 5)).to(image_sequence.device)
+    feature_ids = []
+
     total_loss = torch.tensor([0.0]).to(image_sequence.device)
     total_loss.requires_grad_(True)
 
@@ -230,13 +112,14 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
                            k_j in range(0, K) if k_j != k]
 
             # Anchor patch
-            if (t, k) in patches_ids:
-                anchor_patch = patches[:, t, k, ...]
+            if (t, k) in feature_ids:
+                anchor_ft = features[:, t, k, ...]
             else:
-                anchor_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t, k, ...],
-                                                         image=image_sequence[:, t, ...],
-                                                         patch_size=patch_size)
-                patches[:, t, k, ...] = anchor_patch
+                anchor_ft = get_representation(keypoint_coordinates=keypoint_coordinates[:, t, k, ...],
+                                               image=image_sequence[:, t, ...],
+                                               feature_map=feature_map_seq[:, t, k, ...])
+                features[:, t, k, ...] = anchor_ft
+                feature_ids.append((t, k))
 
             """
                 Match (positive) patches
@@ -245,20 +128,18 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
 
             L_match = torch.tensor([0.0]).to(image_sequence.device)
             L_match.requires_grad_(True)
-            for t_i, k_i in matches:
-                if (t_i, k_i) in patches_ids:
-                    match_patch = patches[:, t_i, k_i, ...]
-                else:
-                    match_patch = get_patch_by_gridsampling(keypoint_coordinates=keypoint_coordinates[:, t_i, k_i, ...],
-                                                            image=image_sequence[:, t_i, ...],
-                                                            patch_size=patch_size)
-                    patches[:, t_i, k_i, ...] = match_patch
 
-                L_match = L_match + patch_diff(anchor_patch=anchor_patch,
-                                               contrast_patch=match_patch,
-                                               anchor_keypoint_coords=keypoint_coordinates[:, t, k, ...],
-                                               contrast_keypoint_coords=keypoint_coordinates[:, t_i, k_i, ...],
-                                               mode=patch_diff_mode)
+            for t_i, k_i in matches:
+                if (t_i, k_i) in feature_ids:
+                    match_ft = features[:, t_i, k_i, ...]
+                else:
+                    match_ft = get_representation(keypoint_coordinates=keypoint_coordinates[:, t_i, k_i, ...],
+                                                  image=image_sequence[:, t_i, ...],
+                                                  feature_map=feature_map_seq[:, t_i, k_i, ...])
+                    features[:, t_i, k_i, ...] = match_ft
+                    feature_ids.append((t_i, k_i))
+
+                L_match = L_match + torch.norm(anchor_ft - match_ft, p=2)
             L_match = L_match / len(matches)
 
             """
@@ -268,20 +149,19 @@ def pixelwise_contrastive_loss(keypoint_coordinates: torch.Tensor,
 
             L_non_match = torch.tensor([0.0]).to(image_sequence.device)
             L_non_match.requires_grad_(True)
+
             for t_j, k_j in non_matches:
-                if (t_j, k_j) in patches_ids:
-                    non_match_patch = patches[:, t_j, k_j, ...]
+                if (t_j, k_j) in feature_ids:
+                    non_match_ft = features[:, t_j, k_j, ...]
                 else:
-                    non_match_patch = get_patch_by_gridsampling(
+                    non_match_ft = get_representation(
                         keypoint_coordinates=keypoint_coordinates[:, t_j, k_j, ...],
                         image=image_sequence[:, t_j, ...],
-                        patch_size=patch_size)
-                    patches[:, t_j, k_j, ...] = non_match_patch
-                L_non_match = L_non_match + patch_diff(anchor_patch=anchor_patch,
-                                                       contrast_patch=non_match_patch,
-                                                       anchor_keypoint_coords=keypoint_coordinates[:, t, k, ...],
-                                                       contrast_keypoint_coords=keypoint_coordinates[:, t_j, k_j, ...],
-                                                       mode=patch_diff_mode)
+                        feature_map=feature_map_seq[:, t_j, k_j, ...])
+                    features[:, t_j, k_j, ...] = non_match_ft
+                    feature_ids.append((t_j, k_j))
+
+                L_non_match = L_non_match + torch.norm(anchor_ft - non_match_ft, p=2)
             L_non_match = L_non_match / len(non_matches)
 
             loss_per_timestep = loss_per_timestep + \
