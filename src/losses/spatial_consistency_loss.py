@@ -2,51 +2,38 @@ import numpy as np
 import torch
 
 
-def spatial_consistency_loss(coords: torch.Tensor, cfg: dict) -> torch.Tensor:
+def spatial_consistency_loss(keypoint_coordinates: torch.Tensor, cfg: dict = None) -> torch.Tensor:
     """ Encourages key-points to have small - or more consistent - spatial movement
-        across time-steps
+        across time-steps, by penalizing a high coefficient of variation in the positional differences.
 
-    :param coords: Torch tensor of key-point coordinates in (N, T, C, 2/3)
+    :param keypoint_coordinates: Torch tensor of key-point coordinates in (N, T, C, 2/3)
     :param cfg: Additional configuration dictionary
     :return: The consistency loss
     """
 
-    assert coords.dim() == 4
+    assert keypoint_coordinates.dim() == 4
 
-    N = coords.shape[0]
+    N, T, K, D = keypoint_coordinates.shape
 
-    alpha = cfg['model']['feature_map_gauss_sigma']/2.0
-    gamma = 0.9
+    diff_tensor = torch.zeros(N, T-1, K, D).to(keypoint_coordinates.device)
 
-    distance_loss = 0
-    vel_loss = 0
+    for t in np.arange(1, keypoint_coordinates.shape[1]):
+        # NOTE: The difference between intensity values is not considered
+        diff_tensor[:, t-1, :, :2] = keypoint_coordinates[:, t, :, :2] - keypoint_coordinates[:, t-1, :, :2]
 
-    """
-    for t in np.arange(0, coords.shape[1] - 1):
-        diff = torch.norm(coords[:, t + 1, ...] - coords[:, t, ...], dim=2)
-        # Average across batch and kp
-        avg_diff = torch.mean(diff)
-        thresholded_diff = max(0, abs(avg_diff - alpha))
-        loss = loss + thresholded_diff
-    """
-    for t in np.arange(1, coords.shape[1]):
-        # NOTE: The next line also includes the differences in key-point intensity (3rd axis)
-        distance_to_first_frame = torch.norm(coords[:, t, ...] - coords[:, 0, ...], dim=2)
-        # Average across batch
-        # TODO: Sum over key-points instead of averaging?
-        avg_distance = torch.mean(distance_to_first_frame)
-        thresholded_diff = max(0, abs(avg_distance) - alpha)
-        # TODO: Check this!
-        distance_loss = distance_loss + gamma**(t-1) * thresholded_diff
+    # Average diff across time
+    diff_mean = torch.mean(diff_tensor, dim=1) + 1e-6  # (N, K, D)
+    diff_std = torch.std(diff_tensor, dim=1)  # (N, K, D)
 
-    for t in np.arange(2, coords.shape[1]):
-        distance_between_last_frames = torch.norm(coords[:, t-2, ...] - coords[:, t-1, ...], dim=2)
-        distance_to_last_frame = torch.norm(coords[:, t-1, ...] - coords[:, t, ...], dim=2)
-        velocity_diff = torch.abs(distance_between_last_frames - distance_to_last_frame)
-        avg_diff = torch.mean(velocity_diff)
-        thresholded_diff = max(0, avg_diff - 0.1)
-        vel_loss = vel_loss + thresholded_diff
+    # Coefficient of variation
+    coeff = torch.div(diff_std, torch.abs(diff_mean))  # (N, K, D)
 
-    return torch.Tensor([distance_loss + vel_loss]).to(coords.device)
+    # Sum over dimensions
+    coeff = torch.sum(coeff, dim=2)  # (N, K)
+
+    # Average across batch and key-points
+    L = torch.mean(coeff, dim=(0, 1))
+
+    return L
 
 
