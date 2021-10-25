@@ -8,7 +8,7 @@ from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
-    time_contrastive_triplet_loss, pixelwise_contrastive_loss
+    time_contrastive_triplet_loss, pixelwise_contrastive_loss, pc_loss
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
@@ -81,8 +81,8 @@ class ULOSD_Agent(AbstractAgent):
         :param config:
         :return:
         """
-        #assert x.max() <= 1
-        #assert x.min() >= 0
+        # assert x.max() <= 1
+        # assert x.min() >= 0
         x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
         return x, torch.empty([])
 
@@ -143,11 +143,26 @@ class ULOSD_Agent(AbstractAgent):
 
     def consistency_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         scale = config['training']['consistency_loss_scale']
-        return spatial_consistency_loss(coords=keypoint_coordinates, cfg=config)*scale
+        return spatial_consistency_loss(coords=keypoint_coordinates, cfg=config) * scale
 
     def tc_triplet_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         scale = config['training']['tc_loss_scale']
-        return time_contrastive_triplet_loss(coords=keypoint_coordinates, cfg=config)*scale
+        return time_contrastive_triplet_loss(coords=keypoint_coordinates, cfg=config) * scale
+
+    def p_c_loss(self,
+                 keypoint_coordinates: torch.Tensor,
+                 feature_map_sequence: torch.Tensor,
+                 image_sequence: torch.Tensor,
+                 config: dict) -> torch.Tensor:
+        scale = config['training']['pixelwise_contrastive_scale']
+        return pc_loss(
+            keypoint_coordinates,
+            image_sequence,
+            feature_map_sequence,
+            time_window=config['training']['pixelwise_contrastive_time_window'],
+            alpha=config['training']['pixelwise_contrastive_alpha'],
+            verbose=False
+        ) * scale
 
     def pixelwise_contrastive_loss(self,
                                    keypoint_coordinates: torch.Tensor,
@@ -296,13 +311,19 @@ class ULOSD_Agent(AbstractAgent):
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
         if config['training']['pixelwise_contrastive_scale'] > 0:
+            """
             pc_loss = self.pixelwise_contrastive_loss(
                 keypoint_coordinates=observed_key_points,
                 image_sequence=sample,
                 config=config
             )
+            """
+            pcl = self.p_c_loss(keypoint_coordinates=observed_key_points,
+                                image_sequence=sample,
+                                feature_map_sequence=feature_maps,  # TODO
+                                config=config)
         else:
-            pc_loss = torch.Tensor([0.0]).to(self.device)
+            pcl = torch.Tensor([0.0]).to(self.device)
 
         #
         # Losses for the dynamics model
@@ -315,9 +336,9 @@ class ULOSD_Agent(AbstractAgent):
         kl_loss = kl_loss * kl_loss_scale
 
         # total loss
-        L = reconstruction_loss + separation_loss + l1_penalty +\
-            coord_pred_loss + kl_loss +\
-            consistency_loss + tc_triplet_loss + pc_loss
+        L = reconstruction_loss + separation_loss + l1_penalty + \
+            coord_pred_loss + kl_loss + \
+            consistency_loss + tc_triplet_loss + pcl
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
@@ -341,7 +362,7 @@ class ULOSD_Agent(AbstractAgent):
             self.sep_loss_per_iter.append(separation_loss.item())
             self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
             self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
-            self.pi_co_loss_per_iter.append(pc_loss.item())  # Extension
+            self.pi_co_loss_per_iter.append(pcl.item())  # Extension
             self.l1_penalty_per_iter.append(l1_penalty.item())
             self.total_loss_per_iter.append(L.item())
 
