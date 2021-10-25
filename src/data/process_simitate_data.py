@@ -66,7 +66,6 @@ def process_simitate(root_path: str,
                     print(joint_path5)
                     assert os.path.isdir(joint_path5)
 
-                    sample_freq = 1
                     target_frame_count = 0
 
                     time.sleep(0.02)

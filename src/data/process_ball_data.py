@@ -41,7 +41,6 @@ def process_ball(root_path: str,
             if not os.path.isdir(exp_path):
                 continue
 
-            sample_freq = 1
             target_frame_count = 0
 
             time.sleep(0.02)
