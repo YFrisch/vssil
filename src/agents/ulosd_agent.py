@@ -143,7 +143,7 @@ class ULOSD_Agent(AbstractAgent):
 
     def consistency_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         scale = config['training']['consistency_loss_scale']
-        return spatial_consistency_loss(coords=keypoint_coordinates, cfg=config) * scale
+        return spatial_consistency_loss(keypoint_coordinates=keypoint_coordinates, cfg=config) * scale
 
     def tc_triplet_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
         scale = config['training']['tc_loss_scale']
