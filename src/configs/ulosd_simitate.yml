@@ -28,8 +28,8 @@ training:
   clip_norm: 10
   batch_size: 32  # 32
   feature_map_regularization: 0.01  # 0.01  (Key-point sparsity scale)
-  reconstruction_loss: mse  # alexnet  # mse
-  reconstruction_loss_scale: 1.0
+  reconstruction_loss: sse  # alexnet  # mse
+  reconstruction_loss_scale: 0.01
   separation_loss_scale: 0.02  # 0.02
   separation_loss_sigma: 0.002  # 0.002
   consistency_loss_scale: 0.0
@@ -47,7 +47,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd_human36m"
+log_dir: "results/ulosd_simitate"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''
