@@ -5,14 +5,15 @@ from torch.utils.data import DataLoader
 
 from src.data.npz_dataset import NPZ_Dataset
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes,\
+    play_sequence_with_feature_maps
 from src.utils.argparse import parse_arguments
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_acrobot_pixelwise_contrastive/2021_10_18_14_12/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_acrobot/2021_10_25_15_40/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -28,7 +29,8 @@ if __name__ == "__main__":
 
     npz_data_set = NPZ_Dataset(
         num_timesteps=200,
-        root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
+        # root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
+        root_path=args.data,
         key_word='images'
     )
 
@@ -44,10 +46,10 @@ if __name__ == "__main__":
     ulosd_agent.eval_data_loader = eval_data_loader
     # NOTE: Change checkpoint to evaluate here:
     ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_acrobot_pixelwise_contrastive/2021_10_18_14_12/checkpoints/chckpt_f0_e115.PTH"
+        "/home/yannik/vssil/results/ulosd_acrobot/2021_10_25_15_40/checkpoints/chckpt_f0_e45.PTH"
     )
 
-    intensity_threshold = 0.2
+    intensity_threshold = 0.5
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -71,6 +73,7 @@ if __name__ == "__main__":
             reconstruction = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                       first_frame=sample[:, 0, ...].unsqueeze(1))
 
+            """
             play_series_and_reconstruction_with_keypoints(image_series=sample,
                                                           reconstruction=reconstruction,
                                                           keypoint_coords=key_points,
@@ -81,6 +84,11 @@ if __name__ == "__main__":
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
                                      target_path='/home/yannik/vssil')
+            """
+            play_sequence_with_feature_maps(image_sequence=sample,
+                                            feature_maps=feature_maps,
+                                            key_point_coordinates=key_points,
+                                            intensity_threshold=intensity_threshold)
 
             if i == 0:
                 exit()
