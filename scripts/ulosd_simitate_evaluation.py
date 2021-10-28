@@ -8,13 +8,14 @@ from torchvision import transforms
 from src.utils.argparse import parse_arguments
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes,\
+    play_sequence_with_feature_maps
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "..."
+    args.config = "/home/yannik/vssil/results/ulosd_simitate/22032673/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -48,15 +49,20 @@ if __name__ == "__main__":
     eval_data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
-        shuffle=True
+        shuffle=True,
+        drop_last=True
     )
+
+    assert tuple(data_set[0][0].shape[-2:]) == eval(ulosd_conf['data']['img_shape']),\
+        "Dataset image shape does not match shape specified in config file!"
 
     ulosd_agent = ULOSD_Agent(dataset=data_set,
                               config=ulosd_conf)
 
     ulosd_agent.eval_data_loader = eval_data_loader
     ulosd_agent.load_checkpoint(
-        "..."
+        "/home/yannik/vssil/results/ulosd_simitate/22032673/checkpoints/chckpt_f0_e195.PTH",
+        map_location='cpu'
     )
 
     intensity_threshold = 0.5
@@ -84,6 +90,7 @@ if __name__ == "__main__":
             play_series_and_reconstruction_with_keypoints(image_series=sample,
                                                           reconstruction=reconstruction,
                                                           keypoint_coords=key_points,
+                                                          feature_maps=feature_maps,
                                                           intensity_threshold=intensity_threshold,
                                                           key_point_trajectory=True,
                                                           trajectory_length=20)

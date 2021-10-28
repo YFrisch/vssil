@@ -82,6 +82,7 @@ if __name__ == "__main__":
             play_series_and_reconstruction_with_keypoints(image_series=sample,
                                                           reconstruction=reconstruction,
                                                           keypoint_coords=key_points,
+                                                          feature_maps=feature_maps,
                                                           intensity_threshold=intensity_threshold,
                                                           key_point_trajectory=True,
                                                           trajectory_length=20)

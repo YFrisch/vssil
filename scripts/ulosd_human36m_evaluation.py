@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_human36m/21984900/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_human36m/22003139/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         root_path=args.data,
         annotationfile_path=os.path.join(args.data, 'annotations.txt'),
         num_segments=1,
-        frames_per_segment=100,
+        frames_per_segment=150,
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=False,
@@ -56,10 +56,10 @@ if __name__ == "__main__":
 
     ulosd_agent.eval_data_loader = eval_data_loader
     ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_human36m/21984900/checkpoints/chckpt_f0_e99.PTH"
+        "/home/yannik/vssil/results/ulosd_human36m/22003139/checkpoints/chckpt_f0_e102.PTH"
     )
 
-    intensity_threshold = 0.5
+    intensity_threshold = 0.4
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -84,6 +84,7 @@ if __name__ == "__main__":
             play_series_and_reconstruction_with_keypoints(image_series=sample,
                                                           reconstruction=reconstruction,
                                                           keypoint_coords=key_points,
+                                                          feature_maps=feature_maps,
                                                           intensity_threshold=intensity_threshold,
                                                           key_point_trajectory=True,
                                                           trajectory_length=20)
