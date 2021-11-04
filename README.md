@@ -5,7 +5,7 @@
 * Make sure pip is installed
 * Install external packages using ```pip install -r requirements.txt```  
 * Install local packages with ```pip install -e .```
-* Alternatively create conda env with ``environment.yml
+* Alternatively create conda env with ```environment.yml
 
   
 ### RUN:
