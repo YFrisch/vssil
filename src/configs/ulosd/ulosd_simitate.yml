@@ -11,13 +11,13 @@ model:
   n_init_filters: 16  # Latent code size?
   n_convolutions_per_res: 2  # 'layers_per_scale' in the keras code
   conv_kernel_size: 3
-  decoder_hidden_activations: LeakyReLU # LeakyReLU
-  encoder_hidden_activations: LeakyReLU  # LeakyReLU
+  decoder_hidden_activations: prelu # LeakyReLU
+  encoder_hidden_activations: prelu  # LeakyReLU
   weight_init: he_uniform
 
 training:
   k_folds: 0
-  epochs: 100
+  epochs: 200
   steps_per_epoch: 100  # 100
   optim: 'AdamW'
   l2_weight_decay: 0.0001

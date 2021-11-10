@@ -1,0 +1,52 @@
+data:
+  img_shape: (64, 64)
+  num_workers: 0
+
+model:
+  n_frames: 8
+  n_codebook_embeddings: 1024  # 512
+  embedding_dim: 64  # Aka n_feature_maps...
+  n_feature_maps: 64
+  num_hiddens: 128  # Hidden dimensions (Channel size of encoder output) -> Gets reduced to embedding_dim
+  heatmap_width: 16  # TODO: Currently only 16 works
+  n_residual_layers: 4  # 2
+  n_residual_hiddens: 64
+
+
+training:
+  k_folds: 0
+  epochs: 500
+  steps_per_epoch: 100  # 100
+  optim: 'AdamW'
+  lr_scheduler: 'StepLR'
+  lr_scheduler_epoch_steps: 100  # 60?  30?
+  initial_lr: 0.0001
+  min_lr: 0.0001
+  clip_norm: 20
+  batch_size: 8  # 8 # 32
+  l2_weight_decay: 0.0003
+  reconstruction_loss: 'vqvae'
+  reconstruction_loss_scale: 0.001
+  vq_loss_scale: 100.0
+  separation_loss_scale: 0.1  # 1.0
+  separation_loss_sigma: 0.3  # 0.02
+  feature_map_regularization: 1.0
+  pixelwise_contrastive_scale: 10.0
+  pixelwise_contrastive_time_window: 5
+  pixelwise_contrastive_alpha: 5.0
+
+validation:
+  steps: -1
+  freq: 5
+  batch_size: 8  # 8  # 32
+  save_video: true
+
+evaluation:
+  steps: -1
+
+device: 'cuda:0'
+multi_gpu: false
+log_dir: "results/vqvae_acrobot"
+warm_start: false
+warm_start_checkpoint: ''
+warm_start_config: ''
