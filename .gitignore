@@ -140,3 +140,5 @@ video_structure/
 pytorch-ssim/
 NOTES.md
 cron/
+pytorch_sac/
+dmc2gym/
