@@ -122,13 +122,14 @@ class AbstractAgent:
         """ Pre-process samples. """
         return x
 
-    def load_checkpoint(self, chckpt_path: str = None):
+    def load_checkpoint(self, chckpt_path: str = None, map_location: str = None):
         """ Load state dict for internal model from given path."""
 
         assert self.model is not None, "Model not initialized."
         assert chckpt_path is not None, "No checkpoint path given."
 
-        self.model.load_state_dict(torch.load(chckpt_path))
+        # self.model.load_state_dict(torch.load(chckpt_path))
+        self.model.load_state_dict(torch.load(chckpt_path, map_location=map_location))
 
     def reset_logged_values(self):
         """ Resets all logged values (metrics, losses, ...).
@@ -238,14 +239,16 @@ class AbstractAgent:
                 batch_size=config['training']['batch_size'],
                 sampler=SubsetRandomSampler(train_ids),
                 num_workers=config['data']['num_workers'],
-                pin_memory=True
+                pin_memory=True,
+                drop_last=True
             )
             self.val_data_loader = DataLoader(
                 dataset=self.data_set,
                 batch_size=config['validation']['batch_size'],
                 sampler=SubsetRandomSampler(val_ids),
                 num_workers=config['data']['num_workers'],
-                pin_memory=True
+                pin_memory=True,
+                drop_last=True
             )
 
             # Iterate over epochs

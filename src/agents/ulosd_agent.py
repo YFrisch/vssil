@@ -8,7 +8,7 @@ from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
-    time_contrastive_triplet_loss, pixelwise_contrastive_loss, pc_loss
+    time_contrastive_triplet_loss, pixelwise_contrastive_loss_v3
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
@@ -57,6 +57,25 @@ class ULOSD_Agent(AbstractAgent):
             # self.model = ULOSD_Parallel(self.model)
             # TODO: Is the next line required?
             self.model.to(self.device)
+
+        # Properties for patch-wise contrastive loss
+        K = config['model']['n_feature_maps']
+        pc_time_window = config['training']['pixelwise_contrastive_time_window']
+        pc_patch_size = eval(config['training']['pixelwise_contrastive_patch_size'])
+        assert pc_time_window <= T
+        assert pc_time_window % 2 != 0, "Use odd time-window"
+        assert pc_patch_size[0] == pc_patch_size[1], "Use square patch"
+        self.pc_pos_range = max(int(pc_time_window / 2), 1) if pc_time_window > 1 else 0
+        pc_center_index = int(pc_patch_size[0] / 2)
+        pc_step_matrix = torch.ones(pc_patch_size + (2,)).to(self.device)
+        step_w = 2 / W
+        step_h = 2 / H
+        for k in range(0, pc_patch_size[0]):
+            for l in range(0, pc_patch_size[1]):
+                pc_step_matrix[k, l, 0] = (l - pc_center_index) * step_w
+                pc_step_matrix[k, l, 1] = (k - pc_center_index) * step_h
+
+        self.pc_grid = pc_step_matrix.unsqueeze(0).repeat((N * T * K, 1, 1, 1)).to(self.device)
 
         # Logged values
         self.rec_loss_per_iter = []
@@ -149,32 +168,20 @@ class ULOSD_Agent(AbstractAgent):
         scale = config['training']['tc_loss_scale']
         return time_contrastive_triplet_loss(coords=keypoint_coordinates, cfg=config) * scale
 
-    def p_c_loss(self,
-                 keypoint_coordinates: torch.Tensor,
-                 feature_map_sequence: torch.Tensor,
-                 image_sequence: torch.Tensor,
-                 config: dict) -> torch.Tensor:
-        scale = config['training']['pixelwise_contrastive_scale']
-        return pc_loss(
-            keypoint_coordinates,
-            image_sequence,
-            feature_map_sequence,
-            time_window=config['training']['pixelwise_contrastive_time_window'],
-            alpha=config['training']['pixelwise_contrastive_alpha'],
-            verbose=False
-        ) * scale
-
     def pixelwise_contrastive_loss(self,
                                    keypoint_coordinates: torch.Tensor,
+                                   feature_map_sequence: torch.Tensor,
                                    image_sequence: torch.Tensor,
                                    config: dict) -> torch.Tensor:
         scale = config['training']['pixelwise_contrastive_scale']
-        return pixelwise_contrastive_loss(keypoint_coordinates=keypoint_coordinates,
-                                          image_sequence=image_sequence,
-                                          patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
-                                          time_window=config['training']['pixelwise_contrastive_time_window'],
-                                          alpha=config['training']['pixelwise_contrastive_alpha'],
-                                          patch_diff_mode=config['training']['pixelwise_contrastive_distance']) * scale
+        return pixelwise_contrastive_loss_v3(
+            keypoint_coordinates=keypoint_coordinates,
+            image_sequence=image_sequence,
+            pos_range=self.pc_pos_range,
+            grid=self.pc_grid,
+            patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
+            alpha=config['training']['pixelwise_contrastive_alpha'],
+        ) * scale
 
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
@@ -267,6 +274,8 @@ class ULOSD_Agent(AbstractAgent):
         feature_maps, observed_key_points = self.model.encode(sample)
         assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
 
+        # predicted_diff = self.model.decode(observed_key_points, sample[:, 0:1, ...])
+        # reconstruction = sample[:, 0:1, ...] + predicted_diff
         reconstruction = self.model.decode(observed_key_points, sample[:, 0:1, ...])
 
         #
@@ -282,7 +291,7 @@ class ULOSD_Agent(AbstractAgent):
         reconstruction_loss = self.loss_func(prediction=reconstruction, target=sample, config=config)
 
         #
-        # Seperation loss for key-point trajectories
+        # Separation loss for key-point trajectories
         #
 
         separation_loss = self.separation_loss(keypoint_coordinates=observed_key_points, config=config)
@@ -292,7 +301,6 @@ class ULOSD_Agent(AbstractAgent):
         # (Sparsity Loss)
         #
 
-        # feature-map (L1) regularization of the activations of the last layer
         l1_penalty = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
         # l1_penalty = self.key_point_sparsity_loss(keypoint_coordinates=observed_key_points, config=config)
 
@@ -318,12 +326,12 @@ class ULOSD_Agent(AbstractAgent):
                 config=config
             )
             """
-            pcl = self.p_c_loss(keypoint_coordinates=observed_key_points,
-                                image_sequence=sample,
-                                feature_map_sequence=feature_maps,  # TODO
-                                config=config)
+            pc_loss = self.pixelwise_contrastive_loss(keypoint_coordinates=observed_key_points,
+                                                      image_sequence=sample,
+                                                      feature_map_sequence=feature_maps,
+                                                      config=config)
         else:
-            pcl = torch.Tensor([0.0]).to(self.device)
+            pc_loss = torch.Tensor([0.0]).to(self.device)
 
         #
         # Losses for the dynamics model
@@ -338,7 +346,7 @@ class ULOSD_Agent(AbstractAgent):
         # total loss
         L = reconstruction_loss + separation_loss + l1_penalty + \
             coord_pred_loss + kl_loss + \
-            consistency_loss + tc_triplet_loss + pcl
+            consistency_loss + tc_triplet_loss + pc_loss
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
@@ -352,6 +360,11 @@ class ULOSD_Agent(AbstractAgent):
                 self.writer.add_video(tag='val/reconstruction_sample',
                                       vid_tensor=torch_img_series_tensor,
                                       global_step=global_epoch_number)
+
+                self.writer.add_video(tag='features/feature_maps',
+                                      vid_tensor=feature_maps[0:1, 0:1, ...].transpose(1, 2),
+                                      global_step=global_epoch_number)
+
                 self.writer.flush()
                 del torch_img_series_tensor
 
@@ -362,7 +375,7 @@ class ULOSD_Agent(AbstractAgent):
             self.sep_loss_per_iter.append(separation_loss.item())
             self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
             self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
-            self.pi_co_loss_per_iter.append(pcl.item())  # Extension
+            self.pi_co_loss_per_iter.append(pc_loss.item())  # Extension
             self.l1_penalty_per_iter.append(l1_penalty.item())
             self.total_loss_per_iter.append(L.item())
 
