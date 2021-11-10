@@ -18,8 +18,7 @@ def make_encoder(input_shape: tuple, config: dict):
     assert len(encoder_input_shape) == 3
 
     # First, expand the input to an initial number of filters
-    # num_channels = encoder_input_shape[0]
-    num_channels = 3
+    num_channels = encoder_input_shape[0]
     encoder_module_list.append(
         Conv2DSamePadding(
             in_channels=num_channels,
@@ -97,11 +96,12 @@ def make_encoder(input_shape: tuple, config: dict):
 
 
 def make_appearance_encoder(input_shape: tuple, config: dict):
-    """ """
-    appearance_module_list = []
+    """
     # Adjusted input shape (for add_coord_channels)
     encoder_input_shape = (input_shape[1] + 2, *input_shape[2:])
     assert len(encoder_input_shape) == 3
+    """
+    appearance_module_list = []
 
     # First, expand the input to an initial number of filters
     # num_channels = encoder_input_shape[0]
@@ -118,7 +118,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
     appearance_module_list.append(
         nn.BatchNorm2d(num_features=config['model']['n_init_filters'], affine=False)
     )
-    input_width = encoder_input_shape[-1]
+    input_width = input_shape[-1]
     num_channels = config['model']['n_init_filters']
     # Apply additional layers
     for _ in range(config['model']['n_convolutions_per_res']):
@@ -168,6 +168,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
         if input_width <= config['model']['feature_map_width']:
             break
 
+
     # Final layer that maps to the desired number of feature_maps
     appearance_module_list.append(
         Conv2DSamePadding(
@@ -175,8 +176,10 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             out_channels=config['model']['n_feature_maps'],
             kernel_size=(config['model']['conv_kernel_size'], config['model']['conv_kernel_size']),
             stride=(1, 1),
-            activation=nn.Softplus()
+            activation=nn.Identity()
+            #activation=nn.Softplus()
         )
     )
+
 
     return nn.Sequential(*appearance_module_list)

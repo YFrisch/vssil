@@ -63,32 +63,30 @@ class ULOSD(nn.Module):
 
         :param image_sequence: Tensor of image series in (N, T, C, H, W)
         :param appearance: Set true if the input is only the first frame.
-                (Appearance network in the paper; Same as decoder but without
-                 final softplus layer)
+                (Appearance network in the paper; Same as decoder but without final soft-plus layer)
         """
-        # Flatten (N, T, C, H, W) into (N*T, C, H, W)
-        N = image_sequence.shape[0]
-        T = image_sequence.shape[1]
+        N, T = image_sequence.shape[0:2]
 
         # Unstack time
         image_list = [image_sequence[:, t, ...] for t in range(T)]
-        maps_list = []
-        key_points_list = []
-        # x = image_sequence.view((N*T, *image_sequence.shape[2:]))
+        feature_map_list = []
+        key_point_list = []
 
+        # Encode each time-step separately
         for image in image_list:
             if appearance:
                 feature_maps = self.appearance_net(image)
                 key_points = torch.empty((1, 1))
             else:
+                image = add_coord_channels(image, device=self.device)
                 feature_maps = self.encoder(image)
                 key_points = self.maps_2_key_points(feature_maps)
-            key_points_list.append(key_points)
-            maps_list.append(feature_maps)
+            key_point_list.append(key_points)
+            feature_map_list.append(feature_maps)
 
-        # Unstack time
-        feature_maps = torch.stack(maps_list, dim=1).to(self.device)
-        key_points = torch.stack(key_points_list, dim=1).to(self.device)
+        # Stack time
+        feature_maps = torch.stack(feature_map_list, dim=1).to(self.device)  # -> (N, T, K, H', W')
+        key_points = torch.stack(key_point_list, dim=1).to(self.device)  # -> (N, T, K, 3)
 
         return feature_maps, key_points
 
@@ -101,16 +99,16 @@ class ULOSD(nn.Module):
         :param keypoint_sequence: Key-point sequence in (N, T, C, 3)
         """
 
-        T = keypoint_sequence.shape[1]
-        C = keypoint_sequence.shape[2]
-        key_points_shape = (T, C, 3)
+        T, K = keypoint_sequence.shape[1:3]
 
         # Encode first frame
         first_frame_feature_maps, _ = self.encode(first_frame, appearance=True)
-        first_frame_feature_maps = first_frame_feature_maps.squeeze(1).to(self.device)
-        first_frame_key_points = torch.clone(keypoint_sequence[:, 0, ...]).unsqueeze(1).to(self.device)
-        first_frame_reconstructed_maps = self.key_points_2_maps(first_frame_key_points.squeeze(1)).to(self.device)
+        first_frame_feature_maps = first_frame_feature_maps.squeeze(1)
+        # first_frame_key_points = torch.clone(keypoint_sequence[:, 0, ...]).unsqueeze(1).to(self.device)
+        # first_frame_reconstructed_maps = self.key_points_2_maps(first_frame_key_points.squeeze(1)).to(self.device)
+        first_frame_gaussian_maps = self.key_points_2_maps(keypoint_sequence[:, 0, ...]).to(self.device)
 
+        # Unstack time
         key_points_list = [keypoint_sequence[:, t, ...] for t in range(T)]
         image_list = []
 
@@ -121,7 +119,7 @@ class ULOSD(nn.Module):
 
             # Concat representation of current gaussian map and the information from the first frame
             combi = torch.cat(
-                [gaussian_maps, first_frame_reconstructed_maps, first_frame_feature_maps.squeeze(1)],
+                [gaussian_maps, first_frame_gaussian_maps, first_frame_feature_maps],
                 dim=1
             )
 
@@ -132,7 +130,7 @@ class ULOSD(nn.Module):
             reconstructed_image = self.decoder(combi).to(self.device)
             image_list.append(reconstructed_image)
 
-        # Stack time-steps
+        # Stack time
         reconstructed_images = torch.stack(image_list, dim=1).to(self.device)
 
         assert reconstructed_images.ndim == 5

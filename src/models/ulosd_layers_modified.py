@@ -33,7 +33,7 @@ def make_pixel_grid2(axis: int, width: int):
 
 def add_coord_channels(image_tensor: torch.Tensor, device: str = 'cpu') -> torch.Tensor:
     """ Adds channels containing pixel indices (x and y coordinates) to an image. """
-    B, C, H, W = image_tensor.shape
+    B, C, H, W = image_tensor.shape[0], image_tensor.shape[1], image_tensor.shape[2], image_tensor.shape[3]
     x_grid = torch.linspace(start=-1.0, end=1.0, steps=H).view((1, 1, H, 1)).to(device)
     x_map = torch.tile(x_grid, (B, 1, 1, W)).to(device)
     y_grid = torch.linspace(start=1.0, end=-1.0, steps=W).view((1, 1, 1, W)).to(device)
@@ -44,7 +44,7 @@ def add_coord_channels(image_tensor: torch.Tensor, device: str = 'cpu') -> torch
 class FeatureMapsToKeyPoints(nn.Module):
 
     """
-        (N, C, H, W) feature maps -> (N, 2 (x, y), 1 (mu)) key-points.
+        (N, C, H, W) feature maps -> (N, 4 (x, y, mu, sigma)) key-points.
     """
 
     def __init__(self, device: str = 'cpu'):
@@ -55,17 +55,28 @@ class FeatureMapsToKeyPoints(nn.Module):
 
     def forward(self, feature_maps: torch.Tensor) -> torch.Tensor:
 
+        """
+
+        :param feature_maps: Tensor of feature maps in (N*T, C, H', W')
+        :return:
+        """
+
         # Check for non-negativity
         assert torch.min(feature_maps) >= 0
 
         x_coordinates = self.map_to_x(feature_maps)
         y_coordinates = self.map_to_y(feature_maps)
         map_scales = torch.mean(feature_maps, dim=[2, 3]).to(self.device)
+        # map_sigma = torch.nn.Parameter(torch.tensor([2.5])).to(self.device)
+        map_sigma = torch.nn.Parameter(torch.tensor([1.5])).to(self.device)
+        map_sigma = map_sigma.view(1, 1, -1)
+        map_sigma = map_sigma.expand(feature_maps.shape[0], feature_maps.shape[1], -1).squeeze()
 
         # Normalize map scales to [0.0, 1.0] across key-points
         map_scales = map_scales / (EPSILON + torch.max(map_scales, dim=1, keepdim=True)[0])
 
-        return torch.stack([x_coordinates, y_coordinates, map_scales], dim=2)
+        # return torch.stack([x_coordinates, y_coordinates, map_scales], dim=2)
+        return torch.stack([x_coordinates, y_coordinates, map_scales, map_sigma], dim=2)
 
 
 class FeatureMapsToCoordinates(nn.Module):
@@ -111,15 +122,13 @@ class KeyPointsToFeatureMaps(nn.Module):
         (x, y) - coordinates.
 
     """
-    def __init__(self, sigma: float = 1.5, heatmap_width: int = 16, device: str = 'cpu'):
+    def __init__(self, heatmap_width: int = 16, device: str = 'cpu'):
         """ Creates class instance.
 
-        :param sigma: Standard deviation of the 'gaussian blob', in heatmap pixels
         :param heatmap_width: Pixel width of created heatmaps
         """
         super(KeyPointsToFeatureMaps, self).__init__()
         self.device = device
-        self.sigma = sigma
         self.heatmap_width = heatmap_width
 
     def get_grid(self, axis: int):
@@ -136,7 +145,7 @@ class KeyPointsToFeatureMaps(nn.Module):
         """
         # Split scales (mu) and 2D key-point coordinates
         N, C = keypoint_tensor.shape[0], keypoint_tensor.shape[1]
-        keypoint_coordinates, scales = torch.split(keypoint_tensor, [2, 1], dim=2)
+        keypoint_coordinates, scales, sigmas = torch.split(keypoint_tensor, [2, 1, 1], dim=2)
 
         assert tuple(keypoint_coordinates.shape) == (N, C, 2)
         assert tuple(scales.shape) == (N, C, 1)
@@ -148,7 +157,8 @@ class KeyPointsToFeatureMaps(nn.Module):
         y_coordinates = keypoint_coordinates[..., 1].to(self.device)
 
         # Make 'gaussian blobs'
-        keypoint_width = 2.0 * (self.sigma / self.heatmap_width) ** 2
+        keypoint_width = 2.0 * torch.pow(torch.div(sigmas[..., 0], self.heatmap_width), 2).unsqueeze(-1).unsqueeze(-1)
+        keypoint_width = keypoint_width.expand(-1, -1, self.heatmap_width, -1)
         x_vec = torch.exp(-torch.square(self.get_grid(axis=2) - x_coordinates)/keypoint_width).to(self.device)
         y_vec = torch.exp(-torch.square(self.get_grid(axis=3) - y_coordinates)/keypoint_width).to(self.device)
         maps = torch.multiply(x_vec, y_vec).to(self.device)
