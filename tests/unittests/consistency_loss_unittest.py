@@ -72,6 +72,18 @@ class ConsistencyLossTest(unittest.TestCase):
         L_no_mvmt = spatial_consistency_loss(no_mvmt_kpts).cpu().numpy()
         assert abs(L_close - L_no_mvmt) <= 0.01
 
+    def test_grad_flow(self):
+        close_kpts, far_kpts, _ = self.create_fake_coords()
+        fake_net = torch.nn.Linear(in_features=torch.flatten(close_kpts).shape[0],
+                                   out_features=torch.flatten(close_kpts).shape[0])
+        close_kpts = fake_net(torch.flatten(close_kpts)).view(close_kpts.shape)
+
+        L = torch.norm(close_kpts, p=2)
+
+        L.backward()
+
+        assert fake_net.weight.grad is not None
+
 
 if __name__ == "__main__":
     unittest.main()
