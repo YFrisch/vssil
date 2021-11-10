@@ -22,31 +22,8 @@ def pixelwise_contrastive_loss_v3(
     assert image_sequence.dim() == 5
     assert keypoint_coordinates.shape[0:2] == image_sequence.shape[0:2]
 
-
     N, T, C, H, W = image_sequence.shape
     K, D = keypoint_coordinates.shape[2:4]
-
-    #
-    #   Entities used to calc. the contrastive loss
-    #   TODO: This can be created outside the training loop, as it is only depending on the image
-    #
-
-    """
-    pos_range = max(int(time_window / 2), 1) if time_window > 1 else 0
-    center_index = int(patch_size[0]/2)
-
-    step_matrix = torch.ones(patch_size + (2,)).to(image_sequence.device)
-
-    step_w = 2/W
-    step_h = 2/H
-
-    for k in range(0, patch_size[0]):
-        for l in range(0, patch_size[1]):
-            step_matrix[k, l, 0] = (l - center_index) * step_w
-            step_matrix[k, l, 1] = (k - center_index) * step_h
-
-    grid = step_matrix.unsqueeze(0).repeat((N*T*K, 1, 1, 1)).to(image_sequence.device)
-    """
 
     #
     #   Generate the sample grid and sample the patches using it
@@ -76,7 +53,7 @@ def pixelwise_contrastive_loss_v3(
     ).to(image_sequence.device)
     grads = grads.view((N, T, K, 3, patch_size[0], patch_size[1]))
 
-    # TODO: The following two loops could be merged
+    # TODO: The following two nested loops could be merged
 
     # Create feature vectors from patches
     ft = torch.empty((N, T, K, 4)).to(image_sequence.device)
@@ -132,7 +109,7 @@ def pixelwise_contrastive_loss_v3(
                 L_n = L_n + torch.norm(anchor_ft - ft[:, t_n, k_n, ...], p=2, dim=1)
             L_p /= len(negatives)
 
-            # TODO: Right to just average over key-points AND time-steps AND batch??
+            # TODO: Correct to just average over key-points AND time-steps AND batch?
             L = torch.add(
                 L,
                 torch.maximum(L_p - L_n + alpha, torch.zeros((N,)).to(image_sequence.device))
