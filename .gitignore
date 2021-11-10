@@ -142,3 +142,4 @@ NOTES.md
 cron/
 pytorch_sac/
 dmc2gym/
+test_plots/
