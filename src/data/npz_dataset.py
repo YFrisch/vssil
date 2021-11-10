@@ -64,7 +64,9 @@ if __name__ == "__main__":
         key_word='images')
 
     data_loader = DataLoader(dataset=npz_data_set, batch_size=4, shuffle=True)
+
     print(f'Read {len(npz_data_set)} samples.')
+
     for i, (sample, label) in enumerate(data_loader):
         sample -= 0.5
         print(sample.mean())

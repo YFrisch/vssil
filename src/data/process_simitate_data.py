@@ -94,7 +94,7 @@ def process_simitate(root_path: str,
                                 image = cv2.imread(img_source_path)
                                 resized_image = cv2.resize(image, dsize=target_img_shape, interpolation=cv2.INTER_AREA)
                                 cv2.imwrite(img_target_path, resized_image)
-                            except cv2.error:
+                            except cv2.error as e:
                                 continue
 
                             target_frame_count += 1
@@ -107,4 +107,4 @@ if __name__ == "__main__":
     process_simitate(root_path='/media/yannik/samsung_ssd/data/simitate/',
                      target_path='/media/yannik/samsung_ssd/data/simitate_processed_64pix/',
                      target_img_shape=(64, 64),
-                     sample_freq=5)
+                     sample_freq=2)
