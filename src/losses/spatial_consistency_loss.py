@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def spatial_consistency_loss(keypoint_coordinates: torch.Tensor, cfg: dict = None) -> torch.Tensor:
+def spatial_consistency_loss(keypoint_coordinates: torch.Tensor) -> torch.Tensor:
     """ Encourages key-points to have small - or more consistent - spatial movement
         across time-steps, by penalizing a high coefficient of variation in the positional differences.
 

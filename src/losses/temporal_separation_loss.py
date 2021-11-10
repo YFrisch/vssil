@@ -32,6 +32,7 @@ def temporal_separation_loss(cfg: dict, coords: torch.Tensor) -> torch.Tensor:
     # Transform by gaussian
     loss_matrix = torch.exp(-d / (2.0 * cfg['training']['separation_loss_sigma']**2))
     loss_matrix = torch.mean(loss_matrix, dim=0)  # Average across batch
+
     loss = torch.sum(loss_matrix)
 
     # Substract values on diagonal (1 per key-point)
