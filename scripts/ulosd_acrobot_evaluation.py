@@ -5,8 +5,7 @@ from torch.utils.data import DataLoader
 
 from src.data.npz_dataset import NPZ_Dataset
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes,\
-    play_sequence_with_feature_maps
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
 from src.utils.argparse import parse_arguments
 
 if __name__ == "__main__":

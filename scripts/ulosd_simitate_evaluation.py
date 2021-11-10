@@ -8,14 +8,14 @@ from torchvision import transforms
 from src.utils.argparse import parse_arguments
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes,\
-    play_sequence_with_feature_maps
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
+
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_simitate/22032673/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_simitate/22129706/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -61,11 +61,11 @@ if __name__ == "__main__":
 
     ulosd_agent.eval_data_loader = eval_data_loader
     ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_simitate/22032673/checkpoints/chckpt_f0_e195.PTH",
+        "/home/yannik/vssil/results/ulosd_simitate/22129706/checkpoints/chckpt_f0_e150.PTH",
         map_location='cpu'
     )
 
-    intensity_threshold = 0.5
+    intensity_threshold = 0.1
 
     print("##### Evaluating:")
     with torch.no_grad():
