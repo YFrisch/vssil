@@ -18,7 +18,7 @@ def pixelwise_contrastive_loss_fmap_based(
 
     :param keypoint_coordinates: Tensor of key-point positions in (N, T, K, 2/3)
     :param image_sequence:  Tensor of frames in (N, T, C, H, W)
-    :param feature_map_sequence:  Tensor of feature maps in (N, T, C, H', W')
+    :param feature_map_sequence:  Tensor of feature maps in (N, T, K, H', W')
     :param pos_range: Range of time-steps to consider as matches ([anchor - range, anchor + range])
     :param alpha: Threshold for matching
     :return:
@@ -44,11 +44,10 @@ def pixelwise_contrastive_loss_fmap_based(
             #
             #   Anchor feature representation
             #
-
-            upscaled_anchor_gmap = F.interpolate(feature_map_sequence[:, t: t + 1, k:k + 1, ...],
-                                                 size=(H, W))
-            anchor_mask = (upscaled_anchor_gmap > 0.1).float()
-            masked_anchor_img = torch.multiply(image_sequence[:, t: t + 1, ...], anchor_mask)
+            upscaled_anchor_gmap = F.interpolate(feature_map_sequence[:, t: t + 1, k, ...],
+                                                 size=(H, W)).squeeze(1)
+            anchor_mask = (upscaled_anchor_gmap > 0.1).float().unsqueeze(1).repeat(1, 3, 1, 1)
+            masked_anchor_img = torch.multiply(image_sequence[:, t, ...], anchor_mask)
             masked_anchor_grads = laplacian(masked_anchor_img, kernel_size=3)
 
             time_steps = range(max(0, t - pos_range), min(T, t + pos_range + 1))
@@ -73,20 +72,20 @@ def pixelwise_contrastive_loss_fmap_based(
             L_p = torch.tensor((N,)).to(image_sequence.device)
             # TODO: Use mining instead of random choice / all positives?
             # for (t_p, k_p) in positives:
-            for (t_p, k_p) in random.choice(positives):
-                match_gaussian_map = F.interpolate(feature_map_sequence[:, t_p: t_p + 1, k_p: k_p + 1, ...],
-                                                   size=(H, W))
-                match_img_mask = (match_gaussian_map > 0.1).float()
-                masked_match_img = torch.multiply(image_sequence[:, t_p: t_p + 1, ...], match_img_mask)
+            for (t_p, k_p) in [(random.choice(positives) if len(positives) > 1 else positives)]:
+                match_gaussian_map = F.interpolate(feature_map_sequence[:, t_p: t_p + 1, k_p, ...],
+                                                   size=(H, W)).squeeze(1)
+                match_img_mask = (match_gaussian_map > 0.1).float().unsqueeze(1).repeat(1, 3, 1, 1)
+                masked_match_img = torch.multiply(image_sequence[:, t_p, ...], match_img_mask)
                 masked_match_img_grads = laplacian(masked_match_img, kernel_size=3)
                 match_grads_mask = (masked_match_img_grads > -0.1).float()
                 masked_match_img_grads = masked_match_img_grads * match_grads_mask
 
-                L_p = L_p + torch.norm(torch.mean(masked_anchor_img, dim=[2, 3, 4])
-                                       - torch.mean(masked_match_img, dim=[2, 3, 4]), p=2, dim=1)
+                L_p = L_p + torch.norm(torch.mean(masked_anchor_img, dim=[1, 2, 3]).unsqueeze(1)
+                                       - torch.mean(masked_match_img, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
 
-                L_p = L_p + torch.norm(torch.mean(masked_anchor_grads, dim=[2, 3, 4])
-                                       - torch.mean(masked_match_img_grads, dim=[2, 3, 4]), p=2, dim=1)
+                L_p = L_p + torch.norm(torch.mean(masked_anchor_grads, dim=[1, 2, 3]).unsqueeze(1)
+                                       - torch.mean(masked_match_img_grads, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
 
                 L_p = L_p + torch.norm(keypoint_coordinates[:, t, k, ...] - keypoint_coordinates[:, t_p, k_p, ...],
                                        p=2, dim=1) ** 2
@@ -99,20 +98,20 @@ def pixelwise_contrastive_loss_fmap_based(
             L_n = torch.tensor((N,)).to(image_sequence.device)
             # TODO: Use mining instead of random choice / all negatives?
             # for (t_n, k_n) in negatives:
-            for (t_n, k_n) in random.choice(negatives):
-                non_match_gaussian_map = F.interpolate(feature_map_sequence[:, t_n: t_n + 1, k_n: k_n + 1, ...],
-                                                       size=(H, W))
-                non_match_img_mask = (non_match_gaussian_map > 0.1).float()
-                masked_non_match_img = torch.multiply(image_sequence[:, t_n: t_n + 1, ...], non_match_img_mask)
+            for (t_n, k_n) in [(random.choice(negatives) if len(negatives) > 1 else negatives)]:
+                non_match_gaussian_map = F.interpolate(feature_map_sequence[:, t_n: t_n + 1, k_n, ...],
+                                                       size=(H, W)).squeeze(1)
+                non_match_img_mask = (non_match_gaussian_map > 0.1).float().unsqueeze(1).repeat(1, 3, 1, 1)
+                masked_non_match_img = torch.multiply(image_sequence[:, t_n, ...], non_match_img_mask)
                 masked_non_match_img_grads = laplacian(masked_non_match_img, kernel_size=3)
                 non_match_grads_mask = (masked_non_match_img_grads > -0.1).float()
                 masked_non_match_img_grads = masked_non_match_img_grads * non_match_grads_mask
 
-                L_n = L_n + torch.norm(torch.mean(masked_anchor_img, dim=[2, 3, 4])
-                                       - torch.mean(masked_non_match_img, dim=[2, 3, 4]), p=2, dim=1)
+                L_n = L_n + torch.norm(torch.mean(masked_anchor_img, dim=[1, 2, 3]).unsqueeze(1)
+                                       - torch.mean(masked_non_match_img, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
 
-                L_n = L_n + torch.norm(torch.mean(masked_anchor_grads, dim=[2, 3, 4])
-                                       - torch.mean(masked_non_match_img_grads, dim=[2, 3, 4]), p=2, dim=1)
+                L_n = L_n + torch.norm(torch.mean(masked_anchor_grads, dim=[1, 2, 3]).unsqueeze(1)
+                                       - torch.mean(masked_non_match_img_grads, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
 
                 L_n = L_n + torch.norm(keypoint_coordinates[:, t, k, ...] - keypoint_coordinates[:, t_n, k_n, ...],
                                        p=2, dim=1) ** 2
