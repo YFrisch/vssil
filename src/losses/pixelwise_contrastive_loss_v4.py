@@ -6,24 +6,20 @@ from kornia.filters import laplacian
 from itertools import product
 
 
-def pixelwise_contrastive_loss_patch_based(
+def pixelwise_contrastive_loss_fmap_based(
         keypoint_coordinates: torch.Tensor,
         image_sequence: torch.Tensor,
-        grid: torch.Tensor,
+        feature_map_sequence: torch.Tensor,
         pos_range: int = 1,
-        patch_size: tuple = (9, 9),
         alpha: float = 0.1
 ) -> torch.Tensor:
+    """ This version of the pixelwise-contrastive loss uses a combination of the feature maps
+        with the original images in order to contrast the key-points.
 
-    """ This version of the pixelwise contrastive loss uses torch.grid_sample(...) to extract the (interpolated)
-        patches around the key-points.
-        The grid is obtained by multiplying a fixed grid, just depending on the input image shape, with the key-points.
-
-    :param keypoint_coordinates: Tensor of key-point coordinates in (N, T, K, 2/3)
-    :param image_sequence: Tensor of sequential frames in (N, T, C, H, W)
-    :param grid: Tensor of grid positions in (N, H'', W'', 2) where (H'', W'') is the patch size
+    :param keypoint_coordinates: Tensor of key-point positions in (N, T, K, 2/3)
+    :param image_sequence:  Tensor of frames in (N, T, C, H, W)
+    :param feature_map_sequence:  Tensor of feature maps in (N, T, C, H', W')
     :param pos_range: Range of time-steps to consider as matches ([anchor - range, anchor + range])
-    :param patch_size: Patch dimensions
     :param alpha: Threshold for matching
     :return:
     """
@@ -39,47 +35,7 @@ def pixelwise_contrastive_loss_patch_based(
     N, T, C, H, W = image_sequence.shape
     K, D = keypoint_coordinates.shape[2:4]
 
-    #
-    #   Generate the sample grid and sample the patches using it
-    #
-
-    unstacked_kpts = keypoint_coordinates.view((N*T*K, D))
-
-    sample_grids = torch.empty_like(grid).to(image_sequence.device)
-    for ntk in range(sample_grids.shape[0]):
-        sample_grids[ntk, :, :, 0] = grid[ntk, :, :, 0] + unstacked_kpts[ntk, 1]
-        sample_grids[ntk, :, :, 1] = grid[ntk, :, :, 1] - unstacked_kpts[ntk, 0]
-
-    # Expand image sequence for key-point dimension
-    _image_sequence = image_sequence.unsqueeze(2).repeat((1, 1, K, 1, 1, 1))
-    _image_sequence = _image_sequence.view((N*T*K, C, H, W))
-
-    patches = F.grid_sample(
-        input=_image_sequence,
-        grid=sample_grids,
-        mode='bilinear',
-        align_corners=False
-    ).to(image_sequence.device)
-
-    """
-    print(patches.shape)
-    fig, ax = plt.subplots(3, 8, figsize=(20, 12))
-    for t in range(3):
-        for k in range(8):
-            ax[t][k].imshow(patches[t*k].detach().cpu().permute(1, 2, 0) + 0.5)
-    plt.show()
-    exit()
-    """
-
-    grads = laplacian(
-        input=patches,
-        kernel_size=3
-    ).to(image_sequence.device)
-    grads = grads.view((N, T, K, 3, patch_size[0], patch_size[1]))
-
-    patches = patches.view((N, T, K, 3, patch_size[0], patch_size[1]))
-
-    # Calculate contrastive loss from features
+    # Calculate contrastive loss
     L = torch.zeros((N,)).to(image_sequence.device)
     for t in range(T):
 
@@ -89,7 +45,11 @@ def pixelwise_contrastive_loss_patch_based(
             #   Anchor feature representation
             #
 
-            # anchor_ft = ft[:, t, k, ...]
+            upscaled_anchor_gmap = F.interpolate(feature_map_sequence[:, t: t + 1, k:k + 1, ...],
+                                                 size=(H, W))
+            anchor_mask = (upscaled_anchor_gmap > 0.1).float()
+            masked_anchor_img = torch.multiply(image_sequence[:, t: t + 1, ...], anchor_mask)
+            masked_anchor_grads = laplacian(masked_anchor_img, kernel_size=3)
 
             time_steps = range(max(0, t - pos_range), min(T, t + pos_range + 1))
 
@@ -111,14 +71,25 @@ def pixelwise_contrastive_loss_patch_based(
             #
 
             L_p = torch.tensor((N,)).to(image_sequence.device)
+            # TODO: Use mining instead of random choice / all positives?
             # for (t_p, k_p) in positives:
             for (t_p, k_p) in random.choice(positives):
-                L_p = L_p + torch.norm(patches[:, t, k, ...] - patches[:, t_p, k_p, ...],
-                                       p=2, dim=[1, 2, 3])**2
-                L_p = L_p + torch.norm(grads[:, t, k, ...] - grads[:, t_p, k_p, ...],
-                                       p=2, dim=[1, 2, 3]) ** 2
+                match_gaussian_map = F.interpolate(feature_map_sequence[:, t_p: t_p + 1, k_p: k_p + 1, ...],
+                                                   size=(H, W))
+                match_img_mask = (match_gaussian_map > 0.1).float()
+                masked_match_img = torch.multiply(image_sequence[:, t_p: t_p + 1, ...], match_img_mask)
+                masked_match_img_grads = laplacian(masked_match_img, kernel_size=3)
+                match_grads_mask = (masked_match_img_grads > -0.1).float()
+                masked_match_img_grads = masked_match_img_grads * match_grads_mask
+
+                L_p = L_p + torch.norm(torch.mean(masked_anchor_img, dim=[2, 3, 4])
+                                       - torch.mean(masked_match_img, dim=[2, 3, 4]), p=2, dim=1)
+
+                L_p = L_p + torch.norm(torch.mean(masked_anchor_grads, dim=[2, 3, 4])
+                                       - torch.mean(masked_match_img_grads, dim=[2, 3, 4]), p=2, dim=1)
+
                 L_p = L_p + torch.norm(keypoint_coordinates[:, t, k, ...] - keypoint_coordinates[:, t_p, k_p, ...],
-                                       p=2)**2
+                                       p=2, dim=1) ** 2
             # L_p /= len(positives)
 
             #
@@ -126,13 +97,25 @@ def pixelwise_contrastive_loss_patch_based(
             #
 
             L_n = torch.tensor((N,)).to(image_sequence.device)
+            # TODO: Use mining instead of random choice / all negatives?
             # for (t_n, k_n) in negatives:
             for (t_n, k_n) in random.choice(negatives):
-                L_n = L_n + torch.norm(patches[:, t, k, ...] - patches[:, t_n, k_n, ...], p=2, dim=[1, 2, 3])**2
-                L_n = L_n + torch.norm(grads[:, t, k, ...] - grads[:, t_n, k_n, ...],
-                                       p=2, dim=[1, 2, 3]) ** 2
+                non_match_gaussian_map = F.interpolate(feature_map_sequence[:, t_n: t_n + 1, k_n: k_n + 1, ...],
+                                                       size=(H, W))
+                non_match_img_mask = (non_match_gaussian_map > 0.1).float()
+                masked_non_match_img = torch.multiply(image_sequence[:, t_n: t_n + 1, ...], non_match_img_mask)
+                masked_non_match_img_grads = laplacian(masked_non_match_img, kernel_size=3)
+                non_match_grads_mask = (masked_non_match_img_grads > -0.1).float()
+                masked_non_match_img_grads = masked_non_match_img_grads * non_match_grads_mask
+
+                L_n = L_n + torch.norm(torch.mean(masked_anchor_img, dim=[2, 3, 4])
+                                       - torch.mean(masked_non_match_img, dim=[2, 3, 4]), p=2, dim=1)
+
+                L_n = L_n + torch.norm(torch.mean(masked_anchor_grads, dim=[2, 3, 4])
+                                       - torch.mean(masked_non_match_img_grads, dim=[2, 3, 4]), p=2, dim=1)
+
                 L_n = L_n + torch.norm(keypoint_coordinates[:, t, k, ...] - keypoint_coordinates[:, t_n, k_n, ...],
-                                       p=2) ** 2
+                                       p=2, dim=1) ** 2
             # L_n /= len(negatives)
 
             #
@@ -144,7 +127,8 @@ def pixelwise_contrastive_loss_patch_based(
                 torch.maximum(L_p - L_n + alpha, torch.zeros((N,)).to(image_sequence.device))
             )
 
-    L = L / (T*K)
+    # Average loss across time and key-points
+    L = L / (T * K)
 
     return torch.mean(L)
 
@@ -178,7 +162,7 @@ if __name__ == "__main__":
     fake_kpts = torch.rand(size=(N, T, K, 3)).to('cuda:0')
     fake_kpts[..., 2] = 1.0
 
-    print(pixelwise_contrastive_loss_patch_based(
+    print(pixelwise_contrastive_loss_fmap_based(
         keypoint_coordinates=fake_kpts,
         image_sequence=fake_img,
         pos_range=pos_range,
@@ -186,4 +170,3 @@ if __name__ == "__main__":
         patch_size=(9, 9),
         alpha=0.01
     ))
-

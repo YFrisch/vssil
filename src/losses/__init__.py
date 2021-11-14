@@ -2,6 +2,6 @@ from .temporal_separation_loss import temporal_separation_loss
 from .perception_encoding_loss import perception_loss
 from .spatial_consistency_loss import spatial_consistency_loss
 from .time_contrastive_loss import time_contrastive_triplet_loss
-from .pixelwise_contrastive_loss import pixelwise_contrastive_loss
-from .pixelwise_contrastive_loss_2 import pixelwise_contrastive_loss as pc_loss
-from .pixelwise_contrastive_loss_v3 import pixelwise_contrastive_loss_v3
+
+from .pixelwise_contrastive_loss_v3 import pixelwise_contrastive_loss_patch_based
+from .pixelwise_contrastive_loss_v4 import pixelwise_contrastive_loss_fmap_based

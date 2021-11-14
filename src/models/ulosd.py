@@ -92,11 +92,12 @@ class ULOSD(nn.Module):
 
     def decode(self,
                keypoint_sequence: torch.Tensor,
-               first_frame: torch.Tensor) -> torch.Tensor:
+               first_frame: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """ Decodes a series of key-points into a series of images.
 
         :param first_frame: Image of first time-step in (N, 1, 3, H, W)
         :param keypoint_sequence: Key-point sequence in (N, T, C, 3)
+        :return: Reconstructed images, Reconstructed gaussian maps
         """
 
         T, K = keypoint_sequence.shape[1:3]
@@ -111,10 +112,12 @@ class ULOSD(nn.Module):
         # Unstack time
         key_points_list = [keypoint_sequence[:, t, ...] for t in range(T)]
         image_list = []
+        gmap_list = []
 
         for key_points in key_points_list:
 
             gaussian_maps = self.key_points_2_maps(key_points).to(self.device)
+            gmap_list.append(gaussian_maps)
             assert gaussian_maps.ndim == 4
 
             # Concat representation of current gaussian map and the information from the first frame
@@ -132,9 +135,10 @@ class ULOSD(nn.Module):
 
         # Stack time
         reconstructed_images = torch.stack(image_list, dim=1).to(self.device)
+        gaussian_maps = torch.stack(gmap_list, dim=1).to(self.device)
 
         assert reconstructed_images.ndim == 5
-        return reconstructed_images
+        return reconstructed_images, gaussian_maps
 
     def forward(self, image_sequence: torch.Tensor) -> torch.Tensor:
 
@@ -142,7 +146,7 @@ class ULOSD(nn.Module):
         feature_map_series, key_point_series = self.encode(image_sequence, appearance=False)
 
         # Decode encodings
-        reconstructed_images = self.decode(
+        reconstructed_images, _ = self.decode(
             keypoint_sequence=key_point_series,
             first_frame=image_sequence[:, 0, ...].unsqueeze(1)
         )

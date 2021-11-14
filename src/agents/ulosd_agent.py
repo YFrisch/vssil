@@ -8,7 +8,7 @@ from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
-    time_contrastive_triplet_loss, pixelwise_contrastive_loss_v3
+    time_contrastive_triplet_loss, pixelwise_contrastive_loss_patch_based, pixelwise_contrastive_loss_fmap_based
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
@@ -174,14 +174,25 @@ class ULOSD_Agent(AbstractAgent):
                                    image_sequence: torch.Tensor,
                                    config: dict) -> torch.Tensor:
         scale = config['training']['pixelwise_contrastive_scale']
-        return pixelwise_contrastive_loss_v3(
-            keypoint_coordinates=keypoint_coordinates,
-            image_sequence=image_sequence,
-            pos_range=self.pc_pos_range,
-            grid=self.pc_grid,
-            patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
-            alpha=config['training']['pixelwise_contrastive_alpha'],
-        ) * scale
+        if config['training']['pixelwise_contrastive_type'] == 'patch':
+            return pixelwise_contrastive_loss_patch_based(
+                keypoint_coordinates=keypoint_coordinates,
+                image_sequence=image_sequence,
+                pos_range=self.pc_pos_range,
+                grid=self.pc_grid,
+                patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
+                alpha=config['training']['pixelwise_contrastive_alpha'],
+            ) * scale
+        elif config['training']['pixelwise_contrastive_type'] == 'fmap':
+            return pixelwise_contrastive_loss_fmap_based(
+                keypoint_coordinates=keypoint_coordinates,
+                image_sequence=image_sequence,
+                feature_map_sequence=feature_map_sequence,
+                pos_range=self.pc_pos_range,
+                alpha=config['training']['pixelwise_contrastive_alpha'],
+            ) * scale
+        else:
+            raise ValueError(f"Unknown pc loss type: {config['training']['pixelwise_contrastive_type']}")
 
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
@@ -276,7 +287,7 @@ class ULOSD_Agent(AbstractAgent):
 
         # predicted_diff = self.model.decode(observed_key_points, sample[:, 0:1, ...])
         # reconstruction = sample[:, 0:1, ...] + predicted_diff
-        reconstruction = self.model.decode(observed_key_points, sample[:, 0:1, ...])
+        reconstruction, gaussian_maps = self.model.decode(observed_key_points, sample[:, 0:1, ...])
 
         #
         # Dynamics model
@@ -319,16 +330,9 @@ class ULOSD_Agent(AbstractAgent):
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
         if config['training']['pixelwise_contrastive_scale'] > 0:
-            """
-            pc_loss = self.pixelwise_contrastive_loss(
-                keypoint_coordinates=observed_key_points,
-                image_sequence=sample,
-                config=config
-            )
-            """
             pc_loss = self.pixelwise_contrastive_loss(keypoint_coordinates=observed_key_points,
                                                       image_sequence=sample,
-                                                      feature_map_sequence=feature_maps,
+                                                      feature_map_sequence=gaussian_maps,
                                                       config=config)
         else:
             pc_loss = torch.Tensor([0.0]).to(self.device)
