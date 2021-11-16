@@ -2,8 +2,62 @@ import random
 
 import torch
 import torch.nn.functional as F
-from kornia.filters import laplacian
+from kornia.filters import laplacian, canny
+from kornia.morphology import erosion
 from itertools import product
+
+
+def get_feature_representation(feature_map_sequence: torch.Tensor,
+                               keypoint_coordinates: torch.Tensor,
+                               image_sequence: torch.Tensor,
+                               t: int,
+                               k: int) -> torch.Tensor:
+    N, T, C, H, W = image_sequence.shape
+
+    fts = torch.empty(size=(N, 7)).to(feature_map_sequence.device)
+    fts[:, :3] = keypoint_coordinates[:, t, k, ...]
+    upscaled_gaussian_map = F.interpolate(feature_map_sequence[:, t: t + 1, k, ...],
+                                          size=(H, W))
+    mask = (upscaled_gaussian_map > 0.1).float().repeat(1, 3, 1, 1)
+
+    masked_img = torch.multiply(image_sequence[:, t, ...], mask)
+
+    masked_img_magnitude, masked_img_edges = canny(masked_img, low_threshold=0.2,
+                                                   high_threshold=0.5, kernel_size=(3, 3))
+
+    # grad_mask = (masked_img_edges > -0.01).float()
+    # masked_img_grads = torch.multiply(grad_mask, masked_img_edges)
+
+    fts[:, -1] = masked_img_edges.sum(dim=[1, 2, 3])
+
+    erosion_kernel = torch.ones(3, 3).to(feature_map_sequence.device)
+
+    result_sums = []
+    feature_map = torch.clone(mask)
+    # while True:
+    for _ in range(3):
+        result_image = torch.multiply(feature_map, image_sequence[:, t, ...])
+        result_sums.append(torch.sum(result_image, dim=[1, 2, 3]))
+        feature_map = erosion(feature_map, kernel=erosion_kernel)
+        if -1e-2 <= result_sums[-1].mean() <= 1e-2:
+            break
+    if len(result_sums) >= 3:
+        fts[:, 3] = result_sums[-3]
+        fts[:, 4] = result_sums[-2]
+        fts[:, 5] = result_sums[-1]
+    elif len(result_sums) == 2:
+        fts[:, 3] = result_sums[-2]
+        fts[:, 4] = result_sums[-2]
+        fts[:, 5] = result_sums[-1]
+    else:
+        fts[:, 3] = result_sums[-1]
+        fts[:, 4] = result_sums[-1]
+        fts[:, 5] = result_sums[-1]
+
+    del mask, masked_img, masked_img_magnitude, masked_img_edges, upscaled_gaussian_map,\
+        feature_map, result_image, result_sums, erosion_kernel
+
+    return fts
 
 
 def pixelwise_contrastive_loss_fmap_based(
@@ -44,11 +98,13 @@ def pixelwise_contrastive_loss_fmap_based(
             #
             #   Anchor feature representation
             #
-            upscaled_anchor_gmap = F.interpolate(feature_map_sequence[:, t: t + 1, k, ...],
-                                                 size=(H, W)).squeeze(1)
-            anchor_mask = (upscaled_anchor_gmap > 0.1).float().unsqueeze(1).repeat(1, 3, 1, 1)
-            masked_anchor_img = torch.multiply(image_sequence[:, t, ...], anchor_mask)
-            masked_anchor_grads = laplacian(masked_anchor_img, kernel_size=3)
+            anchor_ft_representation = get_feature_representation(
+                feature_map_sequence=feature_map_sequence,
+                keypoint_coordinates=keypoint_coordinates,
+                image_sequence=image_sequence,
+                t=t,
+                k=k
+            )
 
             time_steps = range(max(0, t - pos_range), min(T, t + pos_range + 1))
 
@@ -66,55 +122,40 @@ def pixelwise_contrastive_loss_fmap_based(
                     continue
 
             #
-            #   Match loss
+            #   Match feature representation and loss
             #
 
             L_p = torch.tensor((N,)).to(image_sequence.device)
             # TODO: Use mining instead of random choice / all positives?
             # for (t_p, k_p) in positives:
             for (t_p, k_p) in [(random.choice(positives) if len(positives) > 1 else positives)]:
-                match_gaussian_map = F.interpolate(feature_map_sequence[:, t_p: t_p + 1, k_p, ...],
-                                                   size=(H, W)).squeeze(1)
-                match_img_mask = (match_gaussian_map > 0.1).float().unsqueeze(1).repeat(1, 3, 1, 1)
-                masked_match_img = torch.multiply(image_sequence[:, t_p, ...], match_img_mask)
-                masked_match_img_grads = laplacian(masked_match_img, kernel_size=3)
-                match_grads_mask = (masked_match_img_grads > -0.1).float()
-                masked_match_img_grads = masked_match_img_grads * match_grads_mask
+                match_ft_representation = get_feature_representation(
+                    feature_map_sequence=feature_map_sequence,
+                    keypoint_coordinates=keypoint_coordinates,
+                    image_sequence=image_sequence,
+                    t=t_p,
+                    k=k_p
+                )
 
-                L_p = L_p + torch.norm(torch.mean(masked_anchor_img, dim=[1, 2, 3]).unsqueeze(1)
-                                       - torch.mean(masked_match_img, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
-
-                L_p = L_p + torch.norm(torch.mean(masked_anchor_grads, dim=[1, 2, 3]).unsqueeze(1)
-                                       - torch.mean(masked_match_img_grads, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
-
-                L_p = L_p + torch.norm(keypoint_coordinates[:, t, k, ...] - keypoint_coordinates[:, t_p, k_p, ...],
-                                       p=2, dim=1) ** 2
+                L_p = L_p + torch.norm(anchor_ft_representation - match_ft_representation, p=2, dim=1) ** 2
             # L_p /= len(positives)
 
             #
-            #   Non-match loss
+            #   Non-match feature representation and loss
             #
 
             L_n = torch.tensor((N,)).to(image_sequence.device)
             # TODO: Use mining instead of random choice / all negatives?
             # for (t_n, k_n) in negatives:
             for (t_n, k_n) in [(random.choice(negatives) if len(negatives) > 1 else negatives)]:
-                non_match_gaussian_map = F.interpolate(feature_map_sequence[:, t_n: t_n + 1, k_n, ...],
-                                                       size=(H, W)).squeeze(1)
-                non_match_img_mask = (non_match_gaussian_map > 0.1).float().unsqueeze(1).repeat(1, 3, 1, 1)
-                masked_non_match_img = torch.multiply(image_sequence[:, t_n, ...], non_match_img_mask)
-                masked_non_match_img_grads = laplacian(masked_non_match_img, kernel_size=3)
-                non_match_grads_mask = (masked_non_match_img_grads > -0.1).float()
-                masked_non_match_img_grads = masked_non_match_img_grads * non_match_grads_mask
-
-                L_n = L_n + torch.norm(torch.mean(masked_anchor_img, dim=[1, 2, 3]).unsqueeze(1)
-                                       - torch.mean(masked_non_match_img, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
-
-                L_n = L_n + torch.norm(torch.mean(masked_anchor_grads, dim=[1, 2, 3]).unsqueeze(1)
-                                       - torch.mean(masked_non_match_img_grads, dim=[1, 2, 3]).unsqueeze(1), p=2, dim=1)
-
-                L_n = L_n + torch.norm(keypoint_coordinates[:, t, k, ...] - keypoint_coordinates[:, t_n, k_n, ...],
-                                       p=2, dim=1) ** 2
+                non_match_ft_representation = get_feature_representation(
+                    feature_map_sequence=feature_map_sequence,
+                    keypoint_coordinates=keypoint_coordinates,
+                    image_sequence=image_sequence,
+                    t=t,
+                    k=k
+                )
+                L_n = L_n + torch.norm(anchor_ft_representation - non_match_ft_representation, p=2, dim=1) ** 2
             # L_n /= len(negatives)
 
             #
