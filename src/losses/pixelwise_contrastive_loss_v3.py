@@ -93,16 +93,16 @@ def pixelwise_contrastive_loss_patch_based(
 
             time_steps = range(max(0, t - pos_range), min(T, t + pos_range + 1))
 
-            positives = [(t_i, k) for t_i in time_steps]
-            positives.remove((t, k))
+            matches = [(t_i, k) for t_i in time_steps]
+            matches.remove((t, k))
 
-            negatives = list(product(time_steps, range(K)))
-            negatives.remove((t, k))
+            non_matches = list(product(time_steps, range(K)))
+            non_matches.remove((t, k))
 
-            for (t_p, k_p) in positives:
+            for (t_p, k_p) in matches:
 
                 try:
-                    negatives.remove((t_p, k_p))
+                    non_matches.remove((t_p, k_p))
                 except ValueError:
                     continue
 
@@ -112,7 +112,7 @@ def pixelwise_contrastive_loss_patch_based(
 
             L_p = torch.tensor((N,)).to(image_sequence.device)
             # for (t_p, k_p) in positives:
-            for (t_p, k_p) in [random.choice(positives)]:
+            for (t_p, k_p) in [random.choice(matches)]:
                 L_p = L_p + torch.norm(patches[:, t, k, ...] - patches[:, t_p, k_p, ...],
                                        p=2, dim=[1, 2, 3])**2
                 L_p = L_p + torch.norm(grads[:, t, k, ...] - grads[:, t_p, k_p, ...],
@@ -127,7 +127,7 @@ def pixelwise_contrastive_loss_patch_based(
 
             L_n = torch.tensor((N,)).to(image_sequence.device)
             # for (t_n, k_n) in negatives:
-            for (t_n, k_n) in [random.choice(negatives)]:
+            for (t_n, k_n) in [random.choice(non_matches)]:
                 L_n = L_n + torch.norm(patches[:, t, k, ...] - patches[:, t_n, k_n, ...], p=2, dim=[1, 2, 3])**2
                 L_n = L_n + torch.norm(grads[:, t, k, ...] - grads[:, t_n, k_n, ...],
                                        p=2, dim=[1, 2, 3]) ** 2
