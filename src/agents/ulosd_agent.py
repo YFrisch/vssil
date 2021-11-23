@@ -68,8 +68,9 @@ class ULOSD_Agent(AbstractAgent):
         self.pc_pos_range = max(int(pc_time_window / 2), 1) if pc_time_window > 1 else 0
         pc_center_index = int(pc_patch_size[0] / 2)
         pc_step_matrix = torch.ones(pc_patch_size + (2,)).to(self.device)
-        step_w = 2 / W
-        step_h = 2 / H
+        # TODO: Check step sizes
+        step_w = 1 / W
+        step_h = 1 / H
         for k in range(0, pc_patch_size[0]):
             for l in range(0, pc_patch_size[1]):
                 pc_step_matrix[k, l, 0] = (l - pc_center_index) * step_w
@@ -329,7 +330,8 @@ class ULOSD_Agent(AbstractAgent):
         else:
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
-        if config['training']['pixelwise_contrastive_scale'] > 0:
+        if config['training']['pixelwise_contrastive_scale'] > 0 \
+                and global_epoch_number >= config['training']['epochs']/2:
             pc_loss = self.pixelwise_contrastive_loss(keypoint_coordinates=observed_key_points,
                                                       image_sequence=sample,
                                                       feature_map_sequence=gaussian_maps,

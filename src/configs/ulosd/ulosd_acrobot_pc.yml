@@ -3,13 +3,13 @@ data:
   num_workers: 4
 
 model:
-  n_frames: 16  # 8
-  n_feature_maps: 16 # 64
+  n_frames: 8  # 8
+  n_feature_maps: 32  # 64
   feature_map_width: 16  # 16
   feature_map_height: 16  # 16
   feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
-  n_init_filters: 32  # 128
-  n_convolutions_per_res: 2  # 1 'layers_per_scale' in the keras code
+  n_init_filters: 128  # 128
+  n_convolutions_per_res: 3  # 1 'layers_per_scale' in the keras code
   conv_kernel_size: 3
   decoder_hidden_activations: prelu  # LeakyReLU
   encoder_hidden_activations: prelu  # LeakyReLU
@@ -18,32 +18,32 @@ model:
 training:
   k_folds: 0
   epochs: 200
-  steps_per_epoch: 50  # 200
+  steps_per_epoch: 200  # 200
   optim: AdamW
   lr_scheduler: StepLR  # StepLR
-  lr_scheduler_epoch_steps: 30
-  initial_lr: 5.0e-05
+  lr_scheduler_epoch_steps: 90
+  initial_lr: 1.0e-05
   min_lr: 0.001
-  clip_norm: 5.0
-  batch_size: 2 # 32
-  l2_weight_decay: 0.00001
+  clip_norm: 2.0
+  batch_size: 4 # 32
+  l2_weight_decay: 5.0e-7
   reconstruction_loss: sse
-  reconstruction_loss_scale: 10.0  # 1.0
+  reconstruction_loss_scale: 1.0  # 1.0
   feature_map_regularization: 5.0  # 5.0
   separation_loss_scale: 10.0  # 10.0
   separation_loss_sigma: 0.1
   consistency_loss_scale: 0.0  # Set to 0 to not use this loss
   tc_loss_scale: 0.0  # Set to 0 to not use this loss
   pixelwise_contrastive_type: patch
-  pixelwise_contrastive_scale: 10.0
-  pixelwise_contrastive_time_window: 7  # 5
-  pixelwise_contrastive_patch_size: (7, 7)
+  pixelwise_contrastive_scale: 1.0
+  pixelwise_contrastive_time_window: 5  # 5
+  pixelwise_contrastive_patch_size: (5, 5)
   pixelwise_contrastive_alpha: 1.0
 
 validation:
   steps: 50
   freq: 5
-  batch_size: 2  # 32
+  batch_size: 4  # 32
   save_video: true
 
 evaluation:

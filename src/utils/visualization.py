@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 from matplotlib import cm, animation
 from PIL import Image
 from torchvision import transforms
-from cv2 import VideoWriter, VideoWriter_fourcc,\
+from cv2 import VideoWriter, VideoWriter_fourcc, \
     normalize, NORM_MINMAX, CV_32F
+
+from src.losses.kpt_metrics import patchwise_contrastive_metric
 
 
 def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi', fps: int = 20):
@@ -22,10 +24,10 @@ def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi', fps: int 
                                norm_type=NORM_MINMAX, dtype=CV_32F)
     norm_img_array = norm_img_array.astype(np.uint8)
     assert img_array.shape[0] % fps == 0
-    sec = int(img_array.shape[0]/fps)
+    sec = int(img_array.shape[0] / fps)
     fourcc = VideoWriter_fourcc(*'MPEG')
     video = VideoWriter(target_path, fourcc, float(fps), (width, height))
-    for frame_count in range(fps*sec):
+    for frame_count in range(fps * sec):
         video.write(norm_img_array[frame_count, ...])
     video.release()
 
@@ -37,7 +39,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                                                   reconstruction: torch.Tensor = None,
                                                   intensity_threshold: float = 0.9,
                                                   key_point_trajectory: bool = False,
-                                                  trajectory_length: int = 10,):
+                                                  trajectory_length: int = 10, ):
     """ Visualizes the an image-series tensor
         together with its reconstruction and
         given predicted key-points.
@@ -68,14 +70,14 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
     (N, T, C, H, W) = tuple(image_series.shape)
     if feature_maps is not None:
         (K, Hp, Wp) = tuple(feature_maps.shape[2:])
-        rgba_img_sequence = torch.zeros(size=(N, T, C+1, H, W))
+        rgba_img_sequence = torch.zeros(size=(N, T, C + 1, H, W))
         rgba_img_sequence[:, :, :C, ...] = image_series + 0.5
         rgba_img_sequence = rgba_img_sequence.clip(0.0, 1.0).detach().cpu().numpy()
     assert C in [1, 3], "Only one or three channels supported for plotting image series!"
     assert N == 1, "Only one sample supported (Batch size of 1)."
 
     if key_point_trajectory:
-        assert keypoint_coords.shape[1] >= trajectory_length,\
+        assert keypoint_coords.shape[1] >= trajectory_length, \
             "Use at least 'trajectory_length' time-steps to plot the key-point trajectories!"
 
     # Make colormap
@@ -83,7 +85,8 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     # Permute to (N, T, H, W, C) for matplotlib
     image_series = (image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
-    reconstructed_image_series = (reconstructed_image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
+    reconstructed_image_series = (reconstructed_image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0,
+                                                                                                1.0).detach().cpu().numpy()
 
     # Filter for "active" key-point, i.e. key-points with an avg intensity above the threshold
     active_kp_ids = []
@@ -95,7 +98,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     rgba_frame = np.zeros((W, H, C))
 
-    fig, ax = plt.subplots(1, 3)
+    fig, ax = plt.subplots(1, 3, figsize=(15, 10))
     ax[0].set_title('Sample + Key-Points')
     ax[1].set_title('Sample + Feature-Maps')
     ax[2].set_title('Reconstruction')
@@ -151,7 +154,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     def animate(t: int):
         im_frame = image_series[0, t, ...].squeeze()
-        rgba_frame = rgba_img_sequence[0, t, ...].transpose(1, 2, 0).squeeze()
+        rgba_frame = rgba_img_sequence[0, t, ...].transpose(1, 2, 0).squeeze().copy()
         orig_im_obj.set_data(im_frame)
         rec_frame = reconstructed_image_series[0, t, ...].squeeze()
         rec_im_obj.set_data(rec_frame)
@@ -183,7 +186,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                 combined_np_array = np.concatenate([key_point_pos_buffer[k]])
                 line_objects[k].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
 
-            upscaled_feature_map = F.interpolate(feature_maps[0, t:t+1, k:k+1, ...], size=(H, W)).cpu().numpy()
+            upscaled_feature_map = F.interpolate(feature_maps[0, t:t + 1, k:k + 1, ...], size=(H, W)).cpu().numpy()
             rgba_frame[..., 3] += upscaled_feature_map.squeeze()
 
         rgba_frame = rgba_frame.clip(0.0, 1.0)
@@ -276,14 +279,15 @@ def gen_eval_imgs(sample: torch.Tensor,
         #   Target diff.
         #
 
-        ax[2].imshow(((sample[0, t, ...]-sample[0, 0, ...]) + 0.5).clip(0.0, 1.0).permute(1, 2, 0).cpu().numpy())
+        ax[2].imshow(((sample[0, t, ...] - sample[0, 0, ...]) + 0.5).clip(0.0, 1.0).permute(1, 2, 0).cpu().numpy())
         ax[2].set_title('target difference')
 
         #
         #   Predicted diff.
         #
 
-        ax[3].imshow(((reconstruction[0, t, ...] - sample[0, 0, ...]) + 0.5).clip(0.0, 1.0).permute(1, 2, 0).cpu().numpy())
+        ax[3].imshow(
+            ((reconstruction[0, t, ...] - sample[0, 0, ...]) + 0.5).clip(0.0, 1.0).permute(1, 2, 0).cpu().numpy())
         ax[3].set_title('predicted difference')
 
         #
@@ -342,20 +346,36 @@ def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
         if mean_int >= intensity_threshold:
             ax[0].plot(np.arange(0, T),
                        keypoint_coordinates[0:1, :, n_keypoint, 0].cpu().numpy().squeeze(),
-                       color=indexable_cmap(n_keypoint/keypoint_coordinates.shape[2]))
+                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
             ax[1].plot(np.arange(0, T),
                        keypoint_coordinates[0:1, :, n_keypoint, 1].cpu().numpy().squeeze(),
-                       color=indexable_cmap(n_keypoint/keypoint_coordinates.shape[2]))
+                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
         if keypoint_coordinates.shape[3] == 3:
             ax[2].plot(np.arange(0, T),
                        keypoint_coordinates[0:1, :, n_keypoint, 2].cpu().numpy().squeeze(),
                        color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
         else:
             ax[2].plot(np.arange(0, T),
-                       np.array([1]*T),
+                       np.array([1] * T),
                        color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
     plt.savefig(f'{target_path}/kp_amps.png')
     plt.close()
+
+
+def plot_kpt_metric(image_sequence: torch.Tensor,
+                    kpt_sequence: torch.Tensor,
+                    patch_size: tuple = (7, 7),
+                    alpha: float = 0.1):
+    assert image_sequence.shape[:2] == kpt_sequence.shape[:2]
+    N, T, C, H, W = image_sequence.shape
+    _, _, K, D = kpt_sequence.shape
+
+    mett = patchwise_contrastive_metric(image_sequence, kpt_sequence)
+    print(mett.shape)
+    plt.figure()
+    plt.plot(mett.numpy())
+    plt.show()
+
 
 
 '''

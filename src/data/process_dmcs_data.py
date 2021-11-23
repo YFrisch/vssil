@@ -51,31 +51,35 @@ def process_dmcs(root_path: str,
             print("Skipped.")
             continue
 
-        pbar = tqdm(os.listdir(env_task_path))
-        for sample_id, sample in enumerate(pbar):
+        for exp_id, exp in enumerate(os.listdir(env_task_path)):
 
-            sample_path = os.path.join(env_task_path, sample)
-            if os.path.isdir(sample_path):
-                continue
-            sample_target_path = f"{target_path}/{env_task}/{'{:04d}/'.format(sample_id + 1)}/"
-            os.makedirs(sample_target_path, exist_ok=True)
+            exp_path = os.path.join(env_task_path, exp)
 
-            vidcap = cv2.VideoCapture(sample_path)
-            success, image = vidcap.read()
-            frame_count = 1
+            pbar = tqdm(os.listdir(exp_path))
+            for sample_id, sample in enumerate(pbar):
 
-            while success:
-                image = cv2.resize(image, target_img_shape, interpolation=cv2.INTER_AREA)
+                sample_path = os.path.join(exp_path, sample)
+                if os.path.isdir(sample_path):
+                    continue
+                sample_target_path = f"{target_path}/{env_task}_{exp_id}/{'{:04d}/'.format(sample_id + 1)}/"
+                os.makedirs(sample_target_path, exist_ok=True)
 
-                cv2.imwrite(sample_target_path + f'img_{frame_count:05}.jpg', image)
+                vidcap = cv2.VideoCapture(sample_path)
                 success, image = vidcap.read()
-                frame_count += 1
+                frame_count = 1
 
-            with open(target_path + '/annotations.txt', 'a') as annotations_file:
-                annotations_file.write(
-                    f"{env_task}/{'{:04d}/'.format(sample_id + 1)} {1} {frame_count - 1} {env_task_id}\n")
+                while success:
+                    image = cv2.resize(image, target_img_shape, interpolation=cv2.INTER_AREA)
 
-        print()
+                    cv2.imwrite(sample_target_path + f'img_{frame_count:05}.jpg', image)
+                    success, image = vidcap.read()
+                    frame_count += 1
+
+                with open(target_path + '/annotations.txt', 'a') as annotations_file:
+                    annotations_file.write(
+                        f"{env_task}_{exp_id}/{'{:04d}/'.format(sample_id + 1)} {1} {frame_count - 1} {env_task_id}\n")
+
+            print()
 
 
 if __name__ == "__main__":
