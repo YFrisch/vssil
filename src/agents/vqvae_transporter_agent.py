@@ -4,7 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from src.losses import pc_loss, temporal_separation_loss
+from src.losses import temporal_separation_loss, pixelwise_contrastive_loss_fmap_based,\
+    pixelwise_contrastive_loss_patch_based
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from src.models.vqvae import VQ_VAE_KPT
@@ -24,12 +25,12 @@ class VQVAE_Agent(AbstractAgent):
         C = 3
         H = eval(config['data']['img_shape'])[0]
         W = eval(config['data']['img_shape'])[1]
-        input_shape = (T, C, H, W)
 
         self.model = VQ_VAE_KPT(
             batch_size=N,
             time_steps=T,
             num_embeddings=config['model']['n_codebook_embeddings'],
+            n_kpts=config['model']['n_feature_maps'],
             heatmap_width=config['model']['heatmap_width'],
             encoder_in_channels=C,
             num_hiddens=config['model']['num_hiddens'],
@@ -117,7 +118,7 @@ class VQVAE_Agent(AbstractAgent):
         N, T = target.shape[0], target.shape[1]
         if rec_loss in ['vqvae', 'VQVAE']:
             # loss = F.mse_loss(prediction, target) / torch.var(target)
-            loss = F.mse_loss(prediction, target, reduction='sum') / (torch.var(target) * 2 * N *T)
+            loss = F.mse_loss(prediction, target, reduction='sum') / (torch.var(target) * 2 * N * T)
         elif rec_loss in ['mse', 'MSE']:
             loss = F.mse_loss(input=prediction, target=target, reduction='mean') * 0.5
         elif rec_loss in ['sse', 'SSE']:
@@ -133,14 +134,7 @@ class VQVAE_Agent(AbstractAgent):
                  image_sequence: torch.Tensor,
                  config: dict) -> torch.Tensor:
         scale = config['training']['pixelwise_contrastive_scale']
-        return pc_loss(
-            keypoint_coordinates,
-            image_sequence,
-            feature_map_sequence,
-            time_window=config['training']['pixelwise_contrastive_time_window'],
-            alpha=config['training']['pixelwise_contrastive_alpha'],
-            verbose=False
-        ) * scale
+        pass
 
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
@@ -157,98 +151,66 @@ class VQVAE_Agent(AbstractAgent):
 
         N, T, C, H, W = sample.shape
 
-        first_frame_fmaps = self.model._appearance_encoder(sample[:, 0, ...])  # (N, C', H', W')
-        # first_frame_fmaps = self.model._pre_vq_conv(first_frame_fmaps)  # (N, K, H', W')
-        first_frame_vq_loss, first_frame_quantized, first_frame_perplexity, _ = self.model._vq_vae(first_frame_fmaps)
-        # TODO: ULOSD paper says to not use the appearence fmap here
-        first_frame_kpts = self.model._fmap2kpt(F.softplus(first_frame_fmaps))
-        first_frame_gmaps = self.model._kpt2gmap(first_frame_kpts)
-        _, first_frame_quantized_gmaps, _, _ = self.model._vq_vae(first_frame_gmaps)
-        first_frame_rec = self.model._decoder(
-            torch.cat([first_frame_quantized, first_frame_quantized_gmaps, first_frame_quantized], dim=1))
+        reconstruction, L_vq, perplexity,target_gaussian_maps, target_kpts = self.model(sample, verbose=False)
 
-        # Iterate over subsequent frame pairs
-        reconstructions = [first_frame_rec.unsqueeze(1)]
-        keypoints = [first_frame_kpts.unsqueeze(1)]
-        gaussian_maps = [first_frame_gmaps.unsqueeze(1)]
-        transported_quantized_maps = []
-        source_quantized_maps = []
-        feature_maps = [first_frame_fmaps.unsqueeze(1)]
-        vq_losses = [first_frame_vq_loss.view(-1, 1)]
-        transported_vq_losses = []
-        perplexities = [first_frame_perplexity.view(-1, 1)]
-        transported_perplexity = []
-        for t in range(1, T):
-            source_fmap = self.model._encoder(sample[:, t-1, ...])
-            source_fmap = self.model._pre_vq_conv(source_fmap)
+        L_rec = F.mse_loss(reconstruction, sample[:, 0, ...]) / torch.var(target)
+        # L_rec = torch.norm(reconstruction - sample[:, 0, ...], p=2)**2
 
-            target_fmap = self.model._encoder(sample[:, t, ...])
-            target_fmap = self.model._pre_vq_conv(target_fmap)
-            feature_maps.append(target_fmap.unsqueeze(1))
+        L_total = L_rec + L_vq
 
-            # Key-points from source and target frame
-            source_kpts = self.model._fmap2kpt(F.softplus(source_fmap))
-            target_kpts = self.model._fmap2kpt(F.softplus(target_fmap))
-            keypoints.append(target_kpts.unsqueeze(1))
+        if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
+            self.writer.add_image(tag='val/reconstruction',
+                                  img_tensor=reconstruction[0, ...],
+                                  global_step=global_epoch_number)
 
-            # Quantize source feature map
-            source_vq_loss, source_quantized, source_perplexity, _ = self.model._vq_vae(source_fmap)
-            source_quantized_maps.append(source_quantized.unsqueeze(1))
+        if mode == 'training':
+            L_total.backward()
 
-            # Gaussian maps from source and target frames
-            source_gmap = self.model._kpt2gmap(source_kpts)
-            target_gmap = self.model._kpt2gmap(target_kpts)
-            gaussian_maps.append(target_gmap.unsqueeze(1))
+            # Clip gradient norm
+            nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
 
-            # Get transported feature map
-            transported_map = self.model.transport(
-                source_gaussian_maps=source_gmap,
-                target_gaussian_maps=target_gmap,
-                source_feature_maps=source_fmap,
-                target_feature_maps=target_fmap
-            )
+            self.optim.step()
 
-            # Quantize transported map
-            transported_vq_loss, transported_quantized, transported_perplexity, _ = self.model._vq_vae(transported_map)
-            transported_quantized_maps.append(transported_quantized.unsqueeze(1))
+            self.total_loss_per_iter.append(L_total.item())
+            self.rec_loss_per_iter.append(L_rec.item())
+            self.vq_loss_per_iter.append(L_vq.item())
+            self.perplexity_per_iter.append(perplexity.item())
 
-            vq_losses.append((source_vq_loss + transported_vq_loss).view(-1, 1))
-            perplexities.append((source_perplexity + transported_perplexity).view(-1, 1))
+            with torch.no_grad():
+                if save_grad_flow_plot:
+                    plot_grad_flow(named_parameters=self.model._encoder.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='encoder')
+                    plot_grad_flow(named_parameters=self.model._decoder.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='decoder')
+                    plot_grad_flow(named_parameters=self.model._pre_vq_conv.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='pre_vq_conv')
+                    plot_grad_flow(named_parameters=self.model._pre_kpt_conv.named_parameters(),
+                                   epoch=global_epoch_number,
+                                   summary_writer=self.writer,
+                                   tag_name='pre_kpt_conv')
+                    self.writer.flush()
 
-            # Reconstruct source frame from quantized source feature map
-            # and target frame from quantized target feature map
-            # TODO: Stack with the first frame feature map and gaussian map, as in ULOSD paper
-            source_stacked = torch.cat([first_frame_quantized, first_frame_quantized_gmaps, source_quantized],
-                                       dim=1)
-            transported_stacked = torch.cat([first_frame_quantized, first_frame_quantized_gmaps, transported_quantized],
-                                       dim=1)
-            #source_rec = self.model._decoder(source_quantized)
-            #target_rec = self.model._decoder(transported_quantized)
-            target_rec = self.model._decoder(transported_stacked)
-            reconstructions.append(target_rec.unsqueeze(1))
+        return L_total
 
-        reconstruction = torch.cat(reconstructions, dim=1)
-        keypoint_coordinates = torch.cat(keypoints, dim=1)
-        feature_maps = torch.cat(feature_maps, dim=1)
-        gaussian_maps = torch.cat(gaussian_maps, dim=1)
-        source_quantized_maps = torch.cat(source_quantized_maps, dim=1)
-        transported_quantized_maps = torch.cat(transported_quantized_maps, dim=1)
-        vq_loss = torch.cat(vq_losses, dim=1).sum() * config['training']['vq_loss_scale']
-        perplexity = torch.cat(perplexities, dim=1).mean()
-
-        L_rec = self.loss_func(prediction=reconstruction, target=sample, config=config)
+        """
 
         L_sep = temporal_separation_loss(cfg=config, coords=keypoint_coordinates) \
                 * config['training']['separation_loss_scale']
 
         L_sparse = self.l1_activation_penalty(feature_maps=feature_maps, config=config)
 
-        """
+        
         L_pc = self.p_c_loss(keypoint_coordinates=keypoint_coordinates,
                              feature_map_sequence=gaussian_maps,
                              image_sequence=sample,
                              config=config)
-        """
+        
 
         L_pc = torch.tensor([0.0]).to(self.device)
         L_total = L_rec + vq_loss + L_pc + L_sep + L_sparse
@@ -279,8 +241,6 @@ class VQVAE_Agent(AbstractAgent):
 
                 del rgba_frames
 
-
-                """
                 self.writer.add_video(tag='val/gaussian_maps',
                                       vid_tensor=torch.cat([sample[0:1, ...],
                                                            torch.sum(upsampled_gaussian_maps,
@@ -288,7 +248,7 @@ class VQVAE_Agent(AbstractAgent):
                                                                      keepdim=True).unsqueeze(0)],
                                                            dim=2),
                                       global_step=global_epoch_number)
-                """
+                
                 self.writer.add_video(tag='val_features/gaussian_maps',
                                       vid_tensor=torch.sum(gaussian_maps[0:1, ...], dim=2).unsqueeze(2),
                                       global_step=global_epoch_number)
@@ -305,47 +265,7 @@ class VQVAE_Agent(AbstractAgent):
                                       vid_tensor=source_quantized_maps[0:1, 0:1, ...].transpose(1, 2),
                                       global_step=global_epoch_number)
 
-                self.writer.flush()
-
-
-        # Log values and backprop. during training
-        if mode == 'training':
-
-            self.total_loss_per_iter.append(L_total.item())
-            self.rec_loss_per_iter.append(L_rec.item())
-            self.sep_loss_per_iter.append(L_sep.item())
-            self.sparsity_loss_per_iter.append(L_sparse.item())
-            # self.rec_vq_loss_per_iter.append(L_rec_vq.item())
-            # self.rec_g_loss_per_iter.append(L_rec_g.item())
-            self.pc_loss_per_iter.append(L_pc.item())
-            self.vq_loss_per_iter.append(vq_loss.item())
-            self.perplexity_per_iter.append(perplexity.item())
-
-            L_total.backward()
-
-            # Clip gradient norm
-            nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['clip_norm'])
-
-            with torch.no_grad():
-                if save_grad_flow_plot:
-                    plot_grad_flow(named_parameters=self.model._encoder.named_parameters(),
-                                   epoch=global_epoch_number,
-                                   summary_writer=self.writer,
-                                   tag_name='encoder')
-                    plot_grad_flow(named_parameters=self.model._decoder.named_parameters(),
-                                   epoch=global_epoch_number,
-                                   summary_writer=self.writer,
-                                   tag_name='decoder')
-                    plot_grad_flow(named_parameters=self.model._pre_vq_conv.named_parameters(),
-                                   epoch=global_epoch_number,
-                                   summary_writer=self.writer,
-                                   tag_name='pre_vq_conv')
-                    plot_grad_flow(named_parameters=self.model._kpt2gmap.named_parameters(),
-                                   epoch=global_epoch_number,
-                                   summary_writer=self.writer,
-                                   tag_name='kpt2gmap')
-                    self.writer.flush()
-
-            self.optim.step()
+                self.writer.flush()            
         
-        return L_total
+        """
+

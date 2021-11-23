@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm, animation
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from PIL import Image
 from torchvision import transforms
 from cv2 import VideoWriter, VideoWriter_fourcc, \
@@ -362,85 +363,27 @@ def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
     plt.close()
 
 
-def plot_kpt_metric(image_sequence: torch.Tensor,
-                    kpt_sequence: torch.Tensor,
-                    patch_size: tuple = (7, 7),
-                    alpha: float = 0.1):
-    assert image_sequence.shape[:2] == kpt_sequence.shape[:2]
-    N, T, C, H, W = image_sequence.shape
-    _, _, K, D = kpt_sequence.shape
+def imprint_img_with_kpts(img: torch.Tensor, kpt: torch.Tensor) -> torch.Tensor:
+    """ Makes a matplotlib plot from the given image,
+        with scatter-plots at the key-point positions.
+        Then converts the result back to an image tensor.
 
-    mett = patchwise_contrastive_metric(image_sequence, kpt_sequence)
-    print(mett.shape)
-    plt.figure()
-    plt.plot(mett.numpy())
-    plt.show()
-
-
-
-'''
-def play_sequence_with_feature_maps(image_sequence: torch.Tensor,
-                                    feature_maps: torch.Tensor,
-                                    key_point_coordinates: torch.Tensor,
-                                    intensity_threshold: float = 0.5):
-
-    """
-
-    :param image_sequence: Tensor of image series in (N, T, C, H, W)
-    :param feature_maps: Tensor of feature maps per key-point in (N, T, K, H', W')
-    :param key_point_coordinates: Tensor of key-point coordinates in (N, T, K, 2/3)
-    :param intensity_threshold: Threshold for seeing a key-point as active
+    :param img: Image tensor in (1, 1, C, H, W)
+    :param kpt: Key-point coordinates in (1, 1, K, 2/3)
     :return:
     """
-
-    assert image_sequence.shape[0] == feature_maps.shape[0] == key_point_coordinates.shape[0]
-    assert image_sequence.shape[1] == feature_maps.shape[1] == key_point_coordinates.shape[1]
-
-    N, T, C, H, W = image_sequence.shape
-    C = C + 1
-    K, Hp, Wp = feature_maps.shape[2:]
-
-    rgba_img_sequence = torch.zeros(size=(N, T, C, H, W))
-    rgba_img_sequence[:, :, :C-1, ...] = image_sequence + 0.5
-    rgba_img_sequence[:, :, C-1, ...] = 0.0
-    rgba_img_sequence = rgba_img_sequence.clip(0.0, 1.0).detach().cpu().numpy()
-
-    active_kp_ids = []
-    for kp in range(key_point_coordinates.shape[2]):
-        if key_point_coordinates.shape[3] == 2 or np.mean(key_point_coordinates[0, :, kp, 2].cpu().numpy()) > intensity_threshold:
-            active_kp_ids.append(kp)
-
-    frame = np.zeros((W, H, C))
 
     fig, ax = plt.subplots(1, 1)
     ax.set_title('Sample + Feature Maps')
 
-    frame_obj = ax.imshow(frame)
-
-    # Init
-    frame_init = rgba_img_sequence[0, 0, ...].transpose(1, 2, 0)
-    for k in range(K):
-        if key_point_coordinates.shape[3] == 2 or key_point_coordinates[0, 0, k, 2] > intensity_threshold:
-            upscaled_feature_map = F.interpolate(feature_maps[0, 0:1, k:k+1, ...], size=(H, W)).cpu().numpy()
-            frame_init[..., 3] += upscaled_feature_map.squeeze()
-    frame_obj.set_data(frame_init)
-
-    # Animation
-    def animate(t: int):
-        frame_img = rgba_img_sequence[0, t, ...].transpose(1, 2, 0)
-        for k in range(K):
-            if key_point_coordinates.shape[3] == 2 or key_point_coordinates[0, t, k, 2] > intensity_threshold:
-                upscaled_feature_map = F.interpolate(feature_maps[0, t:t+1, k:k+1, ...], size=(H, W)).cpu().numpy()
-                frame_img[..., 3] += upscaled_feature_map.squeeze()
-        frame_obj.set_data(frame_img)
-        return frame_obj
-
-    anim = animation.FuncAnimation(fig, animate, frames=T, interval=1, repeat=False)
-
-    Writer = animation.writers['ffmpeg']
-    writer = Writer(fps=20, metadata=dict(artist='me'), bitrate=1800)
-    anim.save('feature_maps.mp4', writer=writer)
-
-    plt.show()
-
-'''
+    canvas = FigureCanvas(fig)
+    ax.axis('off')
+    ax.imshow(img.squeeze().permute(1, 2, 0).detach().cpu())
+    for k in range(kpt.shape[2]):
+        kpt_w = (kpt.squeeze()[..., k, 0] + 1)/2 * img.shape[-1]
+        kpt_h = -(kpt.squeeze()[..., k, 1] + 1)/2 * img.shape[-2]
+        ax.scatter(kpt_w, kpt_h, s=500, marker='x', color='black')
+    fig_width, fig_height = fig.get_size_inches() * fig.get_dpi()
+    canvas.draw()
+    image = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape((int(fig_height), int(fig_width), 3))
+    return image
