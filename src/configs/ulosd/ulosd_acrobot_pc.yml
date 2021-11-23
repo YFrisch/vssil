@@ -21,8 +21,8 @@ training:
   steps_per_epoch: 200  # 200
   optim: AdamW
   lr_scheduler: StepLR  # StepLR
-  lr_scheduler_epoch_steps: 90
-  initial_lr: 1.0e-05
+  lr_scheduler_epoch_steps: 50
+  initial_lr: 1.0e-03
   min_lr: 0.001
   clip_norm: 2.0
   batch_size: 4 # 32
@@ -34,6 +34,7 @@ training:
   separation_loss_sigma: 0.1
   consistency_loss_scale: 0.0  # Set to 0 to not use this loss
   tc_loss_scale: 0.0  # Set to 0 to not use this loss
+  pixelwise_contrastive_starting_epoch: 50
   pixelwise_contrastive_type: patch
   pixelwise_contrastive_scale: 1.0
   pixelwise_contrastive_time_window: 5  # 5

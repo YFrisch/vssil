@@ -331,7 +331,7 @@ class ULOSD_Agent(AbstractAgent):
             tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
 
         if config['training']['pixelwise_contrastive_scale'] > 0 \
-                and global_epoch_number >= config['training']['epochs']/2:
+                and global_epoch_number >= config['training']['pixelwise_contrastive_starting_epoch']:
             pc_loss = self.pixelwise_contrastive_loss(keypoint_coordinates=observed_key_points,
                                                       image_sequence=sample,
                                                       feature_map_sequence=gaussian_maps,
