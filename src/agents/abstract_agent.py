@@ -191,6 +191,14 @@ class AbstractAgent:
                 step_size=config['training']['lr_scheduler_epoch_steps'],
                 gamma=0.5
             )
+        elif config['training']['lr_scheduler'] in ['CyclicLR']:
+            self.scheduler = torch.optim.lr_scheduler.CyclicLR(
+                optimizer=self.optim,
+                base_lr=config['training']['initial_lr'],
+                max_lr=config['training']['max_lr'],
+                step_size_up=int(config['training']['epochs']/20),
+                mode='triangular'
+            )
         elif config['training']['lr_scheduler'] in [None, 'None', 'NONE', 'none']:
             self.scheduler = None
         else:
