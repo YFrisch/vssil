@@ -13,7 +13,7 @@ from src.data.npz_dataset import NPZ_Dataset
 if __name__ == "__main__":
 
     # NOTE: This line might produce non-deterministic results
-    # torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True
 
     args = parse_arguments()
 

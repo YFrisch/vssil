@@ -4,6 +4,7 @@ import os.path
 import torch
 import torch.nn.functional as F
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import cm, animation
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -363,27 +364,47 @@ def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
     plt.close()
 
 
-def imprint_img_with_kpts(img: torch.Tensor, kpt: torch.Tensor) -> torch.Tensor:
+def imprint_img_with_kpts(img: torch.Tensor, kpt: torch.Tensor) -> np.ndarray:
     """ Makes a matplotlib plot from the given image,
         with scatter-plots at the key-point positions.
         Then converts the result back to an image tensor.
 
     :param img: Image tensor in (1, 1, C, H, W)
-    :param kpt: Key-point coordinates in (1, 1, K, 2/3)
+    :param kpt: Key-point coordinates in (1, 1, K, 2/3) in video-structure format:
+                               ^
+                               |
+                               |    x[0.5, 0.5]
+                               |
+                     ---------------------->
+                               |
+                          x    |
+                 [-0.5, -0.5]  |
+
+
     :return:
     """
 
-    fig, ax = plt.subplots(1, 1)
-    ax.set_title('Sample + Feature Maps')
+    H, W = img.shape[-2:]
+
+    dpi = mpl.rcParams['figure.dpi']
+
+    figsize = (H / dpi, W / dpi)
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    fig.patch.set_facecolor('xkcd:mint green')
 
     canvas = FigureCanvas(fig)
     ax.axis('off')
     ax.imshow(img.squeeze().permute(1, 2, 0).detach().cpu())
     for k in range(kpt.shape[2]):
-        kpt_w = (kpt.squeeze()[..., k, 0] + 1)/2 * img.shape[-1]
-        kpt_h = -(kpt.squeeze()[..., k, 1] + 1)/2 * img.shape[-2]
-        ax.scatter(kpt_w, kpt_h, s=500, marker='x', color='black')
+        kpt_w = (kpt.squeeze()[..., k, 0] + 1)/2 * img.shape[-1]  # W
+        kpt_h = -(kpt.squeeze()[..., k, 1] + 1)/2 * img.shape[-2]  # H
+        print(f"{kpt_w}, {kpt_h}")
+        ax.scatter(kpt_w, kpt_h, s=50, marker='x', color='black')
     fig_width, fig_height = fig.get_size_inches() * fig.get_dpi()
+    plt.show()
+    exit()
     canvas.draw()
     image = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape((int(fig_height), int(fig_width), 3))
     return image
