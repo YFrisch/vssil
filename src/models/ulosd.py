@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions.normal import Normal
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -57,13 +58,21 @@ class ULOSD(nn.Module):
             heatmap_width=config['model']['feature_map_width']
         )
 
-    def encode(self, image_sequence: torch.Tensor, appearance: bool = False) -> (torch.Tensor, torch.Tensor):
+    def encode(self,
+               image_sequence: torch.Tensor,
+               appearance: bool = False,
+               re_sample_kpts: bool = False,
+               re_sample_scale: float = 0.1) -> (torch.Tensor, torch.Tensor):
         """ Encodes a series of images into a tuple of a series of feature maps and
             key-points.
 
         :param image_sequence: Tensor of image series in (N, T, C, H, W)
         :param appearance: Set true if the input is only the first frame.
                 (Appearance network in the paper; Same as decoder but without final soft-plus layer)
+        :param re_sample_kpts: If set to 'True', the extracted key-points are used to define gaussian functions,
+                               that are used to re-sample the actual key-points. This introduces additional noise.
+        :param re_sample_scale: Scale of gaussian re-sampling
+
         """
         N, T = image_sequence.shape[0:2]
 
@@ -81,6 +90,17 @@ class ULOSD(nn.Module):
                 image = add_coord_channels(image, device=self.device)
                 feature_maps = self.encoder(image)
                 key_points = self.maps_2_key_points(feature_maps)
+                if re_sample_kpts:
+                    # Stack batch and key-point dims together
+                    N, K, D = key_points.shape
+                    extracted_key_points = key_points.view((N*K, D))
+                    # Define gaussians over mean vector and std of 0.1, for height and width positions
+                    gauss_h = Normal(loc=extracted_key_points[..., 0], scale=re_sample_scale)
+                    gauss_w = Normal(loc=extracted_key_points[..., 1], scale=re_sample_scale)
+                    # Re-sample key-points
+                    kpt_h = gauss_h.rsample().view((N, K, 1)).clip(-1.0, 1.0)
+                    kpt_w = gauss_w.rsample().view((N, K, 1)).clip(-1.0, 1.0)
+                    key_points = torch.cat([kpt_h, kpt_w, extracted_key_points[..., 2:3].view((N, K, 1))], dim=-1)
             key_point_list.append(key_points)
             feature_map_list.append(feature_maps)
 
