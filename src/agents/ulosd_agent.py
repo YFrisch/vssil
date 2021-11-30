@@ -9,6 +9,7 @@ from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
     time_contrastive_triplet_loss, pixelwise_contrastive_loss_patch_based, pixelwise_contrastive_loss_fmap_based
+from src.losses.distr_constraints import wasserstein_constraint
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
 from .abstract_agent import AbstractAgent
@@ -84,6 +85,7 @@ class ULOSD_Agent(AbstractAgent):
         self.cons_loss_per_iter = []  # Extension
         self.tc_loss_per_iter = []  # Extension
         self.pi_co_loss_per_iter = []  # Extension
+        self.emd_sum_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
@@ -225,6 +227,7 @@ class ULOSD_Agent(AbstractAgent):
         self.cons_loss_per_iter = []  # Extension
         self.tc_loss_per_iter = []  # Extension
         self.pi_co_loss_per_iter = []  # Extension
+        self.emd_sum_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
@@ -235,6 +238,7 @@ class ULOSD_Agent(AbstractAgent):
         avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
         avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
         avg_pi_co_loss = np.mean(self.pi_co_loss_per_iter)  # Extension
+        avg_emd_sum = np.mean(self.emd_sum_per_iter)  # Extension
         avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
         avg_total_loss = np.mean(self.total_loss_per_iter)
 
@@ -248,6 +252,8 @@ class ULOSD_Agent(AbstractAgent):
                                scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
         self.writer.add_scalar(tag="train/pixelwise_contrastive_loss",
                                scalar_value=avg_pi_co_loss, global_step=global_epoch)  # Extension
+        self.writer.add_scalar(tag="train/emd_sum",
+                               scalar_value=avg_emd_sum, global_step=global_epoch)
         self.writer.add_scalar(tag="train/l1_activation_penalty",
                                scalar_value=avg_l1_penalty, global_step=global_epoch)
         self.writer.add_scalar(tag="train/total_loss",
@@ -283,7 +289,11 @@ class ULOSD_Agent(AbstractAgent):
         # Vision model
         #
 
-        feature_maps, observed_key_points = self.model.encode(sample)
+        feature_maps, observed_key_points = self.model.encode(
+            image_sequence=sample,
+            appearance=False,
+            re_sample_kpts=config['training']['re_sample'],
+            re_sample_scale=config['training']['re_sample_scale'])
         assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
 
         # predicted_diff = self.model.decode(observed_key_points, sample[:, 0:1, ...])
@@ -339,6 +349,12 @@ class ULOSD_Agent(AbstractAgent):
         else:
             pc_loss = torch.Tensor([0.0]).to(self.device)
 
+        if config['training']['use_emd']:
+            emd_sum = (torch.sum(wasserstein_constraint(observed_key_points))
+                       * config['training']['emd_sum_scale']).to(self.device)
+        else:
+            emd_sum = torch.Tensor([0.0]).to(self.device)
+
         #
         # Losses for the dynamics model
         # TODO: not used yet
@@ -352,7 +368,7 @@ class ULOSD_Agent(AbstractAgent):
         # total loss
         L = reconstruction_loss + separation_loss + l1_penalty + \
             coord_pred_loss + kl_loss + \
-            consistency_loss + tc_triplet_loss + pc_loss
+            consistency_loss + tc_triplet_loss + pc_loss + emd_sum
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
@@ -382,6 +398,7 @@ class ULOSD_Agent(AbstractAgent):
             self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
             self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
             self.pi_co_loss_per_iter.append(pc_loss.item())  # Extension
+            self.emd_sum_per_iter.append(emd_sum.item())  # Extension
             self.l1_penalty_per_iter.append(l1_penalty.item())
             self.total_loss_per_iter.append(L.item())
 
