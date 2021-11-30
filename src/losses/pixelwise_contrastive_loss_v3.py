@@ -1,5 +1,6 @@
 import random
 
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from kornia.filters import laplacian, canny
@@ -79,8 +80,8 @@ def pixelwise_contrastive_loss_patch_based(
     """
     mags, grads = canny(
         input=patches,
-        low_threshold=0.2,
-        high_threshold=0.5,
+        low_threshold=0.3,
+        high_threshold=0.6,
         kernel_size=(3, 3)
     )
 
@@ -101,16 +102,24 @@ def pixelwise_contrastive_loss_patch_based(
             #
 
             anchor_ft = torch.cat([
-                keypoint_coordinates[:, t, k, 0].unsqueeze(1),
-                keypoint_coordinates[:, t, k, 1].unsqueeze(1),
+                (keypoint_coordinates[:, t, k, 0].unsqueeze(1) + 1)/2,
+                (keypoint_coordinates[:, t, k, 1].unsqueeze(1) + 1)/2,
                 keypoint_coordinates[:, t, k, 2].unsqueeze(1),
-                torch.sum(patches[:, t, k,  ...], dim=[1, 2, 3]).unsqueeze(1),
-                torch.sum(mags[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
-                torch.sum(grads[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
-                #torch.mean(patches[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
-                #torch.mean(mags[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
-                #torch.mean(grads[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
+                #torch.sum(patches[:, t, k,  ...], dim=[1, 2, 3]).unsqueeze(1),
+                #torch.sum(mags[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
+                #torch.sum(grads[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
+                torch.mean(patches[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
+                torch.mean(mags[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
+                torch.mean(grads[:, t, k, ...], dim=[1, 2, 3]).unsqueeze(1),
             ], dim=1).to(image_sequence.device)
+
+            """
+            fig, ax = plt.subplots(1, 3)
+            ax[0].imshow((patches[0, t, k,  ...] + 0.5).clip(0.0, 1.0).permute(1, 2, 0).detach().cpu().numpy())
+            ax[1].imshow(mags[0, t, k, ...].clip(0.0, 1.0).permute(1, 2, 0).detach().cpu().numpy(), cmap='gray')
+            ax[2].imshow(grads[0, t, k, ...].clip(0.0, 1.0).permute(1, 2, 0).detach().cpu().numpy(), cmap='gray')
+            plt.show()
+            """
 
             time_steps = range(max(0, t - pos_range), min(T, t + pos_range + 1))
 
@@ -134,15 +143,15 @@ def pixelwise_contrastive_loss_patch_based(
             # for (t_p, k_p) in positives:
             for (t_p, k_p) in [random.choice(matches)]:
                 match_ft = torch.cat([
-                    keypoint_coordinates[:, t_p, k_p, 0].unsqueeze(1),
-                    keypoint_coordinates[:, t_p, k_p, 1].unsqueeze(1),
+                    (keypoint_coordinates[:, t_p, k_p, 0].unsqueeze(1) + 1)/2,
+                    (keypoint_coordinates[:, t_p, k_p, 1].unsqueeze(1) + 1)/2,
                     keypoint_coordinates[:, t_p, k_p, 2].unsqueeze(1),
-                    torch.sum(patches[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    torch.sum(mags[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    torch.sum(grads[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    #torch.mean(patches[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    #torch.mean(mags[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    #torch.mean(grads[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    #torch.sum(patches[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    #torch.sum(mags[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    #torch.sum(grads[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    torch.mean(patches[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    torch.mean(mags[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    torch.mean(grads[:, t_p, k_p, ...], dim=[1, 2, 3]).unsqueeze(1),
                 ], dim=1).to(image_sequence.device)
 
             L_p = torch.norm(anchor_ft - match_ft, p=2)**2
@@ -157,15 +166,15 @@ def pixelwise_contrastive_loss_patch_based(
             # for (t_n, k_n) in negatives:
             for (t_n, k_n) in [random.choice(non_matches)]:
                 non_match_ft = torch.cat([
-                    keypoint_coordinates[:, t_n, k_n, 0].unsqueeze(1),
-                    keypoint_coordinates[:, t_n, k_n, 1].unsqueeze(1),
+                    (keypoint_coordinates[:, t_n, k_n, 0].unsqueeze(1) + 1)/2,
+                     (keypoint_coordinates[:, t_n, k_n, 1].unsqueeze(1) + 1)/2,
                     keypoint_coordinates[:, t_n, k_n, 2].unsqueeze(1),
-                    torch.sum(patches[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    torch.sum(mags[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    torch.sum(grads[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    #torch.mean(patches[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    #torch.mean(mags[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
-                    #torch.mean(grads[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    #torch.sum(patches[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    #torch.sum(mags[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    #torch.sum(grads[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    torch.mean(patches[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    torch.mean(mags[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
+                    torch.mean(grads[:, t_n, k_n, ...], dim=[1, 2, 3]).unsqueeze(1),
                 ], dim=1).to(image_sequence.device)
 
             L_n = torch.norm(anchor_ft - non_match_ft, p=2) ** 2
