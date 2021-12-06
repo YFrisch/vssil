@@ -12,7 +12,7 @@ class TransporterUnitTest(unittest.TestCase):
 
     def setUp(self) -> None:
 
-        with open('/home/yannik/vssil/src/configs/transporter.yml') as conf_file:
+        with open('/src/configs/transporter/transporter.yml') as conf_file:
             self.config = yaml.safe_load(conf_file)
 
         self.batch_size = 8

@@ -47,8 +47,9 @@ class Transporter(nn.Module):
 
     def forward(self, source_img: torch.Tensor, target_img: torch.Tensor) -> torch.Tensor:
 
-        source_feature_maps = self.encoder(source_img)
-        source_keypoints, source_gaussian_maps = self.keypointer(source_img)
+        with torch.no_grad():
+            source_feature_maps = self.encoder(source_img)
+            source_keypoints, source_gaussian_maps = self.keypointer(source_img)
 
         target_feature_maps = self.encoder(target_img)
         target_keypoints, target_gaussian_maps = self.keypointer(target_img)

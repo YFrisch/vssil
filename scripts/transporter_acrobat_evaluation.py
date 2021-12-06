@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import torch
 import yaml
 
@@ -7,12 +6,12 @@ from torch.utils.data import DataLoader
 from src.agents.transporter_agent import TransporterAgent
 from src.data.npz_dataset import NPZ_Dataset
 from src.utils.argparse import parse_arguments
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, gen_eval_imgs
+from src.utils.visualization import play_series_and_reconstruction_with_keypoints
 
 if __name__ == "__main__":
 
     args = parse_arguments()
-    args.config = '/home/yannik/vssil/results/ulosd_acrobat_consistency/2021_9_14_21_22/config.yml'
+    args.config = '/home/yannik/vssil/results/transporter_acrobot/2021_12_5_22_3/config.yml'
 
     with open(args.config, 'r') as stream:
         transporter_conf = yaml.safe_load(stream)
@@ -40,7 +39,7 @@ if __name__ == "__main__":
 
     transporter_agent = TransporterAgent(dataset=npz_data_set, config=transporter_conf)
     transporter_agent.load_checkpoint(
-        '/home/yannik/vssil/results/ulosd_acrobat_consistency/2021_9_14_21_22/checkpoints/chckpt_f0_e192.PTH')
+        '/home/yannik/vssil/results/transporter_acrobot/2021_12_5_22_3/checkpoints/chckpt_f0_e195.PTH')
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -69,35 +68,9 @@ if __name__ == "__main__":
                 samples = _sample.unsqueeze(1) if samples is None else torch.cat([samples, _sample.unsqueeze(1)], dim=1)
                 reconstructions = reconstruction.unsqueeze(1) if reconstructions is None\
                     else torch.cat([reconstructions, reconstruction.unsqueeze(1)], dim=1)
-                reconstructed_diffs = reconstructed_diff.unsqueeze(1) if reconstructed_diffs is None\
-                    else torch.cat([reconstructed_diffs, reconstructed_diff.unsqueeze(1)], dim=1)
                 key_points = key_point_coordinates.unsqueeze(1) if key_points is None \
                     else torch.cat([key_points, key_point_coordinates.unsqueeze(1)], dim=1)
 
-                """
-                fig, ax = plt.subplots(1, 5, figsize=(20, 4))
-                ax[0].imshow((_sample + 0.5).squeeze().permute(1, 2, 0).cpu().numpy())
-                ax[0].set_title(f"Sample t={t}")
-                ax[1].imshow((target + 0.5).squeeze().permute(1, 2, 0).cpu().numpy())
-                ax[1].set_title(f"Target t={t+t_diff}")
-                ax[2].imshow((reconstruction + 0.5).squeeze().permute(1, 2, 0).cpu().numpy())
-                ax[2].set_title(f"Reconstruction t={t+t_diff}")
-                ax[3].imshow(((reconstructed_diff + 1)/2.0).squeeze().permute(1, 2, 0).cpu().numpy())
-                ax[3].set_title(f"Pred. diff. t={t} to t={t+t_diff}")
-                ax[4].imshow(((target_diff + 1) / 2.0).squeeze().permute(1, 2, 0).cpu().numpy())
-                ax[4].set_title(f"Target. diff. t={t} to t={t + t_diff}")
-
-                gen_eval_imgs(sample=_sample.unsqueeze(0),
-                              reconstructed_diff=reconstructed_diff.unsqueeze(0),
-                              key_points=key_point_coordinates.unsqueeze(0))
-
-                plt.close()
-                """
-
-            print(samples.shape)
-            print(reconstructed_diffs.shape)
-            print(reconstructions.shape)
-            print(key_points.shape)
             play_series_and_reconstruction_with_keypoints(image_series=samples,
                                                           reconstruction=reconstructions,
                                                           keypoint_coords=key_points)
