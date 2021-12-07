@@ -289,13 +289,13 @@ class ULOSD_Agent(AbstractAgent):
             avg_val_sparsity_loss = np.mean(self.val_sparsity_loss)
             avg_val_pwc_loss = np.mean(self.val_pwc_loss)
 
-            self.writer.add_scalar(tag="val/rec_loss",
+            self.writer.add_scalar(tag="val/reconstruction_loss",
                                    scalar_value=avg_val_rec_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="val/sep_loss",
+            self.writer.add_scalar(tag="val/separation_loss",
                                    scalar_value=avg_val_sep_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="val/sparsity_loss",
+            self.writer.add_scalar(tag="val/l1_activation_penalty",
                                    scalar_value=avg_val_sparsity_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="val/pwc_loss",
+            self.writer.add_scalar(tag="val/pixelwise_contrastive_loss",
                                    scalar_value=avg_val_pwc_loss, global_step=global_epoch)
 
         else:
