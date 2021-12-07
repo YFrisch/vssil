@@ -39,11 +39,11 @@ class Keypoint_Metric_Test(unittest.TestCase):
         print("##### Read-in perfect key-points data.")
 
         self.img_sequence_perfect_kpts = read_video(
-            '/home/yannik/vssil/test_data/smooth.mp4',
+            '/test_data/data/smooth.mp4',
             pts_unit='sec'
         )[0].permute((0, 3, 1, 2))[::self.freq, ...].unsqueeze(0).float()/255.0  # (N, T, C, H, W)
 
-        with open('/home/yannik/vssil/test_data/smooth_0.txt') as perfect_kpts1_file:
+        with open('/test_data/data/smooth_0.txt') as perfect_kpts1_file:
 
             for line in perfect_kpts1_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -56,7 +56,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                                 self.img_sequence_perfect_kpts.shape[3],
                                                 self.img_sequence_perfect_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/smooth_1.txt') as perfect_kpts2_file:
+        with open('/test_data/data/smooth_1.txt') as perfect_kpts2_file:
 
             for line in perfect_kpts2_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -68,7 +68,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                                 self.img_sequence_perfect_kpts.shape[3],
                                                 self.img_sequence_perfect_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/smooth_2.txt') as perfect_kpts3_file:
+        with open('/test_data/data/smooth_2.txt') as perfect_kpts3_file:
 
             for line in perfect_kpts3_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -85,11 +85,11 @@ class Keypoint_Metric_Test(unittest.TestCase):
         print("##### Read-in laggy key-points data.")
 
         self.img_sequence_laggy_kpts = read_video(
-            '/home/yannik/vssil/test_data/laggy_kpts.mp4',
+            '/test_data/data/laggy_kpts.mp4',
             pts_unit='sec'
         )[0].permute((0, 3, 1, 2))[::self.freq, ...].unsqueeze(0).float()/255.0  # (T, C, H, W)
 
-        with open('/home/yannik/vssil/test_data/laggy_kpts_0.txt') as laggy_kpts1_file:
+        with open('/test_data/data/laggy_kpts_0.txt') as laggy_kpts1_file:
 
             for line in laggy_kpts1_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -101,7 +101,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                               self.img_sequence_laggy_kpts.shape[3],
                                               self.img_sequence_laggy_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/laggy_kpts_1.txt') as laggy_kpts2_file:
+        with open('/test_data/data/laggy_kpts_1.txt') as laggy_kpts2_file:
 
             for line in laggy_kpts2_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -113,7 +113,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                               self.img_sequence_laggy_kpts.shape[3],
                                               self.img_sequence_laggy_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/laggy_kpts_2.txt') as laggy_kpts3_file:
+        with open('/test_data/data/laggy_kpts_2.txt') as laggy_kpts3_file:
 
             for line in laggy_kpts3_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -130,11 +130,11 @@ class Keypoint_Metric_Test(unittest.TestCase):
         print("##### Read-in changing key-points data.")
 
         self.img_sequence_changing_kpts = read_video(
-            '/home/yannik/vssil/test_data/smooth_changing_noisy.mp4',
+            '/test_data/data/smooth_changing_noisy.mp4',
             pts_unit='sec'
         )[0].permute((0, 3, 1, 2))[::self.freq, ...].unsqueeze(0).float()/255.0  # (T, C, H, W)
 
-        with open('/home/yannik/vssil/test_data/smooth_changing_noisy_0.txt') as changing_kpts1_file:
+        with open('/test_data/data/smooth_changing_noisy_0.txt') as changing_kpts1_file:
 
             for line in changing_kpts1_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -146,7 +146,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                                  self.img_sequence_changing_kpts.shape[3],
                                                  self.img_sequence_changing_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/smooth_changing_noisy_1.txt') as changing_kpts2_file:
+        with open('/test_data/data/smooth_changing_noisy_1.txt') as changing_kpts2_file:
 
             for line in changing_kpts2_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -158,7 +158,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                                  self.img_sequence_changing_kpts.shape[3],
                                                  self.img_sequence_changing_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/smooth_changing_noisy_2.txt') as changing_kpts3_file:
+        with open('/test_data/data/smooth_changing_noisy_2.txt') as changing_kpts3_file:
 
             for line in changing_kpts3_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -175,11 +175,11 @@ class Keypoint_Metric_Test(unittest.TestCase):
         print("##### Read-in noisy key-points data.")
 
         self.img_sequence_noisy_kpts = read_video(
-            '/home/yannik/vssil/test_data/smooth_noisy.mp4',
+            '/test_data/data/smooth_noisy.mp4',
             pts_unit='sec'
         )[0].permute((0, 3, 1, 2))[::self.freq, ...].unsqueeze(0).float()/255.0  # (T, C, H, W)
 
-        with open('/home/yannik/vssil/test_data/smooth_noisy_0.txt') as noisy_kpts1_file:
+        with open('/test_data/data/smooth_noisy_0.txt') as noisy_kpts1_file:
 
             for line in noisy_kpts1_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -191,7 +191,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                               self.img_sequence_noisy_kpts.shape[3],
                                               self.img_sequence_noisy_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/smooth_noisy_1.txt') as noisy_kpts2_file:
+        with open('/test_data/data/smooth_noisy_1.txt') as noisy_kpts2_file:
 
             for line in noisy_kpts2_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")
@@ -203,7 +203,7 @@ class Keypoint_Metric_Test(unittest.TestCase):
                                               self.img_sequence_noisy_kpts.shape[3],
                                               self.img_sequence_noisy_kpts.shape[4])
 
-        with open('/home/yannik/vssil/test_data/smooth_noisy_2.txt') as noisy_kpts3_file:
+        with open('/test_data/data/smooth_noisy_2.txt') as noisy_kpts3_file:
 
             for line in noisy_kpts3_file.readlines():
                 l = line.replace("\t", "").replace("\n", "").split(";")

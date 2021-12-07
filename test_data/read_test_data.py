@@ -36,7 +36,7 @@ def convert_img_coordinates_to_kpts(kpt_coordinates: torch.Tensor, img_shape: tu
     kpts = kpt_coordinates.clone()
     print(kpts[100, ...])
     kpts[..., 1] = ((kpts[..., 0] / img_shape[-1]) * 2) - 1  # W
-    kpts[..., 0] = (-(kpts[..., 1] / img_shape[-2]) * 2) - 1  # H
+    kpts[..., 0] = ((kpts[..., 1] / img_shape[-2]) * 2) - 1  # H
     print(kpts[100, ...])
     return kpts
 
@@ -61,6 +61,8 @@ if __name__ == "__main__":
                                                  tuple(img_series_tensor.shape[-2:]))
 
     time_step = 100
+
+    plt.imshow(img_series_tensor[time_step, ...].permute(1, 2, 0).cpu().numpy())
 
     imprinted_frame = imprint_img_with_kpts(
         img=img_series_tensor[time_step: time_step + 1, ...].unsqueeze(0),

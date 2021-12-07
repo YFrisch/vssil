@@ -129,9 +129,6 @@ def run(count: int = None):
             return x-d, y+d, direction
         return x, y, direction
 
-    img_list = []
-    kpt_coords_list = []
-
     max_frames = 1000  # 1000
 
     t_buff_kpt_x = np.copy(kpt_x)
