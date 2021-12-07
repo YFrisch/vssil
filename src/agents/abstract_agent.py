@@ -140,7 +140,8 @@ class AbstractAgent:
     def log_values(self,
                    fold: int,
                    epoch: int,
-                   epochs_per_fold: int):
+                   epochs_per_fold: int,
+                   mode: str = 'training'):
         global_epoch = fold * epochs_per_fold + epoch
         avg_loss = np.mean(self.loss_per_iter)
         self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
@@ -319,7 +320,8 @@ class AbstractAgent:
                 avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
 
-                self.log_values(fold=fold, epoch=epoch, epochs_per_fold=epochs_per_fold)
+                self.log_values(fold=fold, epoch=epoch, epochs_per_fold=epochs_per_fold, mode='training')
+
                 for param_group in self.optim.param_groups:
                     self.writer.add_scalar(tag="train/lr",
                                            scalar_value=param_group['lr'],
@@ -331,7 +333,6 @@ class AbstractAgent:
                         self.validate(training_fold=fold, training_epoch=epoch, config=config)
 
                 # Logs for ressources (memory usage etc.)
-
                 pid = os.getpid()
                 python_process = psutil.Process(pid)
                 memory_use = python_process.memory_info()[0] / 2. ** 30
@@ -371,6 +372,8 @@ class AbstractAgent:
         time.sleep(0.01)
 
         self.model.eval()
+
+        self.reset_logged_values()
 
         loss_per_sample = []
 
@@ -421,6 +424,8 @@ class AbstractAgent:
         print("##### Average loss:", avg_loss)
         print("\n")
         time.sleep(0.01)
+
+        self.log_values(fold=training_fold, epoch=global_epoch, epochs_per_fold=epochs_per_fold, mode='validation')
 
         # Save current model
         if self.best_val_loss is None:

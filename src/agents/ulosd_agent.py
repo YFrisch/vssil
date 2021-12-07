@@ -8,7 +8,8 @@ from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
-    time_contrastive_triplet_loss, pixelwise_contrastive_loss_patch_based, pixelwise_contrastive_loss_fmap_based
+    time_contrastive_triplet_loss, pixelwise_contrastive_loss_patch_based, pixelwise_contrastive_loss_fmap_based, \
+    pwcl
 from src.losses.distr_constraints import wasserstein_constraint
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
@@ -88,6 +89,11 @@ class ULOSD_Agent(AbstractAgent):
         self.emd_sum_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
+
+        self.val_rec_loss = []
+        self.val_sep_loss = []
+        self.val_sparsity_loss = []
+        self.val_pwc_loss = []
 
     def preprocess(self,
                    x: torch.Tensor,
@@ -178,7 +184,17 @@ class ULOSD_Agent(AbstractAgent):
                                    config: dict) -> torch.Tensor:
         scale = config['training']['pixelwise_contrastive_scale']
         if config['training']['pixelwise_contrastive_type'] == 'patch':
+            """
             return pixelwise_contrastive_loss_patch_based(
+                keypoint_coordinates=keypoint_coordinates,
+                image_sequence=image_sequence,
+                pos_range=self.pc_pos_range,
+                grid=self.pc_grid,
+                patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
+                alpha=config['training']['pixelwise_contrastive_alpha'],
+            ) * scale
+            """
+            return pwcl(
                 keypoint_coordinates=keypoint_coordinates,
                 image_sequence=image_sequence,
                 pos_range=self.pc_pos_range,
@@ -231,33 +247,59 @@ class ULOSD_Agent(AbstractAgent):
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
 
-    def log_values(self, fold: int, epoch: int, epochs_per_fold: int):
-        global_epoch = fold * epochs_per_fold + epoch
-        avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
-        avg_separation_loss = np.mean(self.sep_loss_per_iter)
-        avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
-        avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
-        avg_pi_co_loss = np.mean(self.pi_co_loss_per_iter)  # Extension
-        avg_emd_sum = np.mean(self.emd_sum_per_iter)  # Extension
-        avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
-        avg_total_loss = np.mean(self.total_loss_per_iter)
+        self.val_rec_loss = []
+        self.val_sep_loss = []
+        self.val_sparsity_loss = []
+        self.val_pwc_loss = []
 
-        self.writer.add_scalar(tag="train/reconstruction_loss",
-                               scalar_value=avg_reconstruction_loss, global_step=global_epoch)
-        self.writer.add_scalar(tag="train/separation_loss",
-                               scalar_value=avg_separation_loss, global_step=global_epoch)
-        self.writer.add_scalar(tag="train/consistency_loss",
-                               scalar_value=avg_consistency_loss, global_step=global_epoch)  # Extension
-        self.writer.add_scalar(tag="train/tc_triplet_loss",
-                               scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
-        self.writer.add_scalar(tag="train/pixelwise_contrastive_loss",
-                               scalar_value=avg_pi_co_loss, global_step=global_epoch)  # Extension
-        self.writer.add_scalar(tag="train/emd_sum",
-                               scalar_value=avg_emd_sum, global_step=global_epoch)
-        self.writer.add_scalar(tag="train/l1_activation_penalty",
-                               scalar_value=avg_l1_penalty, global_step=global_epoch)
-        self.writer.add_scalar(tag="train/total_loss",
-                               scalar_value=avg_total_loss, global_step=global_epoch)
+    def log_values(self, fold: int, epoch: int, epochs_per_fold: int, mode: str = 'training'):
+
+        global_epoch = fold * epochs_per_fold + epoch
+
+        if mode == 'training':
+            avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
+            avg_separation_loss = np.mean(self.sep_loss_per_iter)
+            avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
+            avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
+            avg_pi_co_loss = np.mean(self.pi_co_loss_per_iter)  # Extension
+            avg_emd_sum = np.mean(self.emd_sum_per_iter)  # Extension
+            avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
+            avg_total_loss = np.mean(self.total_loss_per_iter)
+
+            self.writer.add_scalar(tag="train/reconstruction_loss",
+                                   scalar_value=avg_reconstruction_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="train/separation_loss",
+                                   scalar_value=avg_separation_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="train/consistency_loss",
+                                   scalar_value=avg_consistency_loss, global_step=global_epoch)  # Extension
+            self.writer.add_scalar(tag="train/tc_triplet_loss",
+                                   scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
+            self.writer.add_scalar(tag="train/pixelwise_contrastive_loss",
+                                   scalar_value=avg_pi_co_loss, global_step=global_epoch)  # Extension
+            self.writer.add_scalar(tag="train/emd_sum",
+                                   scalar_value=avg_emd_sum, global_step=global_epoch)
+            self.writer.add_scalar(tag="train/l1_activation_penalty",
+                                   scalar_value=avg_l1_penalty, global_step=global_epoch)
+            self.writer.add_scalar(tag="train/total_loss",
+                                   scalar_value=avg_total_loss, global_step=global_epoch)
+
+        elif mode == 'validation':
+            avg_val_rec_loss = np.mean(self.val_rec_loss)
+            avg_val_sep_loss = np.mean(self.val_sep_loss)
+            avg_val_sparsity_loss = np.mean(self.val_sparsity_loss)
+            avg_val_pwc_loss = np.mean(self.val_pwc_loss)
+
+            self.writer.add_scalar(tag="val/rec_loss",
+                                   scalar_value=avg_val_rec_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="val/sep_loss",
+                                   scalar_value=avg_val_sep_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="val/sparsity_loss",
+                                   scalar_value=avg_val_sparsity_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="val/pwc_loss",
+                                   scalar_value=avg_val_pwc_loss, global_step=global_epoch)
+
+        else:
+            raise ValueError('Unkown mode.')
 
     def step(self,
              sample: torch.Tensor,
@@ -374,7 +416,14 @@ class ULOSD_Agent(AbstractAgent):
             # NOTE: This part seems to cause a linear increase in CPU memory usage
             #       Maybe the videos should be saved to the hard-drive instead
 
+
             with torch.no_grad():
+
+                self.val_rec_loss.append(reconstruction_loss.item())
+                self.val_sep_loss.append(separation_loss.item())
+                self.val_sparsity_loss.append(l1_penalty.item())
+                self.val_pwc_loss.append(pc_loss.item())
+
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
                                                         reconstruction=reconstruction.detach().clamp(-0.5, 0.5),
                                                         key_points=observed_key_points)
