@@ -5,3 +5,5 @@ from .time_contrastive_loss import time_contrastive_triplet_loss
 
 from .pixelwise_contrastive_loss_v3 import pixelwise_contrastive_loss_patch_based
 from .pixelwise_contrastive_loss_v4 import pixelwise_contrastive_loss_fmap_based
+from .pixelwise_contrastive_loss_v6 import pwcl
+from .pixelwise_contrastive_loss_v7 import pwcl as pwcl2

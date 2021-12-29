@@ -1,47 +1,55 @@
 data:
   img_shape: (128, 128)
-  num_workers: 0
+  num_workers: 4
 
 model:
   n_frames: 8
   n_feature_maps: 64  # 64
   feature_map_width: 16
   feature_map_height: 16
-  feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code
-  n_init_filters: 128  # 128
-  n_convolutions_per_res: 2  # 'layers_per_scale' in the keras code
+  feature_map_gauss_sigma: 1.5  # 'keypoint_width' in keras code, 1.5, 0.75?
+  n_init_filters: 32  # 128, 32
+  n_convolutions_per_res: 1  # 'layers_per_scale' in the keras code [1, 2, 3, 4]
   conv_kernel_size: 3
-  decoder_hidden_activations: prelu  # LeakyReLU
-  encoder_hidden_activations: prelu  # LeakyReLU
-  weight_init: he_uniform
+  decoder_hidden_activations: LeakyReLU  # LeakyReLU
+  encoder_hidden_activations: LeakyReLU  # LeakyReLU
+  weight_init: he_normal
 
 training:
   k_folds: 0
   epochs: 500
-  steps_per_epoch: 20  # 100
-  optim: 'AdamW'
-  lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 30  # 30
-  initial_lr: 0.001
+  steps_per_epoch: 100  # 100
+  optim: AdamW
+  lr_scheduler: StepLR  # StepLR, None
+  lr_scheduler_epoch_steps: 100  # 30
+  initial_lr: 0.0001
+  max_lr: 0.001
   min_lr: 0.0001
-  clip_norm: 10
-  batch_size: 2  # 32
-  l2_weight_decay: 0.0001
-  reconstruction_loss: 'sse'
-  reconstruction_loss_scale: 0.01
-  feature_map_regularization: 5.0  # Key-point sparsity scale
-  separation_loss_scale: 0.1  # 0.1
-  separation_loss_sigma: 0.02  # 0.02
+  clip_norm: 5.0
+  batch_size: 4  # 32
+  l2_weight_decay: 0.00001
+  reconstruction_loss: sse  # sse, mse
+  reconstruction_loss_scale: 0.1  # 1.0, 10.0, ...
+  feature_map_regularization: 5.0  # Key-point sparsity scale, 5.0
+  separation_loss_scale: 0.1  # 0.1, 10.0
+  separation_loss_sigma: 0.02  # 0.02, 0.002
   consistency_loss_scale: 0.0  # Set to 0 to not use this loss
   tc_loss_scale: 0.0
-  pixelwise_contrastive_scale: 0.0
-  pixelwise_contrastive_time_window: 3
-  pixelwise_contrastive_alpha: 1.0
+  pixelwise_contrastive_starting_epoch: 0
+  pixelwise_contrastive_type: patch
+  pixelwise_contrastive_scale: 0.0  # 10.0
+  pixelwise_contrastive_time_window: 1  # 5
+  pixelwise_contrastive_patch_size: (9, 9)
+  pixelwise_contrastive_alpha: 0.5  # 0.1
+  use_emd: false
+  emd_sum_scale: 0.1
+  re_sample: false
+  re_sample_scale: 0.05
 
 validation:
-  steps: 20
+  steps: 100
   freq: 5
-  batch_size: 2  # 32
+  batch_size: 4  # 32
   save_video: true
 
 evaluation:
@@ -49,7 +57,7 @@ evaluation:
 
 device: 'cuda:0'
 multi_gpu: false
-log_dir: "results/ulosd_dmcs"
+log_dir: "results/ulosd_manipulator"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

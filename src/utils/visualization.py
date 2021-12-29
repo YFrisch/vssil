@@ -34,6 +34,121 @@ def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi', fps: int 
     video.release()
 
 
+def play_series_with_keypoints(image_series: torch.Tensor,
+                               keypoint_coords: torch.Tensor,
+                               intensity_threshold: float = 0.9,
+                               key_point_trajectory: bool = False,
+                               trajectory_length: int = 10, ):
+    """ Visualizes the image-series tensor together with the given predicted key-points. """
+    assert keypoint_coords.dim() == 4
+    (N, T, C, H, W) = tuple(image_series.shape)
+    assert C in [1, 3], "Only one or three channels supported for plotting image series!"
+    assert N == 1, "Only one sample supported (Batch size of 1)."
+
+    # Make colormap
+    indexable_cmap = cm.get_cmap('prism', keypoint_coords.shape[2])
+
+    # Permute to (N, T, H, W, C) for matplotlib
+    image_series = (image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
+
+    # Filter for "active" key-point, i.e. key-points with an avg intensity above the threshold
+    active_kp_ids = []
+    for kp in range(keypoint_coords.shape[2]):
+        if keypoint_coords.shape[3] == 2 or np.mean(keypoint_coords[0, :, kp, 2].cpu().numpy()) > intensity_threshold:
+            active_kp_ids.append(kp)
+
+    frame = np.zeros((W, H, C))
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    ax.set_title('Sample + Key-Points')
+
+    """
+
+        Initialisation
+
+    """
+
+    if C == 1:
+        orig_im_obj = ax.imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
+    else:
+        orig_im_obj = ax.imshow(frame)
+
+    if key_point_trajectory:
+        key_point_pos_buffer = [[] for _ in range(len(active_kp_ids))]
+    line_objects = []
+    orig_scatter_objects = []
+    if C == 1:
+        orig_im_obj.set_data(image_series[0, 0, ...].squeeze())
+    else:
+        orig_im_obj.set_data(image_series[0, 0, ...])
+
+    for n_keypoint in range(len(active_kp_ids)):
+        if keypoint_coords.shape[3] == 2:
+            intensity = 1.0
+        else:
+            # intensity = keypoint_coords[0, 0, n_keypoint, 2]
+            intensity = keypoint_coords[0, 0, active_kp_ids[n_keypoint], 2]
+        if intensity >= 0.0:
+            orig_scatter_obj = ax.scatter(0, 0, color=indexable_cmap(n_keypoint / len(active_kp_ids)),
+                                             alpha=0.5)
+            orig_scatter_objects.append(orig_scatter_obj)
+            if key_point_trajectory:
+                line_obj = ax.plot([0, 0], [0, 0],
+                                      color=indexable_cmap(n_keypoint / len(active_kp_ids)),
+                                      alpha=0.5)[0]
+                line_objects.append(line_obj)
+
+    """
+
+        Iteration
+
+    """
+
+    def animate(t: int):
+        im_frame = image_series[0, t, ...].squeeze()
+        orig_im_obj.set_data(im_frame)
+
+        for k in range(len(active_kp_ids)):
+            # NOTE: The predicted keypoints are in [y(height), x(width)] coordinates
+            #       in the ranges [-1.0; -1.0] to [1.0; 1.0]
+            #                   ^
+            #                   |
+            #                   |    x[0.5, 0.5]
+            #                   |
+            #         ---------------------->
+            #                   |
+            #              x    |
+            #     [-0.5, -0.5]  |
+            #                   |
+
+            x_coord = int((-keypoint_coords[0, t, active_kp_ids[k], 1] + 1.0) / 2 * W)
+            y_coord = int((keypoint_coords[0, t, active_kp_ids[k], 0] + 1.0) / 2 * H)
+
+            orig_scatter_objects[k].set_offsets([x_coord, y_coord])
+
+            if key_point_trajectory:
+                if len(key_point_pos_buffer[k]) < trajectory_length:
+                    key_point_pos_buffer[k].append([x_coord, y_coord])
+                else:
+                    key_point_pos_buffer[k].pop(0)
+                    key_point_pos_buffer[k].append([x_coord, y_coord])
+                combined_np_array = np.concatenate([key_point_pos_buffer[k]])
+                line_objects[k].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
+
+        return im_frame, orig_scatter_objects, line_objects
+
+    anim = animation.FuncAnimation(fig, animate, frames=T, interval=10, repeat=False)
+
+    # Set up formatting for the video files
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=20, metadata=dict(artist='me'), bitrate=1800)
+    anim.save('anim.mp4', writer=writer)
+
+    plt.show()
+
+    return active_kp_ids
+
+
 def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                                                   keypoint_coords: torch.Tensor,
                                                   feature_maps: torch.Tensor = None,
@@ -42,7 +157,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                                                   intensity_threshold: float = 0.9,
                                                   key_point_trajectory: bool = False,
                                                   trajectory_length: int = 10, ):
-    """ Visualizes the an image-series tensor
+    """ Visualizes the image-series tensor
         together with its reconstruction and
         given predicted key-points.
 
@@ -98,12 +213,17 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     frame = np.zeros((W, H, C))
 
-    rgba_frame = np.zeros((W, H, C))
+    if feature_maps is not None:
+        rgba_frame = np.zeros((W, H, C))
 
-    fig, ax = plt.subplots(1, 3, figsize=(15, 10))
-    ax[0].set_title('Sample + Key-Points')
-    ax[1].set_title('Sample + Feature-Maps')
-    ax[2].set_title('Reconstruction')
+        fig, ax = plt.subplots(1, 3, figsize=(15, 10))
+        ax[0].set_title('Sample + Key-Points')
+        ax[1].set_title('Sample + Feature-Maps')
+        ax[2].set_title('Reconstruction')
+    else:
+        fig, ax = plt.subplots(1, 2, figsize=(15, 10))
+        ax[0].set_title('Sample + Key-Points')
+        ax[-1].set_title('Reconstruction')
 
     """
     
@@ -113,12 +233,14 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     if C == 1:
         orig_im_obj = ax[0].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
-        rgba_im_obj = ax[1].imshow(rgba_frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
-        rec_im_obj = ax[2].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
+        if feature_maps is not None:
+            rgba_im_obj = ax[1].imshow(rgba_frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
+        rec_im_obj = ax[-1].imshow(frame.squeeze(), cmap='Greys', vmin=0, vmax=1)
     else:
         orig_im_obj = ax[0].imshow(frame)
-        rgba_im_obj = ax[1].imshow(rgba_frame)
-        rec_im_obj = ax[2].imshow(frame)
+        if feature_maps is not None:
+            rgba_im_obj = ax[1].imshow(rgba_frame)
+        rec_im_obj = ax[-1].imshow(frame)
 
     if key_point_trajectory:
         key_point_pos_buffer = [[] for _ in range(len(active_kp_ids))]
@@ -126,11 +248,13 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
     orig_scatter_objects = []
     if C == 1:
         orig_im_obj.set_data(image_series[0, 0, ...].squeeze())
-        rgba_im_obj.set_data(rgba_img_sequence[0, 0, ...].squeeze())
+        if feature_maps is not None:
+            rgba_im_obj.set_data(rgba_img_sequence[0, 0, ...].squeeze())
         rec_im_obj.set_data(reconstructed_image_series[0, 0, ...].squeeze())
     else:
         orig_im_obj.set_data(image_series[0, 0, ...])
-        rgba_im_obj.set_data(rgba_img_sequence[0, 0, ...].transpose(1, 2, 0))
+        if feature_maps is not None:
+            rgba_im_obj.set_data(rgba_img_sequence[0, 0, ...].transpose(1, 2, 0))
         rec_im_obj.set_data(reconstructed_image_series[0, 0, ...])
     for n_keypoint in range(len(active_kp_ids)):
         if keypoint_coords.shape[3] == 2:
@@ -156,7 +280,8 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     def animate(t: int):
         im_frame = image_series[0, t, ...].squeeze()
-        rgba_frame = rgba_img_sequence[0, t, ...].transpose(1, 2, 0).squeeze().copy()
+        if feature_maps is not None:
+            rgba_frame = rgba_img_sequence[0, t, ...].transpose(1, 2, 0).squeeze().copy()
         orig_im_obj.set_data(im_frame)
         rec_frame = reconstructed_image_series[0, t, ...].squeeze()
         rec_im_obj.set_data(rec_frame)
@@ -188,13 +313,17 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                 combined_np_array = np.concatenate([key_point_pos_buffer[k]])
                 line_objects[k].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
 
-            upscaled_feature_map = F.interpolate(feature_maps[0, t:t + 1, k:k + 1, ...], size=(H, W)).cpu().numpy()
-            rgba_frame[..., 3] += upscaled_feature_map.squeeze()
+            if feature_maps is not None:
+                upscaled_feature_map = F.interpolate(feature_maps[0, t:t + 1, k:k + 1, ...], size=(H, W)).cpu().numpy()
+                rgba_frame[..., 3] += upscaled_feature_map.squeeze()
 
-        rgba_frame = rgba_frame.clip(0.0, 1.0)
-        rgba_im_obj.set_data(rgba_frame)
+        if feature_maps is not None:
+            rgba_frame = rgba_frame.clip(0.0, 1.0)
+            rgba_im_obj.set_data(rgba_frame)
+            return im_frame, rec_frame, orig_scatter_objects, line_objects, rgba_im_obj
 
-        return im_frame, rec_frame, orig_scatter_objects, line_objects, rgba_im_obj
+        else:
+            return im_frame, rec_frame, orig_scatter_objects, line_objects, None
 
     anim = animation.FuncAnimation(fig, animate, frames=T, interval=10, repeat=False)
 
@@ -225,8 +354,11 @@ def gen_eval_imgs(sample: torch.Tensor,
     """
     assert sample.ndim == 5
     assert reconstruction.ndim == 5
-    sample = sample + 0.5
-    reconstruction = reconstruction + 0.5
+    if sample.min() < 0.0:
+        sample = sample + 0.5
+        reconstruction = reconstruction + 0.5
+    print(sample.min())
+    print(sample.max())
     assert key_points.ndim == 4
     # assert key_points.shape[3] in [2, 3]
     assert key_points[..., :2].min() >= -1.0
@@ -338,12 +470,19 @@ def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
     indexable_cmap = cm.get_cmap('prism', keypoint_coordinates.shape[2])
 
     fig, ax = plt.subplots(3, 1, figsize=(10, 15))
-    ax[0].set_title(f"x coordinate (mean. int > {intensity_threshold})")
-    ax[1].set_title(f"y coordinate (mean. int > {intensity_threshold})")
+    if keypoint_coordinates.shape[-1] == 3:
+        ax[0].set_title(f"x coordinate (mean. int > {intensity_threshold})")
+        ax[1].set_title(f"y coordinate (mean. int > {intensity_threshold})")
+    else:
+        ax[0].set_title(f"x coordinate")
+        ax[1].set_title(f"y coordinate")
     ax[2].set_title("intensity")
     for n_keypoint in range(keypoint_coordinates.shape[2]):
 
-        mean_int = np.mean(keypoint_coordinates[0, :, n_keypoint, 2].cpu().numpy().squeeze())
+        if keypoint_coordinates.shape[-1] == 2:
+            mean_int = 1.0
+        else:
+            mean_int = np.mean(keypoint_coordinates[0, :, n_keypoint, 2].cpu().numpy().squeeze())
 
         if mean_int >= intensity_threshold:
             ax[0].plot(np.arange(0, T),

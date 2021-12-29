@@ -9,7 +9,7 @@ from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.losses import temporal_separation_loss, perception_loss, spatial_consistency_loss, \
     time_contrastive_triplet_loss, pixelwise_contrastive_loss_patch_based, pixelwise_contrastive_loss_fmap_based, \
-    pwcl
+    pwcl, pwcl2
 from src.losses.distr_constraints import wasserstein_constraint
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
@@ -85,7 +85,9 @@ class ULOSD_Agent(AbstractAgent):
         self.sep_loss_per_iter = []
         self.cons_loss_per_iter = []  # Extension
         self.tc_loss_per_iter = []  # Extension
-        self.pi_co_loss_per_iter = []  # Extension
+        self.pwc_loss_per_iter = []  # Extension
+        self.match_loss_per_iter = []  # Extension
+        self.non_match_loss_per_iter = []  # Extension
         self.emd_sum_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
@@ -94,6 +96,8 @@ class ULOSD_Agent(AbstractAgent):
         self.val_sep_loss = []
         self.val_sparsity_loss = []
         self.val_pwc_loss = []
+        self.val_match_loss = []
+        self.val_non_match_loss = []
 
     def preprocess(self,
                    x: torch.Tensor,
@@ -111,7 +115,9 @@ class ULOSD_Agent(AbstractAgent):
         """
         # assert x.max() <= 1
         # assert x.min() >= 0
-        x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
+        # TODO: Check if range [0, 1] works better than [-0.5, 0.5]
+        # x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
+        x = torch.clamp(x, min=0.0, max=1.0)
         return x, torch.empty([])
 
     def loss_func(self,
@@ -194,14 +200,16 @@ class ULOSD_Agent(AbstractAgent):
                 alpha=config['training']['pixelwise_contrastive_alpha'],
             ) * scale
             """
-            return pwcl(
+
+            pwcl, match_l, non_match_l = pwcl2(
                 keypoint_coordinates=keypoint_coordinates,
                 image_sequence=image_sequence,
                 pos_range=self.pc_pos_range,
                 grid=self.pc_grid,
                 patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
                 alpha=config['training']['pixelwise_contrastive_alpha'],
-            ) * scale
+            )
+            return pwcl*scale, match_l, non_match_l
         elif config['training']['pixelwise_contrastive_type'] == 'fmap':
             return pixelwise_contrastive_loss_fmap_based(
                 keypoint_coordinates=keypoint_coordinates,
@@ -242,7 +250,9 @@ class ULOSD_Agent(AbstractAgent):
         self.sep_loss_per_iter = []
         self.cons_loss_per_iter = []  # Extension
         self.tc_loss_per_iter = []  # Extension
-        self.pi_co_loss_per_iter = []  # Extension
+        self.pwc_loss_per_iter = []  # Extension
+        self.match_loss_per_iter = []  # Extension
+        self.non_match_loss_per_iter = []  # Extension
         self.emd_sum_per_iter = []  # Extension
         self.l1_penalty_per_iter = []
         self.total_loss_per_iter = []
@@ -251,6 +261,8 @@ class ULOSD_Agent(AbstractAgent):
         self.val_sep_loss = []
         self.val_sparsity_loss = []
         self.val_pwc_loss = []
+        self.val_match_loss = []
+        self.val_non_match_loss = []
 
     def log_values(self, fold: int, epoch: int, epochs_per_fold: int, mode: str = 'training'):
 
@@ -261,7 +273,9 @@ class ULOSD_Agent(AbstractAgent):
             avg_separation_loss = np.mean(self.sep_loss_per_iter)
             avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
             avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
-            avg_pi_co_loss = np.mean(self.pi_co_loss_per_iter)  # Extension
+            avg_pwc_loss = np.mean(self.pwc_loss_per_iter)  # Extension
+            avg_match_loss = np.mean(self.match_loss_per_iter)  # Extension
+            avg_non_match_loss = np.mean(self.non_match_loss_per_iter)  # Extension
             avg_emd_sum = np.mean(self.emd_sum_per_iter)  # Extension
             avg_l1_penalty = np.mean(self.l1_penalty_per_iter)
             avg_total_loss = np.mean(self.total_loss_per_iter)
@@ -275,7 +289,11 @@ class ULOSD_Agent(AbstractAgent):
             self.writer.add_scalar(tag="train/tc_triplet_loss",
                                    scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
             self.writer.add_scalar(tag="train/pixelwise_contrastive_loss",
-                                   scalar_value=avg_pi_co_loss, global_step=global_epoch)  # Extension
+                                   scalar_value=avg_pwc_loss, global_step=global_epoch)  # Extension
+            self.writer.add_scalar(tag="train/pwc_match_loss",
+                                   scalar_value=avg_match_loss, global_step=global_epoch)  # Extension
+            self.writer.add_scalar(tag="train/pcw_non_match_loss",
+                                   scalar_value=avg_non_match_loss, global_step=global_epoch)  # Extension
             self.writer.add_scalar(tag="train/emd_sum",
                                    scalar_value=avg_emd_sum, global_step=global_epoch)
             self.writer.add_scalar(tag="train/l1_activation_penalty",
@@ -288,6 +306,8 @@ class ULOSD_Agent(AbstractAgent):
             avg_val_sep_loss = np.mean(self.val_sep_loss)
             avg_val_sparsity_loss = np.mean(self.val_sparsity_loss)
             avg_val_pwc_loss = np.mean(self.val_pwc_loss)
+            avg_val_match_loss = np.mean(self.val_match_loss)
+            avg_val_non_match_loss = np.mean(self.val_non_match_loss)
 
             self.writer.add_scalar(tag="val/reconstruction_loss",
                                    scalar_value=avg_val_rec_loss, global_step=global_epoch)
@@ -297,6 +317,10 @@ class ULOSD_Agent(AbstractAgent):
                                    scalar_value=avg_val_sparsity_loss, global_step=global_epoch)
             self.writer.add_scalar(tag="val/pixelwise_contrastive_loss",
                                    scalar_value=avg_val_pwc_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="val/pwc_match_loss",
+                                   scalar_value=avg_val_match_loss, global_step=global_epoch)
+            self.writer.add_scalar(tag="val/pwc_non_match_loss",
+                                   scalar_value=avg_val_non_match_loss, global_step=global_epoch)
 
         else:
             raise ValueError('Unkown mode.')
@@ -384,12 +408,15 @@ class ULOSD_Agent(AbstractAgent):
 
         if config['training']['pixelwise_contrastive_scale'] > 0 \
                 and global_epoch_number >= config['training']['pixelwise_contrastive_starting_epoch']:
-            pc_loss = self.pixelwise_contrastive_loss(keypoint_coordinates=observed_key_points,
-                                                      image_sequence=sample,
-                                                      feature_map_sequence=gaussian_maps,
-                                                      config=config)
+            pc_loss, match_loss, non_match_loss = self.pixelwise_contrastive_loss(
+                keypoint_coordinates=observed_key_points,
+                image_sequence=sample,
+                feature_map_sequence=gaussian_maps,
+                config=config)
         else:
             pc_loss = torch.Tensor([0.0]).to(self.device)
+            match_loss = torch.Tensor([0.0]).to(self.device)
+            non_match_loss = torch.Tensor([0.0]).to(self.device)
 
         if config['training']['use_emd']:
             emd_sum = (torch.sum(wasserstein_constraint(observed_key_points))
@@ -423,9 +450,15 @@ class ULOSD_Agent(AbstractAgent):
                 self.val_sep_loss.append(separation_loss.item())
                 self.val_sparsity_loss.append(l1_penalty.item())
                 self.val_pwc_loss.append(pc_loss.item())
+                self.val_match_loss.append(match_loss.item())
+                self.val_non_match_loss.append(non_match_loss.item())
 
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
-                                                        reconstruction=reconstruction.detach().clamp(-0.5, 0.5),
+                                                        # sample=(sample - 0.5).clamp(0.0, 1.0),
+                                                        # reconstruction=reconstruction.detach().clamp(-0.5, 0.5),
+                                                        # reconstruction=(reconstruction - 0.5).detach().clamp(-0.5, 0.5),
+                                                        # reconstruction=(reconstruction - 0.5).detach().clamp(0.0, 1.0),
+                                                        reconstruction=reconstruction,
                                                         key_points=observed_key_points)
 
                 self.writer.add_video(tag='val/reconstruction_sample',
@@ -434,6 +467,10 @@ class ULOSD_Agent(AbstractAgent):
 
                 self.writer.add_video(tag='features/feature_maps',
                                       vid_tensor=feature_maps[0:1, 0:1, ...].transpose(1, 2),
+                                      global_step=global_epoch_number)
+
+                self.writer.add_video(tag='features/gaussian_maps',
+                                      vid_tensor=gaussian_maps[0:1, 0:1, ...].transpose(1, 2),
                                       global_step=global_epoch_number)
 
                 self.writer.flush()
@@ -446,7 +483,9 @@ class ULOSD_Agent(AbstractAgent):
             self.sep_loss_per_iter.append(separation_loss.item())
             self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
             self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
-            self.pi_co_loss_per_iter.append(pc_loss.item())  # Extension
+            self.pwc_loss_per_iter.append(pc_loss.item())  # Extension
+            self.match_loss_per_iter.append(match_loss.item())  # Extension
+            self.non_match_loss_per_iter.append(non_match_loss.item())  # Extension
             self.emd_sum_per_iter.append(emd_sum.item())  # Extension
             self.l1_penalty_per_iter.append(l1_penalty.item())
             self.total_loss_per_iter.append(L.item())

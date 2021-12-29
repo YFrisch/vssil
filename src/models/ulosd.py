@@ -151,6 +151,8 @@ class ULOSD(nn.Module):
 
             # Decode
             reconstructed_image = self.decoder(combi).to(self.device)
+            # TODO: Mapping to [0, 1] range
+            reconstructed_image = torch.sigmoid(reconstructed_image)
             image_list.append(reconstructed_image)
 
         # Stack time
