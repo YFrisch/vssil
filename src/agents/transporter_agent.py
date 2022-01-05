@@ -1,3 +1,6 @@
+import random
+
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
@@ -47,15 +50,30 @@ class TransporterAgent(AbstractAgent):
         """
 
         assert x.dim() == 5
-        sample_frame = x[:, 0, ...] - 0.5
-        target_frame = x[:, -1, ...] - 0.5
+
+        # Randomly sample target frame from within t=s+1 to t=s+19
+        # t_diff = random.randint(a=1, b=19)
+        t_diff = random.randint(a=1, b=config['model']['n_frames'] - 1)
+
+        # sample_frame = x[:, 0, ...] - 0.5
+        # sample_frame = x[:, 0, ...]
+        # target_frame = x[:, -1, ...] - 0.5
+        # target_frame = x[:, -1, ...]
+        # target_frame = x[:, 0 + t_diff, ...]
+        sample_frame = 2*((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+                            (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
         return sample_frame, target_frame
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
         if config['training']['loss_function'] in ['mse', 'l2', 'MSE']:
             return F.mse_loss(input=prediction, target=target, reduction='mean')
         elif config['training']['loss_function'] in ['sse', 'SSE']:
-            return F.mse_loss(input=prediction, target=target, reduction='sum')
+            # return F.mse_loss(input=prediction, target=target, reduction='sum')
+            return F.mse_loss(prediction, target, reduction='sum') /\
+                   (torch.var(target) * 2 * target.shape[0] * target.shape[1])
+        elif config['training']['loss_function'] in ['bce', 'BCE']:
+            return F.binary_cross_entropy(input=prediction, target=target)
         else:
             raise ValueError("Given loss function not implemented.")
 
@@ -72,7 +90,8 @@ class TransporterAgent(AbstractAgent):
         if mode == 'training':
             self.optim.zero_grad()
 
-        reconstruction = self.model(sample, target).clip(-0.5, 0.5)
+        reconstruction = self.model(sample, target)
+        # reconstruction.clip_(-0.5, 0.5)
         loss = self.loss_func(prediction=reconstruction, target=target, config=config)
 
         if mode == 'training':
@@ -103,7 +122,9 @@ class TransporterAgent(AbstractAgent):
                 # Adapt to visualization
                 key_point_coordinates[..., 1] = key_point_coordinates[..., 1] * (-1)
                 _sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
-                reconstruction = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
+                _sample = ((_sample + 1)/2.0).clip(0.0, 1.0)
+                reconstruction = torch.cat([sample.unsqueeze(1), reconstruction.unsqueeze(1)], dim=1)
+                reconstruction = ((reconstruction + 1)/2.0).clip(0.0, 1.0)
                 torch_img_series_tensor = gen_eval_imgs(sample=_sample,
                                                         reconstruction=reconstruction,
                                                         key_points=key_point_coordinates)

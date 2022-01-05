@@ -1,7 +1,10 @@
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from src.models.utils import init_weights
+from src.utils.glob import COUNTER
 from .transporter_encoder import TransporterEncoder
 from .transporter_decoder import TransporterDecoder
 from .transporter_keypointer import TransporterKeypointer
@@ -47,6 +50,13 @@ class Transporter(nn.Module):
 
     def forward(self, source_img: torch.Tensor, target_img: torch.Tensor) -> torch.Tensor:
 
+        """
+
+        :param source_img: Source image frame in (N, C, H, W)
+        :param target_img: Target image frame in (N, C, H, W)
+        :return:
+        """
+
         with torch.no_grad():
             source_feature_maps = self.encoder(source_img)
             source_keypoints, source_gaussian_maps = self.keypointer(source_img)
@@ -63,5 +73,12 @@ class Transporter(nn.Module):
         assert transported_features.shape == target_feature_maps.shape
 
         reconstruction = self.decoder(transported_features)
+        # reconstruction = F.sigmoid(reconstruction)
+        reconstruction = torch.tanh(reconstruction)
+
+        #plt.imshow(reconstruction[0, ...].detach().clip(0.0, 1.0).cpu().permute(1, 2, 0).numpy())
+        #global COUNTER
+        #plt.savefig(f'reconstruction_{COUNTER}.png')
+        #COUNTER += 1
 
         return reconstruction

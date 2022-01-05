@@ -8,7 +8,7 @@ def parse_arguments():
 
     parser.add_argument('-c', '--config', type=str, help='Absolute path to config file.', required=True)
 
-    parser.add_argument('-d', '--data', type=str, help='Absoulte base path to dataset.', required=True)
+    parser.add_argument('-d', '--data', type=str, help='Absolute base path to dataset.', required=True)
 
     year, month, day, hour, minute = datetime.now().year, datetime.now().month, datetime.now().day, \
                                      datetime.now().hour, datetime.now().minute
@@ -16,6 +16,9 @@ def parse_arguments():
     parser.add_argument('-i', '--id', type=str,
                         help='Individual id of the experiment.',
                         default=f"{year}_{month}_{day}_{hour}_{minute}")
+
+    parser.add_argument('-hp', '--hp', type=str,
+                        help='Hyperparamter change (E.g. "training.epochs=10,data.num_workers=2"')
 
     args = parser.parse_args()
 

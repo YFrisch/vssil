@@ -142,9 +142,11 @@ class AbstractAgent:
                    epoch: int,
                    epochs_per_fold: int,
                    mode: str = 'training'):
-        global_epoch = fold * epochs_per_fold + epoch
-        avg_loss = np.mean(self.loss_per_iter)
-        self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
+
+        if mode == 'training':
+            global_epoch = fold * epochs_per_fold + epoch
+            avg_loss = np.mean(self.loss_per_iter)
+            self.writer.add_scalar(tag="train/loss", scalar_value=avg_loss, global_step=global_epoch)
 
     def reset_optim_and_scheduler(self, config: dict):
 
@@ -190,7 +192,7 @@ class AbstractAgent:
             self.scheduler = torch.optim.lr_scheduler.StepLR(
                 optimizer=self.optim,
                 step_size=config['training']['lr_scheduler_epoch_steps'],
-                gamma=0.5
+                gamma=0.95
             )
         elif config['training']['lr_scheduler'] in ['CyclicLR']:
             self.scheduler = torch.optim.lr_scheduler.CyclicLR(
@@ -271,8 +273,6 @@ class AbstractAgent:
                 self.model.train()
 
                 self.reset_logged_values()
-
-                # TODO: Right now this will only train for 59 steps if there are only 59 samples
 
                 generator = iter(self.train_data_loader)
 

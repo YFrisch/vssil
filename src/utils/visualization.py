@@ -354,11 +354,11 @@ def gen_eval_imgs(sample: torch.Tensor,
     """
     assert sample.ndim == 5
     assert reconstruction.ndim == 5
-    if sample.min() < 0.0:
+    if sample.min() < -0.01:
         sample = sample + 0.5
         reconstruction = reconstruction + 0.5
-    print(sample.min())
-    print(sample.max())
+    #print(sample.min())
+    #print(sample.max())
     assert key_points.ndim == 4
     # assert key_points.shape[3] in [2, 3]
     assert key_points[..., :2].min() >= -1.0
