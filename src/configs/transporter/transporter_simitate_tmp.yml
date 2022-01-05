@@ -1,0 +1,33 @@
+data:
+  num_workers: 4
+  img_shape: (3, 128, 128)
+model:
+  n_frames: 20 # Len. of sequence to sample. First sample is used as source frame, random other frame as target frame
+  num_img_channels: 3
+  num_keypoints: 2
+  activation: LeakyReLU # prelu
+  gaussian_map_std: 0.05
+  weight_init: 'he_normal'
+  skip_connections: False
+training:
+  epochs: 100
+  steps_per_epoch: 100 # 100
+  optim: 'AdamW'
+  k_folds: 1
+  initial_lr: 0.00005
+  lr_scheduler: 'StepLR'
+  lr_scheduler_epoch_steps: 20
+  batch_size: 64 # 128
+  loss_function: 'sse'
+  l2_weight_decay: 0.000005
+  grad_clip_max_norm: 1.0
+validation:
+  steps: -1 # 100
+  freq: 5
+  batch_size: 4 # 128
+  save_grad_plots: True
+  save_eval_examples: True
+evaluation:
+device: cuda:0 # cpu
+log_dir: 'results/transporter_simitate_64pix'
+warm_start: False

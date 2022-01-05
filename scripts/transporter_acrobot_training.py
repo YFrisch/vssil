@@ -18,6 +18,16 @@ if __name__ == "__main__":
             transporter_conf['log_dir'] = transporter_conf['log_dir']+f"/{args.id}/"
         print(transporter_conf['log_dir'])
 
+    # Tune parameters according to -hp argument
+    if args.hp:
+        for hp in args.hp.split(","):
+            key, val = hp.split("=")
+            key_split = key.split(".")
+            if len(key_split) == 2:
+                transporter_conf[key_split[0]][key_split[1]] = val
+            else:
+                transporter_conf[key] = val
+
     npz_data_set = NPZ_Dataset(
         num_timesteps=transporter_conf['model']['n_frames'],
         root_path='/home/yannik/vssil/video_structure/testdata/'

@@ -3,26 +3,26 @@ data:
   img_shape: (3, 64, 64)
 
 model:
-  n_frames: 2  # Len. of sequence to sample. First sample is used as source frame, last as target frame
+  n_frames: 20  # Len. of sequence to sample. First sample is used as source frame, last as target frame
   num_img_channels: 3
-  num_keypoints: 3
-  activation: 'LeakyReLU'
-  gaussian_map_std: 0.25  # 0.15
+  num_keypoints: 4
+  activation: ReLU  # LeakyReLU
+  gaussian_map_std: 0.1  # 0.15
   weight_init: 'he_normal'
   skip_connections: False
 
 training:
   epochs: 200
   steps_per_epoch: 100  # 100
-  optim: 'AdamW'
-  k_folds: 1
+  optim: Adam  # AdamW
+  k_folds: 1  # -1 Uses the whole set for both, training and validation, while 1 splits it into (90% training, 10%val)
   initial_lr: 0.0005
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 60
-  batch_size: 32  # 128
-  loss_function: 'mse'
-  l2_weight_decay: 0.000001
-  grad_clip_max_norm: 5.0
+  lr_scheduler_epoch_steps: 30
+  batch_size: 64  # 128
+  loss_function: sse  # mse
+  l2_weight_decay: 0.00005
+  grad_clip_max_norm: 1.0
 
 validation:
   steps: -1  # 100
