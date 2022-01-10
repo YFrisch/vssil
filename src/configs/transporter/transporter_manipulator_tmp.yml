@@ -1,38 +1,35 @@
 data:
-  num_workers: 0
-  img_shape: (3, 64, 64)
-
+  num_workers: 4
+  img_shape: (3, 128, 128)
 model:
-  n_frames: 3  # Len. of sequence to sample. First sample is used as source frame, last as target frame
+  n_frames: 20 # Len. of sequence to sample. First sample is used as source frame, last as target frame
+  hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 5
+  num_keypoints: 4
   activation: 'prelu'
   gaussian_map_std: 0.1
   weight_init: 'he_uniform'
   skip_connections: False
-
 training:
-  epochs: 200
-  steps_per_epoch: 100  # 100
+  epochs: 200 # 100 / 200 ?
+  steps_per_epoch: 100 # 100
   optim: 'AdamW'
   k_folds: 1
-  initial_lr: 0.00005
+  initial_lr: 0.1
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 60
-  batch_size: 32  # 128
-  loss_function: 'mse'
-  l2_weight_decay: 0.0000001
-  grad_clip_max_norm: 2.0
-
+  lr_scheduler_epoch_steps: 30
+  lr_scheduler_gamma: 0.5
+  batch_size: 64 # 128
+  loss_function: mse # inception
+  l2_weight_decay: 0.0005
+  grad_clip_max_norm: 1.0
 validation:
-  steps: -1  # 100
+  steps: -1 # 100
   freq: 5
-  batch_size: 4  # 128
+  batch_size: 4 # 128
   save_grad_plots: True
   save_eval_examples: True
-
 evaluation:
-
-device: cpu  # cuda:0
-log_dir: 'results/transporter_manipulator'
+device: cuda:0 # cuda:0
+log_dir: 'results/transporter_manipulator_128pix'
 warm_start: False

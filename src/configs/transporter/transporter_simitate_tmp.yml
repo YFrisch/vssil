@@ -4,9 +4,9 @@ data:
 model:
   n_frames: 20 # Len. of sequence to sample. First sample is used as source frame, random other frame as target frame
   num_img_channels: 3
-  num_keypoints: 2
+  num_keypoints: 8
   activation: LeakyReLU # prelu
-  gaussian_map_std: 0.05
+  gaussian_map_std: 0.25
   weight_init: 'he_normal'
   skip_connections: False
 training:

@@ -1,12 +1,12 @@
 data:
   num_workers: 4
-  img_shape: (3, 128, 128)
+  img_shape: (3, 64, 64)
 
 model:
-  n_frames: 3  # Len. of sequence to sample. First sample is used as source frame, last as target frame
+  n_frames: 2  # Len. of sequence to sample. First sample is used as source frame, last as target frame
   hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 5
+  num_keypoints: 16
   activation: 'prelu'
   gaussian_map_std: 0.1
   weight_init: 'he_uniform'
@@ -17,9 +17,9 @@ training:
   steps_per_epoch: 100  # 100
   optim: 'AdamW'
   k_folds: 1
-  initial_lr: 0.1
+  initial_lr: 0.01
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 30
+  lr_scheduler_epoch_steps: 40
   lr_scheduler_gamma: 0.5
   batch_size: 64  # 128
   loss_function: mse  # inception
