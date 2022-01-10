@@ -1,24 +1,12 @@
-import os
-
+import pylab
 import matplotlib.pyplot as plt
 import torch
 from torchvision.io import read_video
 
+from src.utils.kpt_utils import kpts_2_img_coordinates
 from src.losses.pixelwise_contrastive_loss_v7 import pwcl
-from src.losses.kpt_metrics import tracking_metric, distribution_metric, visual_difference_metric
-from test_keypoints import get_perfect_keypoints, \
+from src.contrastive_loss_test_data.test_keypoints import get_perfect_keypoints, \
     get_bad_keypoints, get_random_keypoints
-
-
-def kpts_2_img_coordinates(kpt_coordinates: torch.Tensor,
-                           img_shape: tuple) -> torch.Tensor:
-    """ Converts the key-point coordinates from video structure format [-1,1]x[-1,1]
-        to image coordinates in [0,W]x[0,H].
-    """
-    _kpt_coordinates = kpt_coordinates.clone()
-    _kpt_coordinates[..., 1] = (kpt_coordinates[..., 1] + 1.0) * img_shape[-2]/2.0
-    _kpt_coordinates[..., 0] = (-kpt_coordinates[..., 0] + 1.0) * img_shape[-1]/2.0
-    return _kpt_coordinates
 
 
 def load_sample_images(sample_size: int = 4,
@@ -73,10 +61,12 @@ if __name__ == "__main__":
     _, _, K, D = kpt_coordinates.shape
 
     kpts = kpts_2_img_coordinates(kpt_coordinates, tuple(img_tensor.shape[-2:]))
+    cm = pylab.get_cmap('gist_rainbow')
     fig, ax = plt.subplots(1, sample_size, figsize=(15, 5))
     for t in range(sample_size):
         ax[t].imshow(img_tensor[0, t].permute(1, 2, 0))
-        ax[t].scatter(kpts[0, t, :, 1], kpts[0, t, :, 0], color='red')
+        for k in range(K):
+            ax[t].scatter(kpts[0, t, k, 1], kpts[0, t, k, 0], color=cm(1.*k/K))
     plt.show()
     exit()
 

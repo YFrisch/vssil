@@ -192,7 +192,7 @@ class AbstractAgent:
             self.scheduler = torch.optim.lr_scheduler.StepLR(
                 optimizer=self.optim,
                 step_size=config['training']['lr_scheduler_epoch_steps'],
-                gamma=0.95
+                gamma=config['training']['lr_scheduler_gamma']
             )
         elif config['training']['lr_scheduler'] in ['CyclicLR']:
             self.scheduler = torch.optim.lr_scheduler.CyclicLR(

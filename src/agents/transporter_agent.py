@@ -6,8 +6,11 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from src.models.transporter import Transporter
+from src.models.inception3 import perception_inception_net
+from src.models.alexnet import perception_alex_net
 from src.utils.visualization import gen_eval_imgs
 from src.utils.grad_flow import plot_grad_flow
+from src.losses import perception_loss
 from .abstract_agent import AbstractAgent
 
 
@@ -22,6 +25,12 @@ class TransporterAgent(AbstractAgent):
             dataset=dataset,
             config=config
         )
+
+        if config['training']['loss_function'] in ['inception', 'Inception', 'INCEPTION']:
+            self.perception_net = perception_inception_net(config['log_dir']).to(self.device)
+
+        if config['training']['loss_function'] in ['alexnet', 'AlexNet', 'ALEXNET']:
+            self.perception_net = perception_alex_net(config['log_dir']).to(self.device)
 
         self.model = Transporter(config).to(self.device)
 
@@ -60,7 +69,8 @@ class TransporterAgent(AbstractAgent):
         # target_frame = x[:, -1, ...] - 0.5
         # target_frame = x[:, -1, ...]
         # target_frame = x[:, 0 + t_diff, ...]
-        sample_frame = 2*((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        # Normalizing to [-1, 1] range
+        sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
         target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
                             (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
         return sample_frame, target_frame
@@ -70,10 +80,24 @@ class TransporterAgent(AbstractAgent):
             return F.mse_loss(input=prediction, target=target, reduction='mean')
         elif config['training']['loss_function'] in ['sse', 'SSE']:
             # return F.mse_loss(input=prediction, target=target, reduction='sum')
-            return F.mse_loss(prediction, target, reduction='sum') /\
+            return F.mse_loss(prediction, target, reduction='sum') / \
                    (torch.var(target) * 2 * target.shape[0] * target.shape[1])
         elif config['training']['loss_function'] in ['bce', 'BCE']:
+            # Map to [0, 1]
+            prediction = (prediction + 1.0) / 2.0
+            target = (target + 1.0) / 2.0
             return F.binary_cross_entropy(input=prediction, target=target)
+        elif config['training']['loss_function'] in ['alexnet', 'AlexNet', 'ALEXNET',
+                                                     'inception', 'Inception', 'INCEPTION']:
+            # Map to [0, 1]
+            prediction = (prediction + 1.0) / 2.0
+            target = (target + 1.0) / 2.0
+            loss_perception = perception_loss(perception_net=self.perception_net,
+                                              prediction=prediction.unsqueeze(1),
+                                              target=target.unsqueeze(1))
+            # loss_pixel = F.binary_cross_entropy(input=prediction, target=target)
+            loss_pixel = F.mse_loss(input=prediction, target=target, reduction='mean')
+            return 0.5 * loss_perception + 0.5 * loss_pixel
         else:
             raise ValueError("Given loss function not implemented.")
 
@@ -86,6 +110,8 @@ class TransporterAgent(AbstractAgent):
              config: dict, mode: str) -> torch.Tensor:
 
         assert mode in ['training', 'validation']
+
+        N, C, H, W = sample.shape
 
         if mode == 'training':
             self.optim.zero_grad()
@@ -122,9 +148,9 @@ class TransporterAgent(AbstractAgent):
                 # Adapt to visualization
                 key_point_coordinates[..., 1] = key_point_coordinates[..., 1] * (-1)
                 _sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
-                _sample = ((_sample + 1)/2.0).clip(0.0, 1.0)
+                _sample = ((_sample + 1) / 2.0).clip(0.0, 1.0)
                 reconstruction = torch.cat([sample.unsqueeze(1), reconstruction.unsqueeze(1)], dim=1)
-                reconstruction = ((reconstruction + 1)/2.0).clip(0.0, 1.0)
+                reconstruction = ((reconstruction + 1) / 2.0).clip(0.0, 1.0)
                 torch_img_series_tensor = gen_eval_imgs(sample=_sample,
                                                         reconstruction=reconstruction,
                                                         key_points=key_point_coordinates)
