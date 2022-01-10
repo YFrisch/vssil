@@ -4,23 +4,8 @@ import numpy as np
 from kornia.filters import canny
 from kornia.feature import TFeat, MKDDescriptor, SIFTFeature
 
+from src.utils.kpt_utils import get_box_within_image_border
 from .spatial_consistency_loss import spatial_consistency_loss
-
-
-def get_box_within_image_border(kpt_sequence, patch_size, H, W, t, k):
-
-    x = (kpt_sequence[:, t, k, 0] + 1) / 2 * W
-    y = (-kpt_sequence[:, t, k, 1] + 1) / 2 * H
-
-    x_min, x_max = max(0, x - int(patch_size[0] / 2)), min(W - 1, x + int(patch_size[0] / 2))
-    y_min, y_max = max(0, y - int(patch_size[1] / 2)), min(H - 1, y + int(patch_size[1] / 2))
-
-    while int(x_max) - int(x_min) >= patch_size[0]:
-        x_max -= 1
-    while int(y_max) - int(y_min) >= patch_size[1]:
-        y_max -= 1
-
-    return int(x_min), int(x_max), int(y_min), int(y_max)
 
 
 def combined_metric(image_sequence: torch.Tensor,
@@ -143,38 +128,39 @@ def patchwise_contrastive_metric(image_sequence: torch.Tensor,
 
 def distribution_metric(kpt_sequence: torch.Tensor, patch_size: tuple) -> torch.Tensor:
     """ Evaluates how well key-points are distributed, by comparing their distances over time.
+        Should be as high as possible
 
         TODO: Include intensity?
-              (Key-points can share the same position, if only one of them is 'active')
+              (E.g. key-points can share the same position, if only one of them is 'active')
 
     :param kpt_sequence: Tensor of key-points in (N, T, K, D)
                          (The first two dimensions of D are assumed to be the key-points x and y coordinates)
     :param patch_size: The patch size of key-points that should not overlap.
-                       For such non-overlapping key-points, a minimal distance of the patch size is required.
+                       TODO: For such non-overlapping key-points, a minimal distance of the patch size is required.
     """
 
     assert patch_size[0] == patch_size[1], "Use quadratic patches"
 
     N, T, K, D = kpt_sequence.shape
 
-    min_dist = patch_size[0]
+    # Extend tensors to get distance tensor (while excluding the intensity)
+    _kpt_sequence = kpt_sequence.view((N, T, K, 1, D))[..., :2]
+    __kpt_sequence = kpt_sequence.view((N, T, 1, K, D))[..., :2]
 
-    # Tensor holding the norm distance between frames
-    pos_dists = torch.empty((N, T-1, K, 1))
+    pos_dist = torch.norm(_kpt_sequence - __kpt_sequence, p=2, dim=-1)**2  # (N, T, K, K)
 
-    for t in range(T - 1):
-        pos_dists[:, t, :, 0] = torch.norm(kpt_sequence[:, t, :, :2] - kpt_sequence[:, t, :, :2], p=2, dim=[-1])**2
+    # Sum over key-points
+    pos_dist = torch.sum(pos_dist, dim=(-2, -1))/(K*(K-1))
 
-    # Sum over time
-    pos_dists = torch.sum(pos_dists, dim=1)
-
-    # Average across batch and key-points
-    return torch.mean(pos_dists)
+    # Average over time-steps and batch
+    return torch.mean(pos_dist)
 
 
-def tracking_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
+def grad_tracking_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
     """ Evaluates how consistent the gradients of patches around key-points are
         across time.
+
+        Should be as low as possible.
 
     :param patch_sequence: Tensor of image patches in (N, T, K, C, H', W')
     :return: Metric, averaged across the batch and key-points
@@ -189,24 +175,72 @@ def tracking_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
 
     # Unstack dimensions
     grads = grads.view((N, T, K, Hp, Wp))
+    mags = mags.view((N, T, K, Hp, Wp))
 
-    # Empty tensor for the squared norm distance of each gradient image with the next time-step
-    grad_dists = torch.empty((N, T - 1, K, 1))
+    # Empty tensor for the sum distances
+    grad_dists = torch.empty((N, T - 1, K))
+    mag_dists = torch.empty((N, T - 1, K))
 
     for t in range(T - 1):
-        _dist = torch.norm(grads[:, t+1, :, ...] - grads[:, t, :, ...], p=2, dim=[-2, -1])**2
-        grad_dists[:, t, :] = _dist.unsqueeze(-1)
+        grad_dists[:, t, :] = torch.abs(torch.mean(grads[:, t, ...], dim=(-2, -1)) -
+                                        torch.mean(grads[:, t + 1, ...], dim=(-2, -1)))
+        mag_dists[:, t, :] = torch.abs(torch.mean(mags[:, t, ...], dim=(-2, -1)) -
+                                       torch.mean(mags[:, t + 1, ...], dim=(-2, -1)))
 
     # Sum across time
-    grad_dists = torch.sum(grad_dists, dim=1)
+    grad_dists = torch.sum(grad_dists, dim=1)  # (N, K)
+    mag_dists = torch.sum(mag_dists, dim=1)  # (N, K)
+
+    # Average sum across batch and key-points
+    return torch.mean(0.5*grad_dists + 0.5*mag_dists)
+
+
+def ft_tracking_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
+    """ Evaluates how consistent the features of patches around key-points are
+        across time.
+
+        Should be as low as possible.
+
+    :param patch_sequence: Tensor of image patches in (N, T, K, C, H', W')
+    :return: Metric, averaged across the batch and key-points
+    """
+
+    N, T, K, C, Hp, Wp = patch_sequence.shape
+
+    d = 32
+
+    assert Hp == Wp, "Use squared patches"
+
+    desc = MKDDescriptor(patch_size=Hp, output_dims=d)
+
+    # Stack batch, time and key-point dimension
+    patch_sequence = patch_sequence.view((N*T*K*C, 1, Hp, Wp))
+
+    # Empty tensor for the sum distances
+    ft_dists = torch.empty((N * (T - 1) * K * C, 1))
+
+    for n in range(N):
+        for t in range(T - 1):
+            for k in range(K):
+                for c in range(C):
+                    ft_dists[n * t * k * c] = torch.norm(
+                        desc(patch_sequence[n * t * k * c].unsqueeze(0)) -
+                            desc(patch_sequence[n * (t + 1) * k * c].unsqueeze(0)))
+
+    ft_dists = ft_dists.view((N, T-1, K, C))
+
+    # Sum across time and channels
+    ft_dists = torch.sum(ft_dists, dim=(1, 3))  # (N, K)
 
     # Average across batch and key-points
-    return torch.mean(grad_dists)
+    return torch.mean(ft_dists)
 
 
 def visual_difference_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
     """ Evaluates the perceptual differences of the
         image patches around key-points.
+
+        Should be as high as possible.
 
     :param patch_sequence: Tensor of image patches in (N, T, K, C, H', W')
     :return: Metric
@@ -226,16 +260,51 @@ def visual_difference_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
     # Extract features
     fts = desc(patch_sequence)
 
-    # Unstack dims
-    fts = fts.view((N, T, K, C, d))
+    # Tensor holding perceptual differences between key-points
+    _fts = fts.view((N * T * C, K, 1, d))
+    __fts = fts.view((N * T * C, 1, K, d))
+    fts_dist_tensor = torch.norm(_fts - __fts, p=2, dim=-1)**2
+    fts_dist_tensor = fts_dist_tensor.view((N, T, C, K, K))
 
-    # Tensor holding perceptual differences between time-steps
-    ft_dists = torch.empty((N, T-1, K, 1))
-    for t in range(T - 1):
-        ft_dists[:, t, :, 0] = torch.norm(fts[:, t, :, :,  0] - fts[:, t + 1, :, :, 0], p=2, dim=[-1, -2])**2
+    # Sum over key-points (Should be as high as possible)
+    fts_dist_tensor = torch.sum(fts_dist_tensor, dim=[-2, -1])/(K*(K-1))
 
-    # Sum over time-steps
-    ft_dists = torch.sum(ft_dists, dim=1)
+    # Average across batch, time-steps and channel
+    return torch.mean(fts_dist_tensor)
 
-    # Average across key-points and batch
-    return torch.mean(ft_dists)
+
+def visual_similarity_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
+    """ Evaluates the perceptual differences of the
+        image patches around a key-point over time.
+
+        Should be as low as possible.
+
+    :param patch_sequence: Tensor of image patches in (N, T, K, C, H', W')
+    :return: Metric
+    """
+
+    N, T, K, C, Hp, Wp = patch_sequence.shape
+
+    d = 32
+
+    assert Hp == Wp, "Use squared patches"
+
+    desc = MKDDescriptor(patch_size=Hp, output_dims=d)
+
+    # Stack batch, time, kpt and channel dimensions
+    patch_sequence = patch_sequence.view((N*T*K*C, 1, Hp, Wp))
+
+    # Extract features
+    fts = desc(patch_sequence)
+
+    # Tensor holding perceptual differences between key-points
+    _fts = fts.view((N * K * C, T, 1, d))
+    __fts = fts.view((N * K * C, 1, T, d))
+    fts_dist_tensor = torch.norm(_fts - __fts, p=2, dim=-1)**2
+    fts_dist_tensor = fts_dist_tensor.view((N, K, C, T, T))
+
+    # Sum over time (Should be as low as possible)
+    fts_dist_tensor = torch.sum(fts_dist_tensor, dim=[-2, -1])/(T*(T-1))
+
+    # Average across batch, key-points and channel
+    return torch.mean(fts_dist_tensor)

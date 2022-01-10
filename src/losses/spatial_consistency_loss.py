@@ -26,14 +26,17 @@ def spatial_consistency_loss(keypoint_coordinates: torch.Tensor) -> torch.Tensor
     diff_std = torch.std(diff_tensor, dim=1)  # (N, K, D)
 
     # Coefficient of variation
-    coeff = torch.div(diff_std, torch.abs(diff_mean))  # (N, K, D)
+    coeff = torch.div(diff_std, torch.abs(diff_mean) + 1)  # (N, K, D)
 
     # Sum over dimensions
     coeff = torch.sum(coeff, dim=2)  # (N, K)
+    # coeff = torch.sum(diff_std, dim=2)  # (N, K)
 
     # Average across batch and key-points
     L = torch.mean(coeff, dim=(0, 1))
 
     return L
+
+
 
 
