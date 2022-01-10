@@ -44,12 +44,17 @@ def play_series_with_keypoints(image_series: torch.Tensor,
     (N, T, C, H, W) = tuple(image_series.shape)
     assert C in [1, 3], "Only one or three channels supported for plotting image series!"
     assert N == 1, "Only one sample supported (Batch size of 1)."
+    assert image_series.shape[:2] == keypoint_coords.shape[:2], \
+        f"Image series shape is {image_series.shape} but key-points shape is {keypoint_coords.shape}"
 
     # Make colormap
     indexable_cmap = cm.get_cmap('prism', keypoint_coords.shape[2])
 
     # Permute to (N, T, H, W, C) for matplotlib
-    image_series = (image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
+    if image_series.min() < -0.1:
+        image_series = (image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
+    else:
+        image_series = image_series.permute(0, 1, 3, 4, 2).clip(0.0, 1.0).detach().cpu().numpy()
 
     # Filter for "active" key-point, i.e. key-points with an avg intensity above the threshold
     active_kp_ids = []
@@ -90,12 +95,12 @@ def play_series_with_keypoints(image_series: torch.Tensor,
             intensity = keypoint_coords[0, 0, active_kp_ids[n_keypoint], 2]
         if intensity >= 0.0:
             orig_scatter_obj = ax.scatter(0, 0, color=indexable_cmap(n_keypoint / len(active_kp_ids)),
-                                             alpha=0.5)
+                                          alpha=0.5)
             orig_scatter_objects.append(orig_scatter_obj)
             if key_point_trajectory:
                 line_obj = ax.plot([0, 0], [0, 0],
-                                      color=indexable_cmap(n_keypoint / len(active_kp_ids)),
-                                      alpha=0.5)[0]
+                                   color=indexable_cmap(n_keypoint / len(active_kp_ids)),
+                                   alpha=0.5)[0]
                 line_objects.append(line_obj)
 
     """
@@ -357,8 +362,8 @@ def gen_eval_imgs(sample: torch.Tensor,
     if sample.min() < -0.01:
         sample = sample + 0.5
         reconstruction = reconstruction + 0.5
-    #print(sample.min())
-    #print(sample.max())
+    # print(sample.min())
+    # print(sample.max())
     assert key_points.ndim == 4
     # assert key_points.shape[3] in [2, 3]
     assert key_points[..., :2].min() >= -1.0
@@ -537,8 +542,8 @@ def imprint_img_with_kpts(img: torch.Tensor, kpt: torch.Tensor) -> np.ndarray:
     ax.axis('off')
     ax.imshow(img.squeeze().permute(1, 2, 0).detach().cpu())
     for k in range(kpt.shape[2]):
-        kpt_w = (kpt.squeeze()[..., k, 0] + 1)/2 * img.shape[-1]  # W
-        kpt_h = -(kpt.squeeze()[..., k, 1] + 1)/2 * img.shape[-2]  # H
+        kpt_w = (kpt.squeeze()[..., k, 0] + 1) / 2 * img.shape[-1]  # W
+        kpt_h = -(kpt.squeeze()[..., k, 1] + 1) / 2 * img.shape[-2]  # H
         print(f"{kpt_w}, {kpt_h}")
         ax.scatter(kpt_w, kpt_h, s=50, marker='x', color='black')
     fig_width, fig_height = fig.get_size_inches() * fig.get_dpi()
