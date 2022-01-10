@@ -5,7 +5,7 @@ from torchvision.io import read_video
 
 from src.utils.kpt_utils import kpts_2_img_coordinates
 from src.losses.pixelwise_contrastive_loss_v7 import pwcl
-from src.contrastive_loss_test_data.test_keypoints import get_perfect_keypoints, \
+from .test_keypoints import get_perfect_keypoints, \
     get_bad_keypoints, get_random_keypoints
 
 
