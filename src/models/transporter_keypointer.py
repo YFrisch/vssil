@@ -61,7 +61,10 @@ class TransporterKeypointer(nn.Module):
         """
 
         self.regressor = nn.Conv2d(
-            in_channels=64, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
+            in_channels=config['model']['hidden_dim'],
+            out_channels=config['model']['num_keypoints'],
+            kernel_size=(1, 1)
+            # in_channels=64, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
             # in_channels=128, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
             # in_channels=256, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
             # in_channels=512, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
