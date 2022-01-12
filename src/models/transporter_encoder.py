@@ -28,7 +28,8 @@ class TransporterBlock(nn.Module):
             padding=padding
         )
 
-        self.batch_norm = nn.BatchNorm2d(out_channels)
+        # self.batch_norm = nn.BatchNorm2d(out_channels)
+        self.instance_norm = nn.InstanceNorm2d(out_channels, affine=True)
 
         if activation in ['LeakyRELU', 'LeakyReLU', 'LeakyRelu']:
             self.activation = activation_dict[activation](negative_slope=0.2)
@@ -39,7 +40,8 @@ class TransporterBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _x = self.conv(x)
-        _x = self.batch_norm(_x)
+        # _x = self.batch_norm(_x)
+        _x = self.instance_norm(_x)
         return self.activation(_x)
 
 
@@ -58,8 +60,17 @@ class TransporterEncoder(nn.Module):
         transporter_blocks = []
         ch = 32
         assert config['model']['hidden_dim'] % 32 == 0, "Choose hidden dim as multiple of 32"
-        transporter_blocks.append(TransporterBlock(in_channels=config['model']['num_img_channels'], out_channels=32,
+
+        transporter_blocks.append(TransporterBlock(in_channels=config['model']['num_img_channels'], out_channels=16,
                                                    kernel_size=(7, 7), stride=(1,), padding=(3,),
+                                                   activation=config['model']['activation'],
+                                                   skip_connections=config['model']['skip_connections']))
+        transporter_blocks.append(TransporterBlock(in_channels=16, out_channels=16,
+                                                   kernel_size=(3, 3), stride=(1,), padding=(1,),
+                                                   activation=config['model']['activation'],
+                                                   skip_connections=config['model']['skip_connections']))
+        transporter_blocks.append(TransporterBlock(in_channels=16, out_channels=32,
+                                                   kernel_size=(3, 3), stride=(2,), padding=(1,),
                                                    activation=config['model']['activation'],
                                                    skip_connections=config['model']['skip_connections']))
         transporter_blocks.append(TransporterBlock(in_channels=32, out_channels=32,

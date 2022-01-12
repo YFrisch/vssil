@@ -29,12 +29,23 @@ class TransporterDecoder(nn.Module):
                                                        skip_connections=config['model']['skip_connections']))
             transporter_blocks.append(nn.UpsamplingBilinear2d(scale_factor=2))
             ch = int(ch*0.5)
+
         assert ch == 32
+
         transporter_blocks.append(TransporterBlock(in_channels=32, out_channels=32,
                                                    kernel_size=(3, 3), stride=(1,), padding=(1,),
                                                    activation=config['model']['activation'],
                                                    skip_connections=config['model']['skip_connections']))
-        transporter_blocks.append(TransporterBlock(in_channels=32, out_channels=config['model']['num_img_channels'],
+        transporter_blocks.append(TransporterBlock(in_channels=32, out_channels=16,
+                                                   kernel_size=(3, 3), stride=(1,), padding=(1,),
+                                                   activation=config['model']['activation'],
+                                                   skip_connections=config['model']['skip_connections']))
+        transporter_blocks.append(nn.UpsamplingBilinear2d(scale_factor=2))
+        transporter_blocks.append(TransporterBlock(in_channels=16, out_channels=16,
+                                                   kernel_size=(3, 3), stride=(1,), padding=(1,),
+                                                   activation=config['model']['activation'],
+                                                   skip_connections=config['model']['skip_connections']))
+        transporter_blocks.append(TransporterBlock(in_channels=16, out_channels=config['model']['num_img_channels'],
                                                    kernel_size=(7, 7), stride=(1,), padding=(3,),
                                                    activation='identity'))
 
