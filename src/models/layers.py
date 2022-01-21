@@ -27,7 +27,10 @@ class Conv2d(nn.Module):
                                  padding=padding)
 
         if type(activation) == str:
-            self.activation = activation_dict[activation]()
+            if activation in ['LeakyRELU', 'LeakyReLU', 'LeakyRelu']:
+                self.activation = activation_dict[activation](negative_slope=0.2)
+            else:
+                self.activation = activation_dict[activation]()
         else:
             self.activation = activation
 

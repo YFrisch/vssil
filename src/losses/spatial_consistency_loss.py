@@ -15,28 +15,21 @@ def spatial_consistency_loss(keypoint_coordinates: torch.Tensor) -> torch.Tensor
 
     N, T, K, D = keypoint_coordinates.shape
 
-    diff_tensor = torch.zeros(N, T-1, K, D).to(keypoint_coordinates.device)
+    diff_tensor = torch.zeros(N, T - 1, K).to(keypoint_coordinates.device)
 
     for t in np.arange(1, keypoint_coordinates.shape[1]):
         # NOTE: The difference between intensity values is not considered
-        diff_tensor[:, t-1, :, :2] = keypoint_coordinates[:, t, :, :2] - keypoint_coordinates[:, t-1, :, :2]
+        diff_tensor[:, t - 1, :] = torch.norm(keypoint_coordinates[:, t, :, :2] - keypoint_coordinates[:, t - 1, :, :2],
+                                              p=2, dim=-1)
 
     # Average diff across time
-    diff_mean = torch.mean(diff_tensor, dim=1) + 1e-6  # (N, K, D)
-    diff_std = torch.std(diff_tensor, dim=1)  # (N, K, D)
+    diff_mean = torch.mean(diff_tensor, dim=1) + 1e-6  # (N, K)
+    diff_std = torch.std(diff_tensor, dim=1)  # (N, K)
 
     # Coefficient of variation
-    coeff = torch.div(diff_std, torch.abs(diff_mean) + 1)  # (N, K, D)
-
-    # Sum over dimensions
-    coeff = torch.sum(coeff, dim=2)  # (N, K)
-    # coeff = torch.sum(diff_std, dim=2)  # (N, K)
+    coeff = torch.div(diff_std, torch.abs(diff_mean) + 1)  # (N, K)
 
     # Average across batch and key-points
-    L = torch.mean(coeff, dim=(0, 1))
+    L = torch.mean(coeff)
 
     return L
-
-
-
-

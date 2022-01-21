@@ -83,10 +83,10 @@ def process_dmcs(root_path: str,
 
 
 if __name__ == "__main__":
-    target_img_shape = (128, 128)
+    target_img_shape = (64, 64)
     process_dmcs(
         root_path='/media/yannik/samsung_ssd/data/deepmind_control_suite_unprocessed',
-        target_path=f'/media/yannik/samsung_ssd/data/manipulator_processed_{target_img_shape[0]}pix',
+        target_path=f'/media/yannik/samsung_ssd/data/walker_processed_{target_img_shape[0]}pix',
         target_img_shape=target_img_shape,
         sample_freq=1,
         skip_existing=True

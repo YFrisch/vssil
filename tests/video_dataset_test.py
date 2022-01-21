@@ -8,10 +8,10 @@ from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 
 if __name__ == "__main__":
     # data_root_path = '/media/yannik/samsung_ssd/data/mime_processed_256pix'
-    # data_root_path = '/media/yannik/samsung_ssd/data/ball_processed_64pix'
     # data_root_path = '/media/yannik/samsung_ssd/data/simitate_processed_128pix'
-    # data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
-    data_root_path = '/media/yannik/samsung_ssd/data/dmcs_processed_64pix'
+    data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
+    # data_root_path = '/media/yannik/samsung_ssd/data/walker_processed_64pix'
+    # data_root_path = '/media/yannik/samsung_ssd/data/manipulator_processed_64pix'
     annotations_file = os.path.join(data_root_path, 'annotations.txt')
 
     preprocess = transforms.Compose([
@@ -21,7 +21,7 @@ if __name__ == "__main__":
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             # transforms.RandomAdjustSharpness(sharpness_factor=2.0, p=0.5),
-            transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
+            # transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
             # transforms.RandomApply([transforms.ColorJitter(brightness=.5, hue=.3)], p=0.3)
         ])
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     print(len(data_set))
 
-    time_diff = 4
+    time_diff = 2
     for i, sample in enumerate(data_loader):
         frames, labels = sample
         t0_frame = frames[0, 0, ...].permute(1, 2, 0).cpu().numpy()
@@ -62,5 +62,5 @@ if __name__ == "__main__":
         plt.show()
         exit()
         print(f"{i} {list(labels)}")
-        if i == 500:
+        if i == 0:
             break

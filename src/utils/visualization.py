@@ -12,6 +12,7 @@ from PIL import Image
 from torchvision import transforms
 from cv2 import VideoWriter, VideoWriter_fourcc, \
     normalize, NORM_MINMAX, CV_32F
+import pylab
 
 from src.losses.kpt_metrics import patchwise_contrastive_metric
 
@@ -48,7 +49,8 @@ def play_series_with_keypoints(image_series: torch.Tensor,
         f"Image series shape is {image_series.shape} but key-points shape is {keypoint_coords.shape}"
 
     # Make colormap
-    indexable_cmap = cm.get_cmap('prism', keypoint_coords.shape[2])
+    # indexable_cmap = cm.get_cmap('prism', keypoint_coords.shape[2])
+    cm = pylab.get_cmap('gist_rainbow')
 
     # Permute to (N, T, H, W, C) for matplotlib
     if image_series.min() < -0.1:
@@ -66,6 +68,7 @@ def play_series_with_keypoints(image_series: torch.Tensor,
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     ax.set_title('Sample + Key-Points')
+    ax.axis('off')
 
     """
 
@@ -94,12 +97,12 @@ def play_series_with_keypoints(image_series: torch.Tensor,
             # intensity = keypoint_coords[0, 0, n_keypoint, 2]
             intensity = keypoint_coords[0, 0, active_kp_ids[n_keypoint], 2]
         if intensity >= 0.0:
-            orig_scatter_obj = ax.scatter(0, 0, color=indexable_cmap(n_keypoint / len(active_kp_ids)),
+            orig_scatter_obj = ax.scatter(0, 0, color=cm(1.*n_keypoint/len(active_kp_ids)),
                                           alpha=0.5)
             orig_scatter_objects.append(orig_scatter_obj)
             if key_point_trajectory:
                 line_obj = ax.plot([0, 0], [0, 0],
-                                   color=indexable_cmap(n_keypoint / len(active_kp_ids)),
+                                   color=cm(1.*n_keypoint/len(active_kp_ids)),
                                    alpha=0.5)[0]
                 line_objects.append(line_obj)
 
@@ -375,10 +378,12 @@ def gen_eval_imgs(sample: torch.Tensor,
         assert key_points.shape[1] >= 5, "Use at least 5 time-steps to plot the key-point trajectories!"
         position_buffer = []
 
+    cm = pylab.get_cmap('gist_rainbow')
+
     torch_img_series_tensor = None
     for t in range(sample.shape[1]):
         fig, ax = plt.subplots(1, 5, figsize=(15, 4))
-        viridis = cm.get_cmap('viridis', key_points.shape[2])
+        # viridis = cm.get_cmap('viridis', key_points.shape[2])
 
         #
         # Future time-steps and key-points
@@ -398,7 +403,7 @@ def gen_eval_imgs(sample: torch.Tensor,
                 # NOTE: pyplot.scatter uses x as height and y as width, with the origin in the top left
                 x_coord = int(((-key_points[0, t, kp, 1] + 1.0) / 2.0) * sample.shape[4])  # Width
                 y_coord = int(((key_points[0, t, kp, 0] + 1.0) / 2.0) * sample.shape[3])  # Height
-                ax[0].scatter(x_coord, y_coord, marker='o', cmap=viridis)
+                ax[0].scatter(x_coord, y_coord, color=cm(1.*kp/key_points.shape[2]), marker="^", s=50, alpha=0.9)
                 if key_point_trajectory:
                     ax[0].plot(x=[position_buffer[t][kp, 0] for t in range(len(position_buffer))],
                                y=[position_buffer[t][kp, 1] for t in range(len(position_buffer))],

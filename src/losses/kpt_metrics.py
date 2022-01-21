@@ -171,6 +171,7 @@ def grad_tracking_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
     # Stack batch, time and key-point dimension
     patch_sequence = patch_sequence.view((N*T*K, C, Hp, Wp))
 
+    # TODO: Sobel filter
     mags, grads = canny(input=patch_sequence, low_threshold=0.2, high_threshold=0.5, kernel_size=(3, 3))  # (N*T*K, 1, H', W')
 
     # Unstack dimensions

@@ -90,7 +90,6 @@ def pwcl(
         keypoint_coordinates: torch.Tensor,
         image_sequence: torch.Tensor,
         grid: torch.Tensor,
-        pos_range: int = 1,
         patch_size: tuple = (9, 9),
         alpha: float = 0.1
 ) -> (torch.Tensor, torch.Tensor, torch.Tensor):
@@ -103,7 +102,6 @@ def pwcl(
     :param keypoint_coordinates: Tensor of key-point coordinates in (N, T, K, 2/3)
     :param image_sequence: Tensor of sequential frames in (N, T, C, H, W)
     :param grid: Tensor of grid positions in (N, H'', W'', 2) where (H'', W'') is the patch size
-    :param pos_range: Range of time-steps to consider as matches ([anchor - range, anchor + range])
     :param patch_size: Patch dimensions
     :param alpha: Threshold for matching
     :return:
@@ -191,10 +189,8 @@ if __name__ == "__main__":
 
     K = 32
 
-    time_window = 5
     patch_size = (9, 9)
 
-    pos_range = max(int(time_window / 2), 1) if time_window > 1 else 0
     center_index = int(patch_size[0] / 2)
 
     step_matrix = torch.ones(patch_size + (2,)).to(device)
@@ -217,9 +213,8 @@ if __name__ == "__main__":
     print(pwcl(
         keypoint_coordinates=fake_kpts,
         image_sequence=fake_img,
-        pos_range=pos_range,
         grid=grid,
         patch_size=(9, 9),
-        alpha=1
+        alpha=1.0
     ))
 

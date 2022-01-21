@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 import numpy as np
+import pylab
+import matplotlib.pyplot as plt
 
 from src.models.ulosd import ULOSD, ULOSD_Parallel, ULOSD_Dist_Parallel
 from src.models.inception3 import perception_inception_net
@@ -13,6 +15,7 @@ from src.losses import temporal_separation_loss, perception_loss, spatial_consis
 from src.losses.distr_constraints import wasserstein_constraint
 from src.utils.grad_flow import plot_grad_flow
 from src.utils.visualization import gen_eval_imgs
+from src.utils.kpt_utils import kpts_2_img_coordinates
 from .abstract_agent import AbstractAgent
 
 
@@ -62,8 +65,8 @@ class ULOSD_Agent(AbstractAgent):
 
         # Properties for patch-wise contrastive loss
         K = config['model']['n_feature_maps']
-        pc_time_window = config['training']['pixelwise_contrastive_time_window']
-        pc_patch_size = eval(config['training']['pixelwise_contrastive_patch_size'])
+        pc_time_window = config['training']['patchwise_contrastive_time_window']
+        pc_patch_size = eval(config['training']['patchwise_contrastive_patch_size'])
         assert pc_time_window <= T
         assert pc_time_window % 2 != 0, "Use odd time-window"
         assert pc_patch_size[0] == pc_patch_size[1], "Use square patch"
@@ -83,9 +86,7 @@ class ULOSD_Agent(AbstractAgent):
         # Logged values
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
-        self.cons_loss_per_iter = []  # Extension
-        self.tc_loss_per_iter = []  # Extension
-        self.pwc_loss_per_iter = []  # Extension
+        self.pacolo_per_iter = []  # Extension
         self.match_loss_per_iter = []  # Extension
         self.non_match_loss_per_iter = []  # Extension
         self.emd_sum_per_iter = []  # Extension
@@ -95,7 +96,7 @@ class ULOSD_Agent(AbstractAgent):
         self.val_rec_loss = []
         self.val_sep_loss = []
         self.val_sparsity_loss = []
-        self.val_pwc_loss = []
+        self.val_pacolo = []
         self.val_match_loss = []
         self.val_non_match_loss = []
 
@@ -103,7 +104,7 @@ class ULOSD_Agent(AbstractAgent):
                    x: torch.Tensor,
                    label: torch.Tensor,
                    config: dict) -> (torch.Tensor, (torch.Tensor, torch.Tensor)):
-        """ Maps the input image sequence to range (-0.5, 0.5).
+        """ Maps the input image sequence to range (-0.5, 0.5) [0.0, 1.0].
             Then returns input as input and target for reconstruction.
 
             NOTE: MIME data should already be in (0, 1).
@@ -117,7 +118,8 @@ class ULOSD_Agent(AbstractAgent):
         # assert x.min() >= 0
         # TODO: Check if range [0, 1] works better than [-0.5, 0.5]
         # x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
-        x = torch.clamp(x, min=0.0, max=1.0)
+        # x = torch.clamp(x, min=0.0, max=1.0)
+        x = ((x - x.min()) / (x.max() - x.min()) - 0.5).clamp(-0.5, 0.5)
         return x, torch.empty([])
 
     def loss_func(self,
@@ -175,51 +177,32 @@ class ULOSD_Agent(AbstractAgent):
         separation_loss_scale = config['training']['separation_loss_scale']
         return temporal_separation_loss(cfg=config, coords=keypoint_coordinates) * separation_loss_scale
 
-    def consistency_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
-        scale = config['training']['consistency_loss_scale']
-        return spatial_consistency_loss(keypoint_coordinates=keypoint_coordinates, cfg=config) * scale
-
-    def tc_triplet_loss(self, keypoint_coordinates: torch.Tensor, config: dict) -> torch.Tensor:
-        scale = config['training']['tc_loss_scale']
-        return time_contrastive_triplet_loss(coords=keypoint_coordinates, cfg=config) * scale
-
-    def pixelwise_contrastive_loss(self,
+    def patchwise_contrastive_loss(self,
                                    keypoint_coordinates: torch.Tensor,
                                    feature_map_sequence: torch.Tensor,
                                    image_sequence: torch.Tensor,
                                    config: dict) -> torch.Tensor:
-        scale = config['training']['pixelwise_contrastive_scale']
-        if config['training']['pixelwise_contrastive_type'] == 'patch':
-            """
-            return pixelwise_contrastive_loss_patch_based(
+        scale = config['training']['patchwise_contrastive_scale']
+        if config['training']['patchwise_contrastive_type'] == 'patch':
+            pacolo, match_l, non_match_l = pwcl2(
                 keypoint_coordinates=keypoint_coordinates,
                 image_sequence=image_sequence,
                 pos_range=self.pc_pos_range,
                 grid=self.pc_grid,
-                patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
-                alpha=config['training']['pixelwise_contrastive_alpha'],
-            ) * scale
-            """
-
-            pwcl, match_l, non_match_l = pwcl2(
-                keypoint_coordinates=keypoint_coordinates,
-                image_sequence=image_sequence,
-                pos_range=self.pc_pos_range,
-                grid=self.pc_grid,
-                patch_size=eval(config['training']['pixelwise_contrastive_patch_size']),
-                alpha=config['training']['pixelwise_contrastive_alpha'],
+                patch_size=eval(config['training']['patchwise_contrastive_patch_size']),
+                alpha=config['training']['patchwise_contrastive_alpha'],
             )
-            return pwcl*scale, match_l, non_match_l
-        elif config['training']['pixelwise_contrastive_type'] == 'fmap':
+            return pacolo * scale, match_l, non_match_l
+        elif config['training']['patchwise_contrastive_type'] == 'fmap':
             return pixelwise_contrastive_loss_fmap_based(
                 keypoint_coordinates=keypoint_coordinates,
                 image_sequence=image_sequence,
                 feature_map_sequence=feature_map_sequence,
                 pos_range=self.pc_pos_range,
-                alpha=config['training']['pixelwise_contrastive_alpha'],
+                alpha=config['training']['patchwise_contrastive_alpha'],
             ) * scale
         else:
-            raise ValueError(f"Unknown pc loss type: {config['training']['pixelwise_contrastive_type']}")
+            raise ValueError(f"Unknown pc loss type: {config['training']['patchwise_contrastive_type']}")
 
     def l1_activation_penalty(self, feature_maps: torch.Tensor, config: dict) -> torch.Tensor:
         feature_map_mean = torch.mean(feature_maps, dim=[-2, -1])
@@ -248,9 +231,7 @@ class ULOSD_Agent(AbstractAgent):
         super(ULOSD_Agent, self).reset_logged_values()
         self.rec_loss_per_iter = []
         self.sep_loss_per_iter = []
-        self.cons_loss_per_iter = []  # Extension
-        self.tc_loss_per_iter = []  # Extension
-        self.pwc_loss_per_iter = []  # Extension
+        self.pacolo_per_iter = []  # Extension
         self.match_loss_per_iter = []  # Extension
         self.non_match_loss_per_iter = []  # Extension
         self.emd_sum_per_iter = []  # Extension
@@ -260,7 +241,7 @@ class ULOSD_Agent(AbstractAgent):
         self.val_rec_loss = []
         self.val_sep_loss = []
         self.val_sparsity_loss = []
-        self.val_pwc_loss = []
+        self.val_pacolo = []
         self.val_match_loss = []
         self.val_non_match_loss = []
 
@@ -271,9 +252,7 @@ class ULOSD_Agent(AbstractAgent):
         if mode == 'training':
             avg_reconstruction_loss = np.mean(self.rec_loss_per_iter)
             avg_separation_loss = np.mean(self.sep_loss_per_iter)
-            avg_consistency_loss = np.mean(self.cons_loss_per_iter)  # Extension
-            avg_tc_triplet_loss = np.mean(self.tc_loss_per_iter)  # Extension
-            avg_pwc_loss = np.mean(self.pwc_loss_per_iter)  # Extension
+            avg_pacolo = np.mean(self.pacolo_per_iter)  # Extension
             avg_match_loss = np.mean(self.match_loss_per_iter)  # Extension
             avg_non_match_loss = np.mean(self.non_match_loss_per_iter)  # Extension
             avg_emd_sum = np.mean(self.emd_sum_per_iter)  # Extension
@@ -284,18 +263,14 @@ class ULOSD_Agent(AbstractAgent):
                                    scalar_value=avg_reconstruction_loss, global_step=global_epoch)
             self.writer.add_scalar(tag="train/separation_loss",
                                    scalar_value=avg_separation_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="train/consistency_loss",
-                                   scalar_value=avg_consistency_loss, global_step=global_epoch)  # Extension
-            self.writer.add_scalar(tag="train/tc_triplet_loss",
-                                   scalar_value=avg_tc_triplet_loss, global_step=global_epoch)  # Extension
-            self.writer.add_scalar(tag="train/pixelwise_contrastive_loss",
-                                   scalar_value=avg_pwc_loss, global_step=global_epoch)  # Extension
-            self.writer.add_scalar(tag="train/pwc_match_loss",
+            self.writer.add_scalar(tag="train/patchwise_contrastive_loss",
+                                   scalar_value=avg_pacolo, global_step=global_epoch)  # Extension
+            self.writer.add_scalar(tag="train/pacolo_match_loss",
                                    scalar_value=avg_match_loss, global_step=global_epoch)  # Extension
-            self.writer.add_scalar(tag="train/pcw_non_match_loss",
+            self.writer.add_scalar(tag="train/pacolo_non_match_loss",
                                    scalar_value=avg_non_match_loss, global_step=global_epoch)  # Extension
-            self.writer.add_scalar(tag="train/emd_sum",
-                                   scalar_value=avg_emd_sum, global_step=global_epoch)
+            # self.writer.add_scalar(tag="train/emd_sum",
+            #                       scalar_value=avg_emd_sum, global_step=global_epoch)  # Extension
             self.writer.add_scalar(tag="train/l1_activation_penalty",
                                    scalar_value=avg_l1_penalty, global_step=global_epoch)
             self.writer.add_scalar(tag="train/total_loss",
@@ -305,7 +280,7 @@ class ULOSD_Agent(AbstractAgent):
             avg_val_rec_loss = np.mean(self.val_rec_loss)
             avg_val_sep_loss = np.mean(self.val_sep_loss)
             avg_val_sparsity_loss = np.mean(self.val_sparsity_loss)
-            avg_val_pwc_loss = np.mean(self.val_pwc_loss)
+            avg_val_pacolo = np.mean(self.val_pacolo)
             avg_val_match_loss = np.mean(self.val_match_loss)
             avg_val_non_match_loss = np.mean(self.val_non_match_loss)
 
@@ -315,11 +290,11 @@ class ULOSD_Agent(AbstractAgent):
                                    scalar_value=avg_val_sep_loss, global_step=global_epoch)
             self.writer.add_scalar(tag="val/l1_activation_penalty",
                                    scalar_value=avg_val_sparsity_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="val/pixelwise_contrastive_loss",
-                                   scalar_value=avg_val_pwc_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="val/pwc_match_loss",
+            self.writer.add_scalar(tag="val/patchwise_contrastive_loss",
+                                   scalar_value=avg_val_pacolo, global_step=global_epoch)
+            self.writer.add_scalar(tag="val/pacolo_match_loss",
                                    scalar_value=avg_val_match_loss, global_step=global_epoch)
-            self.writer.add_scalar(tag="val/pwc_non_match_loss",
+            self.writer.add_scalar(tag="val/pacolo_non_match_loss",
                                    scalar_value=avg_val_non_match_loss, global_step=global_epoch)
 
         else:
@@ -360,6 +335,8 @@ class ULOSD_Agent(AbstractAgent):
             appearance=False,
             re_sample_kpts=config['training']['re_sample'],
             re_sample_scale=config['training']['re_sample_scale'])
+        N, T, C, Hp, Wp = feature_maps.shape
+        _, _, K, D = observed_key_points.shape
         assert observed_key_points[..., :2].max() <= 1.0, f'{observed_key_points[..., :2].max()} > 1.0'
 
         # predicted_diff = self.model.decode(observed_key_points, sample[:, 0:1, ...])
@@ -396,19 +373,9 @@ class ULOSD_Agent(AbstractAgent):
         # Extensions
         #
 
-        if config['training']['consistency_loss_scale'] > 0:
-            consistency_loss = self.consistency_loss(keypoint_coordinates=observed_key_points, config=config)
-        else:
-            consistency_loss = torch.Tensor([0.0]).to(self.device)
-
-        if config['training']['tc_loss_scale'] > 0:
-            tc_triplet_loss = self.tc_triplet_loss(keypoint_coordinates=observed_key_points, config=config)
-        else:
-            tc_triplet_loss = torch.Tensor([0.0]).to(self.device)
-
-        if config['training']['pixelwise_contrastive_scale'] > 0 \
-                and global_epoch_number >= config['training']['pixelwise_contrastive_starting_epoch']:
-            pc_loss, match_loss, non_match_loss = self.pixelwise_contrastive_loss(
+        if config['training']['patchwise_contrastive_scale'] > 0 \
+                and global_epoch_number >= config['training']['patchwise_contrastive_starting_epoch']:
+            pc_loss, match_loss, non_match_loss = self.patchwise_contrastive_loss(
                 keypoint_coordinates=observed_key_points,
                 image_sequence=sample,
                 feature_map_sequence=gaussian_maps,
@@ -437,27 +404,22 @@ class ULOSD_Agent(AbstractAgent):
         # total loss
         L = reconstruction_loss + separation_loss + l1_penalty + \
             coord_pred_loss + kl_loss + \
-            consistency_loss + tc_triplet_loss + pc_loss + emd_sum
+            pc_loss + emd_sum
 
         if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
             # NOTE: This part seems to cause a linear increase in CPU memory usage
             #       Maybe the videos should be saved to the hard-drive instead
-
 
             with torch.no_grad():
 
                 self.val_rec_loss.append(reconstruction_loss.item())
                 self.val_sep_loss.append(separation_loss.item())
                 self.val_sparsity_loss.append(l1_penalty.item())
-                self.val_pwc_loss.append(pc_loss.item())
+                self.val_pacolo.append(pc_loss.item())
                 self.val_match_loss.append(match_loss.item())
                 self.val_non_match_loss.append(non_match_loss.item())
 
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
-                                                        # sample=(sample - 0.5).clamp(0.0, 1.0),
-                                                        # reconstruction=reconstruction.detach().clamp(-0.5, 0.5),
-                                                        # reconstruction=(reconstruction - 0.5).detach().clamp(-0.5, 0.5),
-                                                        # reconstruction=(reconstruction - 0.5).detach().clamp(0.0, 1.0),
                                                         reconstruction=reconstruction,
                                                         key_points=observed_key_points)
 
@@ -465,13 +427,30 @@ class ULOSD_Agent(AbstractAgent):
                                       vid_tensor=torch_img_series_tensor,
                                       global_step=global_epoch_number)
 
-                self.writer.add_video(tag='features/feature_maps',
-                                      vid_tensor=feature_maps[0:1, 0:1, ...].transpose(1, 2),
-                                      global_step=global_epoch_number)
+                cm = pylab.get_cmap('gist_rainbow')
 
-                self.writer.add_video(tag='features/gaussian_maps',
-                                      vid_tensor=gaussian_maps[0:1, 0:1, ...].transpose(1, 2),
-                                      global_step=global_epoch_number)
+                observed_key_points[..., :2] *= -1.0
+                img_coordinates = kpts_2_img_coordinates(observed_key_points, (Hp, Wp)).cpu()
+                observed_key_points[..., :2] *= -1.0
+
+                fig, ax = plt.subplots(2, K, figsize=(K * 3, 6))
+                t = T - 1
+                for k in range(K):
+                    ax[0, k].imshow(feature_maps[0, t, k, ...].cpu(), cmap='gray')
+                    ax[0, k].set_title(f'Frame {t} - F. Map {k}')
+                    ax[0, k].scatter(img_coordinates[0, t, k, 1], img_coordinates[0, t, k, 0],
+                                     color=cm(1. * k / K), marker="^", s=150)
+
+                    ax[1, k].imshow(gaussian_maps[0, t, k, ...].cpu(), cmap='gray')
+                    ax[1, k].set_title(f'Frame {t} - G. Rec. {k}')
+                    ax[1, k].scatter(img_coordinates[0, t, k, 1], img_coordinates[0, t, k, 0],
+                                     color=cm(1. * k / K), marker="^", s=150)
+
+                self.writer.add_figure(tag="feature_maps_and_reconstructions",
+                                       figure=fig,
+                                       global_step=global_epoch_number)
+
+                plt.close()
 
                 self.writer.flush()
                 del torch_img_series_tensor
@@ -481,9 +460,7 @@ class ULOSD_Agent(AbstractAgent):
 
             self.rec_loss_per_iter.append(reconstruction_loss.item())
             self.sep_loss_per_iter.append(separation_loss.item())
-            self.cons_loss_per_iter.append(consistency_loss.item())  # Extension
-            self.tc_loss_per_iter.append(tc_triplet_loss.item())  # Extension
-            self.pwc_loss_per_iter.append(pc_loss.item())  # Extension
+            self.pacolo_per_iter.append(pc_loss.item())  # Extension
             self.match_loss_per_iter.append(match_loss.item())  # Extension
             self.non_match_loss_per_iter.append(non_match_loss.item())  # Extension
             self.emd_sum_per_iter.append(emd_sum.item())  # Extension

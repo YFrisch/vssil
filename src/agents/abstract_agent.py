@@ -154,7 +154,8 @@ class AbstractAgent:
             self.optim = torch.optim.Adam(
                 params=self.model.parameters(),
                 lr=config['training']['initial_lr'],
-                weight_decay=config['training']['l2_weight_decay']
+                weight_decay=config['training']['l2_weight_decay'],
+                betas=(0.9, 0.999)
             )
         elif config['training']['optim'] in ['AdamW', 'adamw', 'ADAMW']:
             self.optim = torch.optim.AdamW(
@@ -177,7 +178,8 @@ class AbstractAgent:
             self.optim = torch.optim.SGD(
                 params=self.model.parameters(),
                 lr=config['training']['initial_lr'],
-                weight_decay=config['training']['l2_weight_decay']
+                weight_decay=config['training']['l2_weight_decay'],
+                momentum=0.9
             )
         else:
             raise NotImplementedError("Optimizer unknown / not implemented yet.")
@@ -309,13 +311,7 @@ class AbstractAgent:
                                      mode='training')
 
                     assert loss is not None, "No loss returned during training."
-                    #self.loss_per_iter.append(loss.detach().cpu().numpy())
                     self.loss_per_iter.append(loss.item())
-
-                    #del sample, target, loss
-
-                    #if i == config['training']['steps_per_epoch']:
-                    #    break
 
                 avg_loss = np.mean(self.loss_per_iter)
                 print(f"\nEpoch: {epoch}|{config['training']['epochs']}\t\t Avg. loss: {avg_loss}\n")
@@ -411,13 +407,7 @@ class AbstractAgent:
                                     config=config,
                                     mode='validation')
 
-            # loss_per_sample.append(sample_loss.cpu().numpy())
             loss_per_sample.append(sample_loss.item())
-
-            #del sample, label, target, sample_loss
-
-            #if i == config['validation']['steps']:
-            #    break
 
         avg_loss = np.mean(loss_per_sample)
         self.writer.add_scalar(tag="val/loss", scalar_value=avg_loss, global_step=global_epoch)
@@ -436,7 +426,7 @@ class AbstractAgent:
             self.best_val_loss = avg_loss
             torch.save(self.model.state_dict(),
                        self.log_dir + f'checkpoints/chckpt_f{training_fold}_e{training_epoch}.PTH')
-        elif training_epoch == config['training']['epochs'] - 1:
+        if training_epoch == config['training']['epochs'] - 1:
             torch.save(self.model.state_dict(),
                        self.log_dir + f'checkpoints/chckpt_final.PTH')
         else:

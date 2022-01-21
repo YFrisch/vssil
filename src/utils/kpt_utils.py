@@ -5,11 +5,14 @@ import torch
 def kpts_2_img_coordinates(kpt_coordinates: torch.Tensor,
                            img_shape: tuple) -> torch.Tensor:
     """ Converts the key-point coordinates from video structure format [-1,1]x[-1,1]
-        to image coordinates in [0,W]x[0,H].
+        to image coordinates in [0,H]x[0,W].
+
+    :param kpt_coordinates: Torch tensor in (N, T, K, 2/3)
+    :param img_shape: Tuple of image size (H, W)
     """
-    _kpt_coordinates = kpt_coordinates.clone()
-    _kpt_coordinates[..., 1] = (kpt_coordinates[..., 1] + 1.0) * img_shape[-2]/2.0
+    _kpt_coordinates = torch.empty_like(kpt_coordinates)
     _kpt_coordinates[..., 0] = (-kpt_coordinates[..., 0] + 1.0) * img_shape[-1]/2.0
+    _kpt_coordinates[..., 1] = (kpt_coordinates[..., 1] + 1.0) * img_shape[-2]/2.0
     return _kpt_coordinates
 
 

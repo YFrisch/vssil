@@ -32,12 +32,8 @@ def plot_grad_flow(named_parameters,
     for n, p in named_parameters:
         if p.requires_grad and ("bias" not in n):
             layers.append(n)
-            #print(f'name: {n}')
             ave_grads.append(p.grad.abs().mean().cpu())
-            #print(f'mean: {p.grad.abs().mean()}')
-            # ave_grads.append(p.grad.mean())
             max_grads.append(p.grad.abs().max().cpu())
-            # max_grads.append(p.grad.max())
 
     fig = plt.figure()
     plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
@@ -45,7 +41,8 @@ def plot_grad_flow(named_parameters,
     plt.hlines(0, 0, len(ave_grads) + 1, lw=2, color="k")
     plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
     plt.xlim(left=0, right=len(ave_grads))
-    plt.ylim(bottom=-0.001, top=0.02)  # zoom in on the lower gradient regions
+    # plt.ylim(bottom=-0.001, top=0.02)  # zoom in on the lower gradient regions
+    plt.ylim(bottom=-0.001, top=0.01)
     plt.xlabel("Layers")
     plt.ylabel("average gradient")
     plt.title("Gradient flow")
@@ -54,9 +51,10 @@ def plot_grad_flow(named_parameters,
                 plt.Line2D([0], [0], color="b", lw=4),
                 plt.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
 
-    np_array = pyplot_fig_to_rgb_array(fig)
-    torch_tensor = torch.from_numpy(np_array).squeeze(0).permute(2, 0, 1)
 
-    summary_writer.add_image(tag=f'train/grad_flow/{tag_name}', img_tensor=torch_tensor, global_step=epoch)
+    #np_array = pyplot_fig_to_rgb_array(fig)
+    #torch_tensor = torch.from_numpy(np_array).squeeze(0).permute(2, 0, 1)
+
+    summary_writer.add_figure(tag=f'train/grad_flow/{tag_name}', figure=fig, global_step=epoch)
 
     plt.close(fig)
