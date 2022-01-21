@@ -5,20 +5,19 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.data.npz_dataset import NPZ_Dataset
-from src.losses.distr_constraints import wasserstein_constraint
-from src.losses.kpt_metrics import tracking_metric, distribution_metric, visual_difference_metric
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, \
-    plot_keypoint_amplitudes
+from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
 from src.utils.argparse import parse_arguments
-from src.utils.get_kpt_patches import get_kpt_patches
+from src.utils.kpt_utils import get_image_patches
+from src.losses.kpt_metrics import grad_tracking_metric, distribution_metric, visual_difference_metric
+from src.losses.spatial_consistency_loss import spatial_consistency_loss
 
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_acrobot/2021_12_12_22_18/config.yml"
+    args.config = "/home/yannik/vssil/result_videos/ulosd_acrobot/vanilla_1.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -42,7 +41,7 @@ if __name__ == "__main__":
     eval_data_loader = DataLoader(
         dataset=npz_data_set,
         batch_size=1,
-        shuffle=True
+        shuffle=False
     )
 
     ulosd_agent = ULOSD_Agent(dataset=npz_data_set,
@@ -51,7 +50,8 @@ if __name__ == "__main__":
     ulosd_agent.eval_data_loader = eval_data_loader
     # NOTE: Change checkpoint to evaluate here:
     ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_acrobot/2021_12_12_22_18/checkpoints/chckpt_f0_e125.PTH", map_location='cpu'
+        "/home/yannik/vssil/result_videos/ulosd_acrobot/vanilla_1.PTH",
+        map_location='cpu'
     )
 
     intensity_threshold = 0.3
@@ -78,41 +78,24 @@ if __name__ == "__main__":
             reconstruction, gmaps = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                              first_frame=sample[:, 0, ...].unsqueeze(1))
 
-            emd_costs = wasserstein_constraint(key_points)
-            print(torch.sum(emd_costs))
+            patches = get_image_patches(image_sequence=sample,
+                                        kpt_sequence=key_points,
+                                        patch_size=eval(ulosd_conf['training']['pixelwise_contrastive_patch_size']))
 
-            """
-            patches = get_kpt_patches(sample,
-                                      key_points,
-                                      eval(ulosd_conf['training']['pixelwise_contrastive_patch_size']))
-
-            M_track = tracking_metric(patch_sequence=patches)
+            M_smooth = spatial_consistency_loss(keypoint_coordinates=key_points)
+            M_track = grad_tracking_metric(patch_sequence=patches)
             M_distr = distribution_metric(kpt_sequence=key_points,
                                           patch_size=eval(ulosd_conf['training']['pixelwise_contrastive_patch_size']))
             M_vis = visual_difference_metric(patch_sequence=patches)
 
-            print('M_vis: ', M_vis.item())
-            print('M_track: ', M_track.item())
-            print('M_distr: ', M_distr.item())
-            
-            """
-
-            play_series_and_reconstruction_with_keypoints(image_series=sample,
-                                                          reconstruction=reconstruction,
-                                                          keypoint_coords=key_points,
-                                                          feature_maps=feature_maps,
-                                                          intensity_threshold=intensity_threshold,
-                                                          key_point_trajectory=True,
-                                                          trajectory_length=20)
+            play_series_with_keypoints(image_series=sample,
+                                       keypoint_coords=key_points,
+                                       intensity_threshold=intensity_threshold,
+                                       key_point_trajectory=False)
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
-                                     target_path='/home/yannik/vssil')
-
-            plt.figure()
-            plt.plot(emd_costs.cpu().numpy())
-            plt.savefig('/home/yannik/vssil/emd_costs.png')
-
+                                     target_path='/')
 
             if i == 0:
                 exit()

@@ -7,7 +7,7 @@ model:
   num_img_channels: 3
   num_keypoints: 4
   activation: 'prelu'
-  gaussian_map_std: 0.1
+  gaussian_map_std: 0.2
   weight_init: 'he_uniform'
   skip_connections: False
 training:

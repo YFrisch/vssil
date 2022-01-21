@@ -17,6 +17,7 @@ if __name__ == "__main__":
         else:
             transporter_conf['log_dir'] = transporter_conf['log_dir']+f"/{args.id}/"
         print(transporter_conf['log_dir'])
+        transporter_conf['data']['path'] = args.data
 
     # Tune parameters according to -hp argument
     if args.hp:
@@ -30,8 +31,7 @@ if __name__ == "__main__":
 
     npz_data_set = NPZ_Dataset(
         num_timesteps=transporter_conf['model']['n_frames'],
-        root_path='/home/yannik/vssil/video_structure/testdata/'
-                  'acrobot_swingup_random_repeat40_00006887be28ecb8_short_sequences.npz',
+        root_path='/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8_short_sequences.npz',
         key_word='images'
     )
 

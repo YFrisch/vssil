@@ -27,6 +27,7 @@ if __name__ == "__main__":
             ulosd_conf['log_dir'] = ulosd_conf['log_dir'] + f"/{args.id}/"
         print(ulosd_conf['log_dir'])
         ulosd_conf['multi_gpu'] = False
+        ulosd_conf['data']['path'] = args.data
 
     tran = transforms.Compose([
         transforms.RandomApply([

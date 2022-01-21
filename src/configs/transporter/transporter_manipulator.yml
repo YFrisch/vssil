@@ -1,30 +1,30 @@
 data:
   num_workers: 4
-  img_shape: (3, 128, 128)
+  img_shape: (3, 64, 64)
 
 model:
-  n_frames: 3  # Len. of sequence to sample. First sample is used as source frame, last as target frame
-  hidden_dim: 64
+  n_frames: 20  # Len. of sequence to sample. First sample is used as source frame, last as target frame
+  hidden_dim: 32
   num_img_channels: 3
   num_keypoints: 5
-  activation: 'prelu'
-  gaussian_map_std: 0.1
-  weight_init: 'he_uniform'
+  activation: LeakyReLU
+  gaussian_map_std: 0.15
+  weight_init: he_normal
   skip_connections: False
 
 training:
   epochs: 200
   steps_per_epoch: 100  # 100
-  optim: 'AdamW'
+  optim: AdamW
   k_folds: 1
-  initial_lr: 0.1
-  lr_scheduler: 'StepLR'
+  initial_lr: 0.01
+  lr_scheduler: StepLR
   lr_scheduler_epoch_steps: 30
   lr_scheduler_gamma: 0.5
   batch_size: 64  # 128
-  loss_function: mse  # inception
+  loss_function: mse  # sse, mse, inception, alexnet
   l2_weight_decay: 0.0005
-  grad_clip_max_norm: 1.0
+  grad_clip_max_norm: 5.0
 
 validation:
   steps: -1  # 100

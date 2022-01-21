@@ -20,6 +20,7 @@ if __name__ == "__main__":
         else:
             ulosd_conf['log_dir'] = ulosd_conf['log_dir']+f"/{args.id}/"
         print(ulosd_conf['log_dir'])
+        ulosd_conf['data']['path'] = args.data
 
     # Apply any number of torchvision transforms here as pre-processing
     preprocess = transforms.Compose([
@@ -28,8 +29,11 @@ if __name__ == "__main__":
         transforms.RandomChoice([
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
+            # transforms.RandomAdjustSharpness(sharpness_factor=2.0, p=0.5),
             transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
-        ]),
+            # transforms.RandomApply([transforms.ColorJitter(brightness=.5, hue=.3)], p=0.3)
+        ])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     data_set = VideoFrameDataset(
@@ -40,7 +44,7 @@ if __name__ == "__main__":
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=True,
-        test_mode=True
+        test_mode=False
     )
 
     ulosd_agent = ULOSD_Agent(dataset=data_set,

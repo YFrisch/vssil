@@ -12,62 +12,10 @@ class TransporterKeypointer(nn.Module):
 
         self.net = TransporterEncoder(config)
 
-        """
-        self.net = nn.Sequential(
-            TransporterBlock(in_channels=config['model']['num_img_channels'], out_channels=32,
-                             kernel_size=(7, 7), stride=(1,), padding=(3,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=32, out_channels=32,
-                             kernel_size=(3, 3), stride=(1,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=32, out_channels=64,
-                             kernel_size=(3, 3), stride=(2,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=64, out_channels=64,
-                             kernel_size=(3, 3), stride=(1,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-
-            TransporterBlock(in_channels=64, out_channels=128,
-                             kernel_size=(3, 3), stride=(2,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=128, out_channels=128,
-                             kernel_size=(3, 3), stride=(1,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-
-            # Addition:
-            TransporterBlock(in_channels=128, out_channels=256,
-                             kernel_size=(3, 3), stride=(2,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=256, out_channels=256,
-                             kernel_size=(3, 3), stride=(1,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=256, out_channels=512,
-                             kernel_size=(3, 3), stride=(2,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-            TransporterBlock(in_channels=512, out_channels=512,
-                             kernel_size=(3, 3), stride=(1,), padding=(1,),
-                             activation=config['model']['activation'],
-                             skip_connections=config['model']['skip_connections']),
-        )
-        """
-
         self.regressor = nn.Conv2d(
             in_channels=config['model']['hidden_dim'],
             out_channels=config['model']['num_keypoints'],
             kernel_size=(1, 1)
-            # in_channels=64, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
-            # in_channels=128, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
-            # in_channels=256, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
-            # in_channels=512, out_channels=config['model']['num_keypoints'], kernel_size=(1, 1)
         )
 
         self.gauss_std = config['model']['gaussian_map_std']
@@ -163,4 +111,4 @@ class TransporterKeypointer(nn.Module):
         img_feature_maps = self.net(x)
         key_point_feature_maps = self.regressor(img_feature_maps)
         keypoint_means, gaussian_maps = self.feature_maps_to_keypoints(feature_map=key_point_feature_maps)
-        return keypoint_means, gaussian_maps
+        return keypoint_means, gaussian_maps, key_point_feature_maps

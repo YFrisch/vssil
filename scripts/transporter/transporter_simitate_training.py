@@ -20,6 +20,7 @@ if __name__ == "__main__":
         else:
             transporter_conf['log_dir'] = transporter_conf['log_dir']+f"/{args.id}/"
         print(transporter_conf['log_dir'])
+        transporter_conf['data']['path'] = args.data
 
     preprocess = transforms.Compose([
             ImglistToTensor(),

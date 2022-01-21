@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
-                                     target_path='/home/yannik/vssil')
+                                     target_path='/')
 
             if i == 0:
                 exit()

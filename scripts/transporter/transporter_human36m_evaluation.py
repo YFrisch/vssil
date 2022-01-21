@@ -8,16 +8,17 @@ from torch.utils.data import DataLoader, Subset
 from src.agents.transporter_agent import TransporterAgent
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 from src.utils.argparse import parse_arguments
-from src.utils.visualization import play_series_and_reconstruction_with_keypoints, play_series_with_keypoints,\
-    plot_keypoint_amplitudes
-from src.losses.kpt_metrics import get_image_patches, tracking_metric, visual_difference_metric, distribution_metric
+from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
+from src.utils.kpt_utils import get_image_patches
+from src.losses.kpt_metrics import grad_tracking_metric, visual_difference_metric, distribution_metric
+from src.losses.spatial_consistency_loss import spatial_consistency_loss
 
 
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Edit config here
-    args.config = "/home/yannik/vssil/results/transporter_manipulator/2022_1_7_20_11/config.yml"
+    args.config = "/home/yannik/vssil/results/transporter_human36m/2022_1_20_9_29/config.yml"
 
     with open(args.config, 'r') as stream:
         transporter_conf = yaml.safe_load(stream)
@@ -50,12 +51,11 @@ if __name__ == "__main__":
         test_mode=True
     )
 
-    data_set = Subset(data_set, indices=[100])
+    # data_set = Subset(data_set, indices=[100])
 
     eval_data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
-        # shuffle=False
         shuffle=True
     )
 
@@ -63,7 +63,8 @@ if __name__ == "__main__":
     transporter_agent.eval_data_loader = eval_data_loader
     # NOTE: Edit checkpoint here
     transporter_agent.load_checkpoint(
-        "/home/yannik/vssil/results/transporter_manipulator/2022_1_7_20_11/checkpoints/chckpt_f0_e135.PTH"
+        "/home/yannik/vssil/results/transporter_human36m/2022_1_20_9_29/checkpoints/chckpt_f0_e180.PTH",
+        map_location='cpu'
     )
 
     with torch.no_grad():
@@ -100,18 +101,21 @@ if __name__ == "__main__":
             
             play_series_with_keypoints(image_series=samples,
                                        keypoint_coords=key_points,
-                                       key_point_trajectory=True)
+                                       key_point_trajectory=False)
+
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
-                                     target_path=".")
+                                     target_path="..")
 
             patches = get_image_patches(image_sequence=samples, kpt_sequence=key_points,
                                         patch_size=(16, 16))
 
-            M_tracking = tracking_metric(patches)
+            M_smooth = spatial_consistency_loss(key_points)
+            M_tracking = grad_tracking_metric(patches)
             M_visual = visual_difference_metric(patches)
             M_distribution = distribution_metric(key_points, (16, 16))
 
             with open('metrics.txt', 'w') as metrics_log:
+                metrics_log.write(f"M_smooth: {M_smooth}\n")
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
                 metrics_log.write(f"M_visual: {M_visual}\n")
                 metrics_log.write(f"M_distribution: {M_distribution}\n")

@@ -5,22 +5,24 @@ model:
   n_frames: 2 # Len. of sequence to sample. First sample is used as source frame, last as target frame
   num_img_channels: 3
   num_keypoints: 4
-  activation: 'LeakyReLU'
-  gaussian_map_std: 0.15 # 0.15
-  weight_init: 'he_normal'
+  activation: LeakyReLU # prelu
+  gaussian_map_std: 0.3 # 0.15
+  weight_init: he_normal # he_uniform
   skip_connections: False
+  hidden_dim: 128
 training:
-  epochs: 100
+  epochs: 200
   steps_per_epoch: 100 # 100
   optim: 'AdamW'
   k_folds: 1
-  initial_lr: 0.0005
+  initial_lr: 0.1
   lr_scheduler: 'StepLR'
-  lr_scheduler_epoch_steps: 60
+  lr_scheduler_epoch_steps: 30
+  lr_scheduler_gamma: 0.5
   batch_size: 16 # 128
   loss_function: 'mse'
-  l2_weight_decay: 0.000001
-  grad_clip_max_norm: 5.0
+  l2_weight_decay: 0.0005
+  grad_clip_max_norm: 1.0
 validation:
   steps: -1 # 100
   freq: 5
@@ -29,5 +31,5 @@ validation:
   save_eval_examples: True
 evaluation:
 device: cuda:0 # cpu
-log_dir: 'results/transporter_acrobot'
+log_dir: 'results/transporter_acrobot_64pix'
 warm_start: False

@@ -2,7 +2,7 @@ import os
 import yaml
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from src.utils.argparse import parse_arguments
@@ -10,12 +10,12 @@ from src.agents.ulosd_agent import ULOSD_Agent
 from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 from src.utils.visualization import play_series_and_reconstruction_with_keypoints, plot_keypoint_amplitudes
 
+
 if __name__ == "__main__":
 
     args = parse_arguments()
     # NOTE: Change config of your checkpoint here:
-    args.config = "/home/yannik/vssil/results/ulosd_human36m/22003139/config.yml"
-    # args.config = "/home/yannik/vssil/results/ulosd_human36m/22145621/config.yml"
+    args.config = "/home/yannik/vssil/results/ulosd_simitate/22129706/config.yml"
 
     with open(args.config, 'r') as stream:
         ulosd_conf = yaml.safe_load(stream)
@@ -39,31 +39,33 @@ if __name__ == "__main__":
         root_path=args.data,
         annotationfile_path=os.path.join(args.data, 'annotations.txt'),
         num_segments=1,
-        frames_per_segment=150,
+        frames_per_segment=100,
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=False,
         test_mode=True
     )
 
-    data_set = Subset(data_set, [107])
-
     eval_data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
-        shuffle=False
+        shuffle=True,
+        drop_last=True
     )
+
+    assert tuple(data_set[0][0].shape[-2:]) == eval(ulosd_conf['data']['img_shape']),\
+        "Dataset image shape does not match shape specified in config file!"
 
     ulosd_agent = ULOSD_Agent(dataset=data_set,
                               config=ulosd_conf)
 
     ulosd_agent.eval_data_loader = eval_data_loader
     ulosd_agent.load_checkpoint(
-        "/home/yannik/vssil/results/ulosd_human36m/22003139/checkpoints/chckpt_f0_e102.PTH"
-        # '/home/yannik/vssil/results/ulosd_human36m/22145621/checkpoints/chckpt_f0_e198.PTH'
+        "/home/yannik/vssil/results/ulosd_simitate/22129706/checkpoints/chckpt_f0_e150.PTH",
+        map_location='cpu'
     )
 
-    intensity_threshold = 0.4
+    intensity_threshold = 0.1
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
-                                     target_path='/home/yannik/vssil')
+                                     target_path='/')
 
             if i == 0:
                 exit()

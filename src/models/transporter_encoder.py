@@ -25,7 +25,8 @@ class TransporterBlock(nn.Module):
             out_channels=out_channels,
             kernel_size=kernel_size,
             stride=stride,
-            padding=padding
+            padding=padding,
+            bias=True  # TODO
         )
 
         # self.batch_norm = nn.BatchNorm2d(out_channels)
@@ -90,53 +91,6 @@ class TransporterEncoder(nn.Module):
 
         assert ch == config['model']['hidden_dim']
         self.net = nn.Sequential(*transporter_blocks)
-
-    """
-    self.net = nn.Sequential(
-        TransporterBlock(in_channels=config['model']['num_img_channels'], out_channels=32,
-                       kernel_size=(7, 7), stride=(1,), padding=(3,),
-                       activation=config['model']['activation'],
-                       skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=32, out_channels=32,
-                       kernel_size=(3, 3), stride=(1,), padding=(1,),
-                       activation=config['model']['activation'],
-                       skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=32, out_channels=64,
-                         kernel_size=(3, 3), stride=(2,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=64, out_channels=64,
-                         kernel_size=(3, 3), stride=(1,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),               
-        TransporterBlock(in_channels=64, out_channels=128,
-                         kernel_size=(3, 3), stride=(2,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=128, out_channels=128,
-                         kernel_size=(3, 3), stride=(1,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        # Addition:
-        TransporterBlock(in_channels=128, out_channels=256,
-                         kernel_size=(3, 3), stride=(2,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=256, out_channels=256,
-                         kernel_size=(3, 3), stride=(1,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=256, out_channels=512,
-                         kernel_size=(3, 3), stride=(2,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        TransporterBlock(in_channels=512, out_channels=512,
-                         kernel_size=(3, 3), stride=(1,), padding=(1,),
-                         activation=config['model']['activation'],
-                         skip_connections=config['model']['skip_connections']),
-        
-    )
-    """
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)

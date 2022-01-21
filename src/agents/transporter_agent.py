@@ -1,15 +1,18 @@
 import random
 
+import pylab
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
+from torchvision.utils import make_grid
 
 from src.models.transporter import Transporter
 from src.models.inception3 import perception_inception_net
 from src.models.alexnet import perception_alex_net
 from src.utils.visualization import gen_eval_imgs
 from src.utils.grad_flow import plot_grad_flow
+from src.utils.kpt_utils import kpts_2_img_coordinates
 from src.losses import perception_loss
 from .abstract_agent import AbstractAgent
 
@@ -111,13 +114,10 @@ class TransporterAgent(AbstractAgent):
 
         assert mode in ['training', 'validation']
 
-        N, C, H, W = sample.shape
-
-        if mode == 'training':
-            self.optim.zero_grad()
+        self.optim.zero_grad()
 
         reconstruction = self.model(sample, target)
-        # reconstruction.clip_(-0.5, 0.5)
+
         loss = self.loss_func(prediction=reconstruction, target=target, config=config)
 
         if mode == 'training':
@@ -125,6 +125,8 @@ class TransporterAgent(AbstractAgent):
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), config['training']['grad_clip_max_norm'])
+
+            self.optim.step()
 
             if save_grad_flow_plot:
                 plot_grad_flow(named_parameters=self.model.encoder.named_parameters(),
@@ -139,18 +141,28 @@ class TransporterAgent(AbstractAgent):
                                epoch=global_epoch_number,
                                tag_name='decoder',
                                summary_writer=self.writer)
-            self.optim.step()
 
         if mode == 'validation' and config['validation']['save_eval_examples']:
+
             with torch.no_grad():
-                key_point_coordinates = torch.cat([self.model.keypointer(sample)[0].unsqueeze(1),
-                                                   self.model.keypointer(target)[0].unsqueeze(1)], dim=1)
+                source_kpts, source_gmaps, source_fmaps = self.model.keypointer(sample)
+                _N, _K, _H, _W = source_fmaps.shape
+                target_kpts, target_gmaps, target_fmaps = self.model.keypointer(target)
+                key_point_coordinates = torch.cat([source_kpts.unsqueeze(1), target_kpts.unsqueeze(1)], dim=1)
+
                 # Adapt to visualization
-                key_point_coordinates[..., 1] = key_point_coordinates[..., 1] * (-1)
+                key_point_coordinates[..., 0] *= -1.0
+
+                # Convert kpt coordinates from [-1, 1]x[-1, 1] to [0, H]x[0, W]
+                img_coordinates = kpts_2_img_coordinates(key_point_coordinates, (_H, _W)).cpu()  # (N, 2, K, 2)
+                key_point_coordinates[..., :2] *= -1.0
+
                 _sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
                 _sample = ((_sample + 1) / 2.0).clip(0.0, 1.0)
+
                 reconstruction = torch.cat([sample.unsqueeze(1), reconstruction.unsqueeze(1)], dim=1)
                 reconstruction = ((reconstruction + 1) / 2.0).clip(0.0, 1.0)
+
                 torch_img_series_tensor = gen_eval_imgs(sample=_sample,
                                                         reconstruction=reconstruction,
                                                         key_points=key_point_coordinates)
@@ -158,6 +170,41 @@ class TransporterAgent(AbstractAgent):
                 self.writer.add_video(tag='val/reconstruction_sample',
                                       vid_tensor=torch_img_series_tensor,
                                       global_step=global_epoch_number)
+
+                cm = pylab.get_cmap('gist_rainbow')
+
+                fig, ax = plt.subplots(2, _K, figsize=(_K * 4, 8))
+                for _k in range(_K):
+                    ax[0, _k].imshow(source_fmaps[0, _k, ...].cpu(), cmap='gray')
+                    ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
+                    ax[0, _k].scatter(img_coordinates[0, 0, _k, 1], img_coordinates[0, 0, _k, 0],
+                                      color=cm(1.*_k/_K), marker="^", s=150)
+                    ax[1, _k].imshow(target_fmaps[0, _k, ...].cpu(), cmap='gray')
+                    ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
+                    ax[1, _k].scatter(img_coordinates[0, 1, _k, 1], img_coordinates[0, 1, _k, 0],
+                                      color=cm(1.*_k/_K), marker="^", s=150)
+
+                self.writer.add_figure(tag="val/feature_maps",
+                                       figure=fig,
+                                       global_step=global_epoch_number)
+
+                fig, ax = plt.subplots(2, _K, figsize=(_K * 4, 8))
+                for _k in range(_K):
+                    ax[0, _k].imshow(source_gmaps[0, _k, ...].cpu(), cmap='gray')
+                    ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
+                    ax[0, _k].scatter(img_coordinates[0, 0, _k, 1], img_coordinates[0, 0, _k, 0],
+                                      color=cm(1. * _k / _K), marker="^", s=150)
+                    ax[1, _k].imshow(target_gmaps[0, _k, ...].cpu(), cmap='gray')
+                    ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
+                    ax[1, _k].scatter(img_coordinates[0, 1, _k, 1], img_coordinates[0, 1, _k, 0],
+                                      color=cm(1. * _k / _K), marker="^", s=150)
+
+                self.writer.add_figure(tag="val/gaussian_maps",
+                                       figure=fig,
+                                       global_step=global_epoch_number)
+
+                plt.close()
+
                 self.writer.flush()
 
         return loss
