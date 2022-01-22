@@ -4,7 +4,7 @@ data:
 device: cuda:0
 evaluation:
   steps: -1
-log_dir: results/ulosd_acrobot_vanilla
+log_dir: results/ulosd_acrobot_vanilla_64pix_tune/
 model:
   conv_kernel_size: 3
   decoder_hidden_activations: LeakyReLU
@@ -15,7 +15,7 @@ model:
   n_convolutions_per_res: 1
   n_feature_maps: 64
   n_frames: 4
-  n_init_filters: 4
+  n_init_filters: 8
   weight_init: he_uniform
 multi_gpu: false
 training:

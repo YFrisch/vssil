@@ -1,0 +1,57 @@
+data:
+  img_shape: (128, 128)
+  num_workers: 4
+device: cuda:0
+evaluation:
+  steps: -1
+log_dir: results/ulosd_human36m_vanilla_128pix_tune/
+model:
+  conv_kernel_size: 3
+  decoder_hidden_activations: LeakyReLU
+  encoder_hidden_activations: LeakyReLU
+  feature_map_gauss_sigma: 1.5
+  feature_map_height: 64
+  feature_map_width: 64
+  n_convolutions_per_res: 1
+  n_feature_maps: 48
+  n_frames: 8
+  n_init_filters: 16
+  weight_init: he_normal
+multi_gpu: false
+training:
+  batch_size: 32
+  clip_norm: 10.0
+  emd_sum_scale: 1.0
+  epochs: 100
+  feature_map_regularization: 0.01
+  initial_lr: 0.1
+  k_folds: 1
+  l2_weight_decay: 0.0005
+  lr_scheduler: StepLR
+  lr_scheduler_epoch_steps: 300
+  lr_scheduler_gamma: 0.5
+  max_lr: 0.001
+  min_lr: 0.0001
+  optim: AdamW
+  patchwise_contrastive_alpha: '...'
+  patchwise_contrastive_patch_size: '...'
+  patchwise_contrastive_scale: 0.0
+  patchwise_contrastive_starting_epoch: '...'
+  patchwise_contrastive_time_window: '...'
+  patchwise_contrastive_type: '...'
+  re_sample: false
+  re_sample_scale: 0.02
+  reconstruction_loss: sse
+  reconstruction_loss_scale: 0.1
+  separation_loss_scale: 0.02
+  separation_loss_sigma: 0.002
+  steps_per_epoch: 1000
+  use_emd: false
+validation:
+  batch_size: 8
+  freq: 50
+  save_video: true
+  steps: 100
+warm_start: false
+warm_start_checkpoint: ''
+warm_start_config: ''
