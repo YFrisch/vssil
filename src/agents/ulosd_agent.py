@@ -42,7 +42,7 @@ class ULOSD_Agent(AbstractAgent):
         C = 3
         H = eval(config['data']['img_shape'])[0]
         W = eval(config['data']['img_shape'])[1]
-        input_shape = (T, C, H, W)
+        input_shape = (N, T, C, H, W)
 
         self.model = ULOSD(input_shape=input_shape, config=config).to(self.device)
 
@@ -64,24 +64,25 @@ class ULOSD_Agent(AbstractAgent):
             self.model.to(self.device)
 
         # Properties for patch-wise contrastive loss
-        K = config['model']['n_feature_maps']
-        pc_time_window = config['training']['patchwise_contrastive_time_window']
-        pc_patch_size = eval(config['training']['patchwise_contrastive_patch_size'])
-        assert pc_time_window <= T
-        assert pc_time_window % 2 != 0, "Use odd time-window"
-        assert pc_patch_size[0] == pc_patch_size[1], "Use square patch"
-        self.pc_pos_range = max(int(pc_time_window / 2), 1) if pc_time_window > 1 else 0
-        pc_center_index = int(pc_patch_size[0] / 2)
-        pc_step_matrix = torch.ones(pc_patch_size + (2,)).to(self.device)
-        # TODO: Check step sizes
-        step_w = 1 / W
-        step_h = 1 / H
-        for k in range(0, pc_patch_size[0]):
-            for l in range(0, pc_patch_size[1]):
-                pc_step_matrix[k, l, 0] = (l - pc_center_index) * step_w
-                pc_step_matrix[k, l, 1] = (k - pc_center_index) * step_h
+        if config['training']['patchwise_contrastive_scale'] != 0.0:
+            K = config['model']['n_feature_maps']
+            pc_time_window = config['training']['patchwise_contrastive_time_window']
+            pc_patch_size = eval(config['training']['patchwise_contrastive_patch_size'])
+            assert pc_time_window <= T
+            assert pc_time_window % 2 != 0, "Use odd time-window"
+            assert pc_patch_size[0] == pc_patch_size[1], "Use square patch"
+            self.pc_pos_range = max(int(pc_time_window / 2), 1) if pc_time_window > 1 else 0
+            pc_center_index = int(pc_patch_size[0] / 2)
+            pc_step_matrix = torch.ones(pc_patch_size + (2,)).to(self.device)
+            # TODO: Check step sizes
+            step_w = 1 / W
+            step_h = 1 / H
+            for k in range(0, pc_patch_size[0]):
+                for l in range(0, pc_patch_size[1]):
+                    pc_step_matrix[k, l, 0] = (l - pc_center_index) * step_w
+                    pc_step_matrix[k, l, 1] = (k - pc_center_index) * step_h
 
-        self.pc_grid = pc_step_matrix.unsqueeze(0).repeat((N * T * K, 1, 1, 1)).to(self.device)
+            self.pc_grid = pc_step_matrix.unsqueeze(0).repeat((N * T * K, 1, 1, 1)).to(self.device)
 
         # Logged values
         self.rec_loss_per_iter = []
@@ -155,12 +156,6 @@ class ULOSD_Agent(AbstractAgent):
         elif rec_loss in ['sse', 'SSE']:
             loss = F.mse_loss(input=prediction, target=target, reduction='sum') * 0.5
             loss = loss / (N * T)
-
-        elif rec_loss in ['ssim', 'SSIM']:
-            ssim_module = SSIM()
-            # NOTE: SSIM is a metric, so we want to minimize 1 - loss
-            loss = 1 - ssim_module(img1=prediction.view((N * T, *tuple(target.shape[2:]))),
-                                   img2=target.view((N * T, *tuple(target.shape[2:]))))
 
         elif rec_loss in ['Inception', 'inception', 'INCEPTION', 'alexnet', 'AlexNet', 'ALEXNET']:
             loss = perception_loss(perception_net=self.perception_net,

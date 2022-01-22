@@ -32,7 +32,7 @@ class ULOSD(nn.Module):
             the number of channels, until the width of the
             feature maps is reached.
         """
-        self.encoder, encoder_input_shape = make_encoder(input_shape, config)
+        self.encoder, encoder_input_shape, n_encoder_output_channels = make_encoder(input_shape, config)
         self.encoder.apply(lambda model: init_weights(m=model, config=config))
 
         self.appearance_net = make_appearance_encoder(input_shape, config)
@@ -45,7 +45,7 @@ class ULOSD(nn.Module):
             the number of channels, until the width of the
             original input image is reached.
         """
-        self.decoder = make_decoder(encoder_input_shape, config)
+        self.decoder = make_decoder(encoder_input_shape, n_encoder_output_channels, config)
         self.decoder.apply(lambda model: init_weights(m=model, config=config))
 
         """
@@ -151,9 +151,9 @@ class ULOSD(nn.Module):
 
             # Decode
             reconstructed_image = self.decoder(combi).to(self.device)
-            # TODO: Mapping to [0, 1] range
+            # TODO: Mapping to [0, 1] range ? Any output activation?
             # reconstructed_image = torch.sigmoid(reconstructed_image)
-            reconstructed_image = torch.tanh(reconstructed_image)
+            # reconstructed_image = torch.tanh(reconstructed_image)
             image_list.append(reconstructed_image)
 
         # Stack time

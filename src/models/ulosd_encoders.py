@@ -11,11 +11,16 @@ def make_encoder(input_shape: tuple, config: dict):
         the number of channels, until the width of the
         feature maps is reached.
 
+    :param input_shape: (N, T, C, H, W) input shape tuple
+
     """
-    encoder_module_list = []
+    assert len(input_shape) == 5, "Specify (N, T, C, H, W)."
+
     # Adjusted input shape (for add_coord_channels)
-    encoder_input_shape = (input_shape[1] + 2, *input_shape[2:])
+    encoder_input_shape = (input_shape[2] + 2, *input_shape[3:])
     assert len(encoder_input_shape) == 3
+
+    encoder_module_list = []
 
     # First, expand the input to an initial number of filters
     num_channels = encoder_input_shape[0]
@@ -92,7 +97,7 @@ def make_encoder(input_shape: tuple, config: dict):
             activation=nn.Softplus()
         )
     )
-    return nn.Sequential(*encoder_module_list), encoder_input_shape
+    return nn.Sequential(*encoder_module_list), encoder_input_shape, num_channels
 
 
 def make_appearance_encoder(input_shape: tuple, config: dict):
@@ -168,7 +173,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
         if input_width <= config['model']['feature_map_width']:
             break
 
-
+    """
     # Final layer that maps to the desired number of feature_maps
     appearance_module_list.append(
         Conv2DSamePadding(
@@ -180,6 +185,6 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             #activation=nn.Softplus()
         )
     )
-
+    """
 
     return nn.Sequential(*appearance_module_list)

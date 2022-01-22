@@ -253,7 +253,8 @@ class AbstractAgent:
                 sampler=SubsetRandomSampler(train_ids),
                 num_workers=config['data']['num_workers'],
                 pin_memory=True,
-                drop_last=True
+                drop_last=True,
+                shuffle=False
             )
             self.val_data_loader = DataLoader(
                 dataset=self.data_set,
@@ -261,7 +262,8 @@ class AbstractAgent:
                 sampler=SubsetRandomSampler(val_ids),
                 num_workers=config['data']['num_workers'],
                 pin_memory=True,
-                drop_last=True
+                drop_last=True,
+                shuffle=False
             )
 
             # Iterate over epochs
