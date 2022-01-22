@@ -8,12 +8,12 @@ model:
   feature_map_width: 64
   feature_map_height: 64
   feature_map_gauss_sigma: 1.5
-  n_init_filters: 8  # 32
+  n_init_filters: 8
   n_convolutions_per_res: 1
   conv_kernel_size: 3
   decoder_hidden_activations: LeakyReLU
   encoder_hidden_activations: LeakyReLU
-  weight_init: he_normal  # he_uniform
+  weight_init: he_normal
 
 training:
   k_folds: 1
@@ -23,14 +23,14 @@ training:
   lr_scheduler: StepLR
   lr_scheduler_epoch_steps: 5
   lr_scheduler_gamma: 0.5
-  initial_lr: 0.1  # 0.001
+  initial_lr: 0.1
   max_lr: 0.001
   min_lr: 0.0001
   clip_norm: 10.0
   batch_size: 32  # 32
-  l2_weight_decay: 5.0e-4  # 1.0e-4
-  reconstruction_loss: sse  # mse
-  reconstruction_loss_scale: 0.1  # 1.0
+  l2_weight_decay: 5.0e-4
+  reconstruction_loss: sse
+  reconstruction_loss_scale: 0.1
   feature_map_regularization: 5.0
   separation_loss_scale: 0.1
   separation_loss_sigma: 0.02
@@ -46,9 +46,9 @@ training:
   re_sample_scale: 0.02
 
 validation:
-  steps: -1
-  freq: 5
-  batch_size: 4  # 32
+  steps: 100
+  freq: 50
+  batch_size: 8  # 32
   save_video: true
 
 evaluation:
@@ -56,7 +56,7 @@ evaluation:
 
 device: cuda:0
 multi_gpu: false
-log_dir: "results/ulosd_manipulator_new_128pix"
+log_dir: "results/ulosd_acrobot_vanilla"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

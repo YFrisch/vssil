@@ -416,7 +416,8 @@ class ULOSD_Agent(AbstractAgent):
 
                 torch_img_series_tensor = gen_eval_imgs(sample=sample,
                                                         reconstruction=reconstruction,
-                                                        key_points=observed_key_points)
+                                                        key_points=observed_key_points,
+                                                        intensity_threshold=0.5)
 
                 self.writer.add_video(tag='val/reconstruction_sample',
                                       vid_tensor=torch_img_series_tensor,
@@ -428,18 +429,29 @@ class ULOSD_Agent(AbstractAgent):
                 img_coordinates = kpts_2_img_coordinates(observed_key_points, (Hp, Wp)).cpu()
                 observed_key_points[..., :2] *= -1.0
 
-                fig, ax = plt.subplots(2, K, figsize=(K * 3, 6))
-                t = T - 1
-                for k in range(K):
-                    ax[0, k].imshow(feature_maps[0, t, k, ...].cpu(), cmap='gray')
-                    ax[0, k].set_title(f'Frame {t} - F. Map {k}')
-                    ax[0, k].scatter(img_coordinates[0, t, k, 1], img_coordinates[0, t, k, 0],
-                                     color=cm(1. * k / K), marker="^", s=150)
 
-                    ax[1, k].imshow(gaussian_maps[0, t, k, ...].cpu(), cmap='gray')
-                    ax[1, k].set_title(f'Frame {t} - G. Rec. {k}')
-                    ax[1, k].scatter(img_coordinates[0, t, k, 1], img_coordinates[0, t, k, 0],
-                                     color=cm(1. * k / K), marker="^", s=150)
+
+                t = T - 1
+                # Get ids of 'active' kpts (intensity above threshold)
+                active_kpt_ids = np.array([k if observed_key_points[0, t, k, 2] > 0.5 else 0 for k in range(K)])
+                active_kpt_ids = np.delete(active_kpt_ids, np.where(active_kpt_ids == 0))
+                _K = len(active_kpt_ids)
+
+                fig, ax = plt.subplots(2, _K, figsize=(_K * 3, 6))
+
+                for k in range(_K):
+                    ax[0, k].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
+                    ax[0, k].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
+                    ax[0, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
+                                     img_coordinates[0, t, active_kpt_ids[k], 0],
+                                     color=cm(1. * active_kpt_ids[k] / K),
+                                     marker="^", s=150)
+
+                    ax[1, k].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
+                    ax[1, k].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
+                    ax[1, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
+                                     img_coordinates[0, t, active_kpt_ids[k], 0],
+                                     color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
 
                 self.writer.add_figure(tag="feature_maps_and_reconstructions",
                                        figure=fig,

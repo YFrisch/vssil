@@ -348,6 +348,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 def gen_eval_imgs(sample: torch.Tensor,
                   reconstruction: torch.Tensor,
                   key_points: torch.Tensor,
+                  intensity_threshold: float = 0.75,
                   key_point_trajectory: bool = False):
     """ Creates an torch image series tensor out of a series of pyplot images,
         that show the sample at time 0, at time n, the difference and its prediction.
@@ -399,7 +400,7 @@ def gen_eval_imgs(sample: torch.Tensor,
 
         ax[0].imshow(sample[0, t, ...].permute(1, 2, 0).cpu().numpy())
         for kp in range(key_points.shape[2]):
-            if key_points.shape[-1] == 2 or key_points[0, t, kp, 2] > 0.75:
+            if key_points.shape[-1] == 2 or key_points[0, t, kp, 2] > intensity_threshold:
                 # NOTE: pyplot.scatter uses x as height and y as width, with the origin in the top left
                 x_coord = int(((-key_points[0, t, kp, 1] + 1.0) / 2.0) * sample.shape[4])  # Width
                 y_coord = int(((key_points[0, t, kp, 0] + 1.0) / 2.0) * sample.shape[3])  # Height
