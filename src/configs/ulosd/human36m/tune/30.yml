@@ -22,11 +22,11 @@ training:
   batch_size: 32
   clip_norm: 10.0
   emd_sum_scale: 1.0
-  epochs: 100
+  epochs: 1000
   feature_map_regularization: 0.01
   initial_lr: 0.1
   k_folds: 1
-  l2_weight_decay: 0.0005
+  l2_weight_decay: 0.0001
   lr_scheduler: StepLR
   lr_scheduler_epoch_steps: 300
   lr_scheduler_gamma: 0.5
@@ -45,7 +45,7 @@ training:
   reconstruction_loss_scale: 0.1
   separation_loss_scale: 0.02
   separation_loss_sigma: 0.002
-  steps_per_epoch: 1000
+  steps_per_epoch: 100
   use_emd: false
 validation:
   batch_size: 8
