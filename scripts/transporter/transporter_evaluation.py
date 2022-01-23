@@ -22,7 +22,7 @@ if __name__ == "__main__":
         transporter_conf['device'] = 'cpu'
         transporter_conf['model']['n_frames'] = 2
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=50)
+    data_set = get_dataset_from_path(args.data, n_timesteps=150)
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
@@ -78,10 +78,12 @@ if __name__ == "__main__":
             
             play_series_with_keypoints(image_series=samples,
                                        keypoint_coords=key_points,
-                                       key_point_trajectory=False)
+                                       key_point_trajectory=True,
+                                       trajectory_length=10,
+                                       save_path='./result_videos/anim.mp4')
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
-                                     target_path=".")
+                                     target_path='./result_videos/')
 
             patches = get_image_patches(image_sequence=samples, kpt_sequence=key_points,
                                         patch_size=(16, 16))
@@ -90,7 +92,7 @@ if __name__ == "__main__":
             M_visual = visual_difference_metric(patches)
             M_distribution = distribution_metric(key_points, (16, 16))
 
-            with open('metrics.txt', 'w') as metrics_log:
+            with open('./result_videos/metrics.txt', 'w') as metrics_log:
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
                 metrics_log.write(f"M_visual: {M_visual}\n")
                 metrics_log.write(f"M_distribution: {M_distribution}\n")

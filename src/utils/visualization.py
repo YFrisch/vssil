@@ -39,7 +39,8 @@ def play_series_with_keypoints(image_series: torch.Tensor,
                                keypoint_coords: torch.Tensor,
                                intensity_threshold: float = 0.9,
                                key_point_trajectory: bool = False,
-                               trajectory_length: int = 10, ):
+                               trajectory_length: int = 10,
+                               save_path: str = "anim.mp4"):
     """ Visualizes the image-series tensor together with the given predicted key-points. """
     assert keypoint_coords.dim() == 4
     (N, T, C, H, W) = tuple(image_series.shape)
@@ -150,7 +151,7 @@ def play_series_with_keypoints(image_series: torch.Tensor,
     # Set up formatting for the video files
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=20, metadata=dict(artist='me'), bitrate=1800)
-    anim.save('anim.mp4', writer=writer)
+    anim.save(save_path, writer=writer)
 
     plt.show()
 

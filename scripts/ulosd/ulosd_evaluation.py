@@ -8,6 +8,9 @@ from src.data.utils import get_dataset_from_path
 
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
+from src.utils.kpt_utils import get_image_patches
+from src.losses.kpt_metrics import grad_tracking_metric, visual_difference_metric, distribution_metric
+
 
 if __name__ == "__main__":
 
@@ -19,7 +22,7 @@ if __name__ == "__main__":
         ulosd_conf['multi_gpu'] = False
         ulosd_conf['device'] = 'cpu'
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=50)
+    data_set = get_dataset_from_path(args.data, n_timesteps=150)
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
@@ -68,11 +71,24 @@ if __name__ == "__main__":
                                        keypoint_coords=key_points,
                                        intensity_threshold=intensity_threshold,
                                        key_point_trajectory=True,
-                                       trajectory_length=10)
+                                       trajectory_length=10,
+                                       save_path='./result_videos/anim.mp4')
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
-                                     target_path='.')
+                                     target_path='./result_videos/')
+
+            patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
+                                        patch_size=(16, 16))
+
+            M_tracking = grad_tracking_metric(patches)
+            M_visual = visual_difference_metric(patches)
+            M_distribution = distribution_metric(key_points, (16, 16))
+
+            with open('./result_videos/metrics.txt', 'w') as metrics_log:
+                metrics_log.write(f"M_tracking: {M_tracking}\n")
+                metrics_log.write(f"M_visual: {M_visual}\n")
+                metrics_log.write(f"M_distribution: {M_distribution}\n")
 
             if i == 0:
                 exit()
