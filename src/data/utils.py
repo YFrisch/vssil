@@ -1,10 +1,14 @@
+import os.path
+
 import torch
-from torch.utils.data import ConcatDataset
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
+from torchvision import transforms
+from torch.utils.data import Dataset
 
-from old.src.data.mime import MimeHDKinectRGB
+from .npz_dataset import NPZ_Dataset
+from .video_dataset import VideoFrameDataset, ImglistToTensor
 
 
 def play_video(video_series: torch.Tensor):
@@ -18,7 +22,6 @@ def play_video(video_series: torch.Tensor):
     assert video_series.dim() == 4, "Input video does not have 4 dimensions."
 
     video_series = video_series.permute(0, 2, 3, 1).detach().cpu().numpy()  # (T, H, W, C)
-    # video_series = video_series.permute(0, 2, 3, 1).cpu().numpy()
 
     c = video_series.shape[-1]
 
@@ -45,16 +48,36 @@ def play_video(video_series: torch.Tensor):
     plt.show()
 
 
-def combine_mime_hd_kinect_tasks(task_list: [str], base_path: str,
-                                 start_ind: int = 0, stop_ind: int = -1,
-                                 timesteps_per_sample: int = -1, overlap: int = 20,
-                                 img_shape: (float, float) = (1.0, 1.0)):
-    list_of_datasets = []
-    for task in task_list:
-        dataset = MimeHDKinectRGB(
-            base_path, task, start_ind, stop_ind,
-            timesteps_per_sample, overlap, img_shape
-        )
-        list_of_datasets.append(dataset)
+def get_dataset_from_path(root_path: str, n_timesteps: int) -> Dataset:
+    """ Creates and returns the appropriate type of data-set, depending on the root path.
 
-    return ConcatDataset(list_of_datasets)
+    :param root_path: Path to the dataset
+    :param n_timesteps: Sequential length of samples
+    """
+
+    if root_path.endswith(".npz"):
+        data_set = NPZ_Dataset(
+            num_timesteps=n_timesteps,
+            root_path=root_path,
+            key_word='images'
+        )
+    elif os.path.isdir(root_path):
+        preprocess = transforms.Compose([
+            # NOTE: This first transform already converts the image range to (0, 1)
+            ImglistToTensor(),
+
+        ])
+        data_set = VideoFrameDataset(
+            root_path=root_path,
+            annotationfile_path=os.path.join(root_path, 'annotations.txt'),
+            num_segments=1,
+            frames_per_segment=n_timesteps,
+            imagefile_template='img_{:05d}.jpg',
+            transform=preprocess,
+            random_shift=False,
+            test_mode=True
+        )
+    else:
+        raise ValueError(f"Invalid root path at {root_path}")
+
+    return data_set

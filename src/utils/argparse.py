@@ -20,6 +20,8 @@ def parse_arguments():
     parser.add_argument('-hp', '--hp', type=str,
                         help='Hyperparamter change (E.g. "training.epochs=10,data.num_workers=2"')
 
+    parser.add_argument('-ch', '--checkpoint', type=str, help='Absoulte path to model checkpoints.')
+
     args = parser.parse_args()
 
     return args

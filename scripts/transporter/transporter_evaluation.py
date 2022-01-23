@@ -1,72 +1,50 @@
-import os
 import yaml
 
 import torch
-from torchvision import transforms
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from src.agents.transporter_agent import TransporterAgent
-from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
+from src.data.utils import get_dataset_from_path
 from src.utils.argparse import parse_arguments
 from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
 from src.utils.kpt_utils import get_image_patches
 from src.losses.kpt_metrics import grad_tracking_metric, visual_difference_metric, distribution_metric
-from src.losses.spatial_consistency_loss import spatial_consistency_loss
 
 
 if __name__ == "__main__":
 
     args = parse_arguments()
-    # NOTE: Edit config here
-    args.config = "/home/yannik/vssil/results/transporter_human36m/2022_1_20_9_29/config.yml"
 
     with open(args.config, 'r') as stream:
         transporter_conf = yaml.safe_load(stream)
-        if transporter_conf['warm_start']:
-            with open(transporter_conf['warm_start_config'], 'r') as stream2:
-                old_conf = yaml.safe_load(stream2)
-                transporter_conf['log_dir'] = old_conf['log_dir'][:-1] + "_resume/"
-        else:
-            transporter_conf['log_dir'] = transporter_conf['log_dir']+f"/{args.id}/"
         print(transporter_conf['log_dir'])
         transporter_conf['multi_gpu'] = False
         transporter_conf['device'] = 'cpu'
         transporter_conf['model']['n_frames'] = 2
 
-    # Apply any number of torchvision transforms here as pre-processing
-    preprocess = transforms.Compose([
-        # NOTE: The first transform already converts the image range to (0, 1)
-        ImglistToTensor(),
+    data_set = get_dataset_from_path(args.data, n_timesteps=50)
 
-    ])
-
-    data_set = VideoFrameDataset(
-        root_path=args.data,
-        annotationfile_path=os.path.join(args.data, 'annotations.txt'),
-        num_segments=1,
-        frames_per_segment=150,
-        imagefile_template='img_{:05d}.jpg',
-        transform=preprocess,
-        random_shift=False,
-        test_mode=True
-    )
-
-    # data_set = Subset(data_set, indices=[100])
+    # Use last 10 percent of data-set for evaluation (Not seen during training)
+    stop_ind = len(data_set)
+    start_ind = int(stop_ind * 0.9) + 1
+    random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
 
     eval_data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
-        shuffle=True
+        shuffle=False,
+        sampler=random_sampler
     )
 
     transporter_agent = TransporterAgent(dataset=data_set, config=transporter_conf)
     transporter_agent.eval_data_loader = eval_data_loader
-    # NOTE: Edit checkpoint here
+
     transporter_agent.load_checkpoint(
-        "/home/yannik/vssil/results/transporter_human36m/2022_1_20_9_29/checkpoints/chckpt_f0_e180.PTH",
+        args.checkpoint,
         map_location='cpu'
     )
 
+    print("##### Evaluating:")
     with torch.no_grad():
         for i, (sample, label) in enumerate(eval_data_loader):
 
@@ -91,7 +69,6 @@ if __name__ == "__main__":
                 # Adapt to visualization
                 key_point_coordinates[..., 1] *= -1
 
-                #samples = _sample.unsqueeze(1) if samples is None else torch.cat([samples, _sample.unsqueeze(1)], dim=1)
                 samples = sample[:, t:t+1, ...] if samples is None \
                     else torch.cat([samples, sample[:, t:t+1, ...]], dim=1)
                 reconstructions = reconstruction.unsqueeze(1) if reconstructions is None \
@@ -104,18 +81,16 @@ if __name__ == "__main__":
                                        key_point_trajectory=False)
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
-                                     target_path="..")
+                                     target_path=".")
 
             patches = get_image_patches(image_sequence=samples, kpt_sequence=key_points,
                                         patch_size=(16, 16))
 
-            M_smooth = spatial_consistency_loss(key_points)
             M_tracking = grad_tracking_metric(patches)
             M_visual = visual_difference_metric(patches)
             M_distribution = distribution_metric(key_points, (16, 16))
 
             with open('metrics.txt', 'w') as metrics_log:
-                metrics_log.write(f"M_smooth: {M_smooth}\n")
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
                 metrics_log.write(f"M_visual: {M_visual}\n")
                 metrics_log.write(f"M_distribution: {M_distribution}\n")

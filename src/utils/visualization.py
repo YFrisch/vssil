@@ -478,7 +478,7 @@ def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
     assert 0.0 <= intensity_threshold <= 1.0
 
     T = keypoint_coordinates.shape[1]
-    indexable_cmap = cm.get_cmap('prism', keypoint_coordinates.shape[2])
+    cm = pylab.get_cmap('gist_rainbow')
 
     fig, ax = plt.subplots(3, 1, figsize=(10, 15))
     if keypoint_coordinates.shape[-1] == 3:
@@ -498,18 +498,18 @@ def plot_keypoint_amplitudes(keypoint_coordinates: torch.Tensor,
         if mean_int >= intensity_threshold:
             ax[0].plot(np.arange(0, T),
                        keypoint_coordinates[0:1, :, n_keypoint, 0].cpu().numpy().squeeze(),
-                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
+                       color=cm(1.*n_keypoint/keypoint_coordinates.shape[2]))
             ax[1].plot(np.arange(0, T),
                        keypoint_coordinates[0:1, :, n_keypoint, 1].cpu().numpy().squeeze(),
-                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
+                       color=cm(1.*n_keypoint/keypoint_coordinates.shape[2]))
         if keypoint_coordinates.shape[3] == 3:
             ax[2].plot(np.arange(0, T),
                        keypoint_coordinates[0:1, :, n_keypoint, 2].cpu().numpy().squeeze(),
-                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
+                       color=cm(1.*n_keypoint/keypoint_coordinates.shape[2]))
         else:
             ax[2].plot(np.arange(0, T),
                        np.array([1] * T),
-                       color=indexable_cmap(n_keypoint / keypoint_coordinates.shape[2]))
+                       color=cm(1.*n_keypoint/keypoint_coordinates.shape[2]))
     plt.savefig(f'{target_path}/kp_amps.png')
     plt.close()
 
