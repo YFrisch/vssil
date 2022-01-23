@@ -56,10 +56,21 @@ def get_dataset_from_path(root_path: str, n_timesteps: int) -> Dataset:
     """
 
     if root_path.endswith(".npz"):
+
+        tran = transforms.Compose([
+            transforms.RandomApply([
+                transforms.RandomHorizontalFlip(p=0.9),
+                transforms.RandomVerticalFlip(p=0.9),
+                transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
+            ]),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
         data_set = NPZ_Dataset(
             num_timesteps=n_timesteps,
             root_path=root_path,
-            key_word='images'
+            key_word='images',
+            transform=None
         )
     elif os.path.isdir(root_path):
         preprocess = transforms.Compose([

@@ -1,9 +1,6 @@
 import yaml
-import gc
-gc.collect()
 
 import torch
-torch.cuda.empty_cache()
 import torchvision.transforms as transforms
 
 from src.utils.argparse import parse_arguments
@@ -29,21 +26,23 @@ if __name__ == "__main__":
         ulosd_conf['multi_gpu'] = False
         ulosd_conf['data']['path'] = args.data
 
+    """
     tran = transforms.Compose([
         transforms.RandomApply([
             transforms.RandomHorizontalFlip(p=0.9),
             transforms.RandomVerticalFlip(p=0.9),
             transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
         ]),
-        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
+    """
 
     npz_data_set = NPZ_Dataset(
         num_timesteps=ulosd_conf['model']['n_frames'],
         # root_path='/home/yannik/vssil/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8.npz',
         root_path=args.data,
         key_word='images',
-        transform=tran
+        transform=None
     )
 
     ulosd_agent = ULOSD_Agent(dataset=npz_data_set,
