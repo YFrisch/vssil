@@ -12,10 +12,10 @@ model:
   feature_map_gauss_sigma: 1.5
   feature_map_height: 64
   feature_map_width: 64
-  n_convolutions_per_res: 1
+  n_convolutions_per_res: 2
   n_feature_maps: 48
   n_frames: 4
-  n_init_filters: 16
+  n_init_filters: 8
   weight_init: he_normal
 multi_gpu: false
 training:
@@ -24,7 +24,7 @@ training:
   emd_sum_scale: 1.0
   epochs: 1000
   feature_map_regularization: 0.01
-  initial_lr: 0.01
+  initial_lr: 0.1
   k_folds: 1
   l2_weight_decay: 0.0001
   lr_scheduler: StepLR
@@ -42,7 +42,7 @@ training:
   re_sample: false
   re_sample_scale: 0.02
   reconstruction_loss: sse
-  reconstruction_loss_scale: 0.1
+  reconstruction_loss_scale: 0.01
   separation_loss_scale: 0.02
   separation_loss_sigma: 0.002
   steps_per_epoch: 100

@@ -24,7 +24,7 @@ training:
   emd_sum_scale: 1.0
   epochs: 1000
   feature_map_regularization: 0.01
-  initial_lr: 0.001
+  initial_lr: 0.01
   k_folds: 1
   l2_weight_decay: 0.0001
   lr_scheduler: StepLR

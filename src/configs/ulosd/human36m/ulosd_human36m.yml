@@ -4,12 +4,12 @@ data:
 
 model:
   n_frames: 4
-  n_feature_maps: 64
-  feature_map_width: 64
-  feature_map_height: 64
-  feature_map_gauss_sigma: 1.5
-  n_init_filters: 8  # 32
-  n_convolutions_per_res: 1
+  n_feature_maps: 48
+  feature_map_width: 32
+  feature_map_height: 32
+  feature_map_gauss_sigma: 2.5
+  n_init_filters: 16  # 32
+  n_convolutions_per_res: 3
   conv_kernel_size: 3
   decoder_hidden_activations: LeakyReLU
   encoder_hidden_activations: LeakyReLU
@@ -23,12 +23,12 @@ training:
   lr_scheduler: StepLR
   lr_scheduler_epoch_steps: 50
   lr_scheduler_gamma: 0.5
-  initial_lr: 0.1  # 0.001
+  initial_lr: 0.01  # 0.001
   max_lr: 0.001
   min_lr: 0.0001
   clip_norm: 10.0
-  batch_size: 32  # 32
-  l2_weight_decay: 5.0e-4  # 1.0e-4
+  batch_size: 16  # 32
+  l2_weight_decay: 5.0e-3  # 1.0e-4
   reconstruction_loss: sse  # mse
   reconstruction_loss_scale: 0.1  # 1.0
   feature_map_regularization: 5.0
@@ -48,7 +48,7 @@ training:
 validation:
   steps: -1
   freq: 25
-  batch_size: 4  # 32
+  batch_size: 8  # 32, 4
   save_video: true
 
 evaluation:

@@ -10,12 +10,12 @@ model:
   decoder_hidden_activations: LeakyReLU
   encoder_hidden_activations: LeakyReLU
   feature_map_gauss_sigma: 1.5
-  feature_map_height: 32
-  feature_map_width: 32
-  n_convolutions_per_res: 1
+  feature_map_height: 64
+  feature_map_width: 64
+  n_convolutions_per_res: 3
   n_feature_maps: 48
   n_frames: 4
-  n_init_filters: 32
+  n_init_filters: 8
   weight_init: he_normal
 multi_gpu: false
 training:
@@ -42,7 +42,7 @@ training:
   re_sample: false
   re_sample_scale: 0.02
   reconstruction_loss: sse
-  reconstruction_loss_scale: 0.1
+  reconstruction_loss_scale: 0.01
   separation_loss_scale: 0.02
   separation_loss_sigma: 0.002
   steps_per_epoch: 100

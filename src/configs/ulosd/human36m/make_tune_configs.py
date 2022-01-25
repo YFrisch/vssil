@@ -14,16 +14,16 @@ with open('ulosd_human36m_vanilla_128pix.yml', 'r') as stream:
 
 ulosd_conf['log_dir'] = 'results/ulosd_human36m_vanilla_128pix_tune/'
 
-for n_frames in [4, 8]:
+for n_frames in [4]:
     for n_init_filters in [8, 16, 32]:
         for sig in [1.5]:
-            for n_convs in [1, 2]:
+            for n_convs in [1, 2, 3]:
                 for fmap_width in [64, 32]:
                     for init_lr in [0.1, 0.01, 0.001]:
                         for optim in ['AdamW']:
                             for init_w in ['he_normal']:
                                 for img_loss in ['sse']:
-                                    for img_loss_scale in [0.1]:
+                                    for img_loss_scale in [0.1, 0.01]:
 
                                         ulosd_conf['model']['n_frames'] = n_frames
                                         ulosd_conf['model']['n_init_filters'] = n_init_filters

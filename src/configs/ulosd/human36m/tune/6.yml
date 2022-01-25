@@ -10,9 +10,9 @@ model:
   decoder_hidden_activations: LeakyReLU
   encoder_hidden_activations: LeakyReLU
   feature_map_gauss_sigma: 1.5
-  feature_map_height: 64
-  feature_map_width: 64
-  n_convolutions_per_res: 2
+  feature_map_height: 32
+  feature_map_width: 32
+  n_convolutions_per_res: 1
   n_feature_maps: 48
   n_frames: 4
   n_init_filters: 8
