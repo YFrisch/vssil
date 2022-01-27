@@ -17,11 +17,11 @@ model:
 
 training:
   k_folds: 1
-  epochs: 1000
+  epochs: 100  # 1000
   steps_per_epoch: 100
   optim: Adam
   lr_scheduler: StepLR
-  lr_scheduler_epoch_steps: 300
+  lr_scheduler_epoch_steps: 30  # 300
   lr_scheduler_gamma: 0.5
   initial_lr: 0.001
   max_lr: 0.001
