@@ -1,10 +1,10 @@
 data:
   num_workers: 4
-  img_shape: (3, 64, 64)
+  img_shape: (3, 128, 128)  # (3, 64, 64)
 
 model:
   n_frames: 20  # Len. of sequence to sample. First sample is used as source frame, last as target frame
-  hidden_dim: 32
+  hidden_dim: 64  # 32
   num_img_channels: 3
   num_keypoints: 5
   activation: LeakyReLU
@@ -13,7 +13,7 @@ model:
   skip_connections: False
 
 training:
-  epochs: 200
+  epochs: 200  # Careful here with memory issues
   steps_per_epoch: 100  # 100
   optim: AdamW
   k_folds: 1
@@ -36,5 +36,5 @@ validation:
 evaluation:
 
 device: cuda:0  # cuda:0
-log_dir: 'results/transporter_manipulator'
+log_dir: 'results/transporter_manipulator_new_128pix'
 warm_start: False

@@ -85,6 +85,6 @@ def process_mime(root_path: str,
 if __name__ == "__main__":
     process_mime(
         root_path='/media/yannik/samsung_ssd/data/mime_unprocessed/',
-        target_path='/media/yannik/samsung_ssd/data/mime_processed_128pix/',
-        target_img_shape=(128, 128),
+        target_path='/media/yannik/samsung_ssd/data/mime_processed_256pix/',
+        target_img_shape=(256, 256),
     )

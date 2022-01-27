@@ -120,7 +120,8 @@ class ULOSD_Agent(AbstractAgent):
         # TODO: Check if range [0, 1] works better than [-0.5, 0.5]
         # x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
         # x = torch.clamp(x, min=0.0, max=1.0)
-        x = ((x - x.min()) / (x.max() - x.min()) - 0.5).clamp(-0.5, 0.5)
+        # x = ((x - x.min()) / (x.max() - x.min()) - 0.5).clamp(-0.5, 0.5)
+        x = (2 * ((x - x.min()) / (x.max() - x.min())) - 1.0).clamp(-1.0, 1.0)
         return x, torch.empty([])
 
     def loss_func(self,

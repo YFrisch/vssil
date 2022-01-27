@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     npz_data_set = NPZ_Dataset(
         num_timesteps=transporter_conf['model']['n_frames'],
-        root_path='/video_structure/testdata/acrobot_swingup_random_repeat40_00006887be28ecb8_short_sequences.npz',
+        root_path=args.data,
         key_word='images'
     )
 

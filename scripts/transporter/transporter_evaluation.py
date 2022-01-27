@@ -27,7 +27,8 @@ if __name__ == "__main__":
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
     start_ind = int(stop_ind * 0.9) + 1
-    random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
+    # random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
+    random_sampler = SubsetRandomSampler(indices=[stop_ind-4])  # Only single sample
 
     eval_data_loader = DataLoader(
         dataset=data_set,
@@ -80,10 +81,11 @@ if __name__ == "__main__":
                                        keypoint_coords=key_points,
                                        key_point_trajectory=True,
                                        trajectory_length=10,
-                                       save_path='./result_videos/anim.mp4')
+                                       save_path='./result_videos_transporter/',
+                                       save_frames=True)
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
-                                     target_path='./result_videos/')
+                                     target_path='./result_videos_transporter/')
 
             patches = get_image_patches(image_sequence=samples, kpt_sequence=key_points,
                                         patch_size=(16, 16))
@@ -92,7 +94,7 @@ if __name__ == "__main__":
             M_visual = visual_difference_metric(patches)
             M_distribution = distribution_metric(key_points, (16, 16))
 
-            with open('./result_videos/metrics.txt', 'w') as metrics_log:
+            with open('./result_videos_transporter/metrics.txt', 'w') as metrics_log:
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
                 metrics_log.write(f"M_visual: {M_visual}\n")
                 metrics_log.write(f"M_distribution: {M_distribution}\n")

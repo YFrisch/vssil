@@ -42,7 +42,7 @@ if __name__ == "__main__":
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=True,
-        test_mode=True
+        test_mode=False
     )
 
     transporter_agent = TransporterAgent(dataset=data_set, config=transporter_conf)

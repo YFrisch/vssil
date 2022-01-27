@@ -72,6 +72,7 @@ class TransporterAgent(AbstractAgent):
         # target_frame = x[:, -1, ...] - 0.5
         # target_frame = x[:, -1, ...]
         # target_frame = x[:, 0 + t_diff, ...]
+
         # Normalizing to [-1, 1] range
         sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
         target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /

@@ -1,19 +1,19 @@
 data:
   num_workers: 4
-  img_shape: (3, 64, 64)
+  img_shape: (3, 128, 128)
 
 model:
   n_frames: 4  # Len. of sequence to sample. First sample is used as source frame, last as target frame
-  hidden_dim: 32
+  hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 7  # 6 ?
+  num_keypoints: 6  # 6 ?
   activation: LeakyReLU
   gaussian_map_std: 0.15
   weight_init: he_normal
   skip_connections: False
 
 training:
-  epochs: 200
+  epochs: 500
   steps_per_epoch: 100  # 100
   optim: AdamW
   k_folds: 1
@@ -30,11 +30,11 @@ validation:
   steps: -1  # 100
   freq: 5
   batch_size: 4  # 128
-  save_grad_plots: True
-  save_eval_examples: True
+  save_grad_plots: False
+  save_eval_examples: False
 
 evaluation:
 
 device: cuda:0  # cuda:0
-log_dir: 'results/transporter_walker'
+log_dir: 'results/transporter_walker_new_128pix'
 warm_start: False

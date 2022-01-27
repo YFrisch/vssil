@@ -40,7 +40,8 @@ def play_series_with_keypoints(image_series: torch.Tensor,
                                intensity_threshold: float = 0.9,
                                key_point_trajectory: bool = False,
                                trajectory_length: int = 10,
-                               save_path: str = "anim.mp4"):
+                               save_path: str = ".",
+                               save_frames: bool = False):
     """ Visualizes the image-series tensor together with the given predicted key-points. """
     assert keypoint_coords.dim() == 4
     (N, T, C, H, W) = tuple(image_series.shape)
@@ -68,8 +69,13 @@ def play_series_with_keypoints(image_series: torch.Tensor,
     frame = np.zeros((W, H, C))
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    ax.set_title('Sample + Key-Points')
+    # fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    # ax.set_title('Sample + Key-Points')
+    # ax.axis('tight')
     ax.axis('off')
+
+    if save_frames:
+        os.makedirs(f"{save_path}/frames/", exist_ok=True)
 
     """
 
@@ -144,6 +150,10 @@ def play_series_with_keypoints(image_series: torch.Tensor,
                 combined_np_array = np.concatenate([key_point_pos_buffer[k]])
                 line_objects[k].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
 
+        if save_frames:
+
+            fig.savefig(f"{save_path}/frames/t{t}.png", bbox_inches='tight', transparent=True, pad_inches=0.0)
+
         return im_frame, orig_scatter_objects, line_objects
 
     anim = animation.FuncAnimation(fig, animate, frames=T, interval=10, repeat=False)
@@ -151,9 +161,9 @@ def play_series_with_keypoints(image_series: torch.Tensor,
     # Set up formatting for the video files
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=20, metadata=dict(artist='me'), bitrate=1800)
-    anim.save(save_path, writer=writer)
+    anim.save(save_path + "anim.mp4", writer=writer)
 
-    plt.show()
+    # plt.show()
 
     return active_kp_ids
 
