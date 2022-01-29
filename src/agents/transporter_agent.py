@@ -143,7 +143,7 @@ class TransporterAgent(AbstractAgent):
                                tag_name='decoder',
                                summary_writer=self.writer)
 
-        if mode == 'validation' and config['validation']['save_eval_examples']:
+        if mode == 'validation' and config['validation']['save_eval_examples'] and save_val_sample:
 
             with torch.no_grad():
                 source_kpts, source_gmaps, source_fmaps = self.model.keypointer(sample)

@@ -3,12 +3,12 @@ data:
   img_shape: (3, 256, 256)
 
 model:
-  n_frames: 4
-  hidden_dim: 128
+  n_frames: 8
+  hidden_dim: 32
   num_img_channels: 3
-  num_keypoints: 7
+  num_keypoints: 16  # ??
   activation: LeakyReLU
-  gaussian_map_std: 0.15
+  gaussian_map_std: 0.05  # 0.15
   weight_init: he_normal
   skip_connections: False
 
@@ -21,7 +21,7 @@ training:
   lr_scheduler: StepLR
   lr_scheduler_epoch_steps: 30
   lr_scheduler_gamma: 0.5
-  batch_size: 64
+  batch_size: 8  # 32
   loss_function: mse
   l2_weight_decay: 0.0005
   grad_clip_max_norm: 5.0
@@ -35,6 +35,6 @@ validation:
 
 evaluation:
 
-device: cuda  
-log_dir: 'results/transporter_mime_new_256pix'
+device: cuda
+log_dir: 'results/transporter_mime_push_new_256pix'
 warm_start: False

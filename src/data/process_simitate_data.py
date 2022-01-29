@@ -105,6 +105,6 @@ def process_simitate(root_path: str,
 
 if __name__ == "__main__":
     process_simitate(root_path='/media/yannik/samsung_ssd/data/simitate/',
-                     target_path='/media/yannik/samsung_ssd/data/simitate_processed_64pix/',
-                     target_img_shape=(64, 64),
+                     target_path='/media/yannik/samsung_ssd/data/simitate_processed_256pix/',
+                     target_img_shape=(256, 256),
                      sample_freq=2)

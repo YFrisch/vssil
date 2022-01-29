@@ -22,7 +22,7 @@ if __name__ == "__main__":
         transporter_conf['device'] = 'cpu'
         transporter_conf['model']['n_frames'] = 2
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=150)
+    data_set = get_dataset_from_path(args.data, n_timesteps=30)  # 150
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)

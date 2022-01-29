@@ -10,6 +10,7 @@ from src.agents.ulosd_agent import ULOSD_Agent
 from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
 from src.utils.kpt_utils import get_image_patches
 from src.losses.kpt_metrics import grad_tracking_metric, visual_difference_metric, distribution_metric
+from src.losses.spatial_consistency_loss import spatial_consistency_loss
 
 
 if __name__ == "__main__":
@@ -52,10 +53,10 @@ if __name__ == "__main__":
     with torch.no_grad():
         for i, (sample, label) in enumerate(eval_data_loader):
 
-            sample, _ = ulosd_agent.preprocess(sample, label, ulosd_conf)
-            sample.to(ulosd_agent.device)
+            _sample, _ = ulosd_agent.preprocess(sample, label, ulosd_conf)
+            _sample.to(ulosd_agent.device)
 
-            feature_maps, key_points = ulosd_agent.model.encode(image_sequence=sample)
+            feature_maps, key_points = ulosd_agent.model.encode(image_sequence=_sample)
 
             for t in range(key_points.shape[1]):
                 count = 0
@@ -66,23 +67,24 @@ if __name__ == "__main__":
                 print(f't: {t}\t #scales > {intensity_threshold}: {count}')
 
             reconstruction, gmaps = ulosd_agent.model.decode(keypoint_sequence=key_points,
-                                                             first_frame=sample[:, 0, ...].unsqueeze(1))
+                                                             first_frame=_sample[:, 0, ...].unsqueeze(1))
 
             play_series_with_keypoints(image_series=sample,
                                        keypoint_coords=key_points,
                                        intensity_threshold=intensity_threshold,
                                        key_point_trajectory=True,
                                        trajectory_length=10,
-                                       save_path='./result_videos_ulosd2/',
+                                       save_path='./result_videos_ulosd/',
                                        save_frames=True)
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
-                                     target_path='./result_videos_ulosd2/')
+                                     target_path='./result_videos_ulosd/')
 
             patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
                                         patch_size=(16, 16))
 
+            M_smooth = spatial_consistency_loss(key_points)
             M_tracking = grad_tracking_metric(patches)
             M_visual = visual_difference_metric(patches)
             M_distribution = distribution_metric(key_points, (16, 16))
