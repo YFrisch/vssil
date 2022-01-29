@@ -126,36 +126,6 @@ def patchwise_contrastive_metric(image_sequence: torch.Tensor,
     return torch.mean(L, dim=[0, 2])
 
 
-def distribution_metric(kpt_sequence: torch.Tensor, patch_size: tuple) -> torch.Tensor:
-    """ Evaluates how well key-points are distributed, by comparing their distances over time.
-        Should be as high as possible
-
-        TODO: Include intensity?
-              (E.g. key-points can share the same position, if only one of them is 'active')
-
-    :param kpt_sequence: Tensor of key-points in (N, T, K, D)
-                         (The first two dimensions of D are assumed to be the key-points x and y coordinates)
-    :param patch_size: The patch size of key-points that should not overlap.
-                       TODO: For such non-overlapping key-points, a minimal distance of the patch size is required.
-    """
-
-    assert patch_size[0] == patch_size[1], "Use quadratic patches"
-
-    N, T, K, D = kpt_sequence.shape
-
-    # Extend tensors to get distance tensor (while excluding the intensity)
-    _kpt_sequence = kpt_sequence.view((N, T, K, 1, D))[..., :2]
-    __kpt_sequence = kpt_sequence.view((N, T, 1, K, D))[..., :2]
-
-    pos_dist = torch.norm(_kpt_sequence - __kpt_sequence, p=2, dim=-1)**2  # (N, T, K, K)
-
-    # Sum over key-points
-    pos_dist = torch.sum(pos_dist, dim=(-2, -1))/(K*(K-1))
-
-    # Average over time-steps and batch
-    return torch.mean(pos_dist)
-
-
 def grad_tracking_metric(patch_sequence: torch.Tensor) -> torch.Tensor:
     """ Evaluates how consistent the gradients of patches around key-points are
         across time.

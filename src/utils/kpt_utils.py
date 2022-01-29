@@ -23,8 +23,11 @@ def get_box_within_image_border(kpt_sequence, patch_size, H, W, t, k):
 
         If the patch would exceed the image borders, it is moved to inside the image.
     """
-    w = (kpt_sequence[:, t, k, 1] + 1) / 2 * W
-    h = (-kpt_sequence[:, t, k, 0] + 1) / 2 * H
+
+    assert kpt_sequence.dim() == 3
+
+    w = (kpt_sequence[t, k, 1] + 1) / 2 * W
+    h = (-kpt_sequence[t, k, 0] + 1) / 2 * H
 
     h_min, h_max = max(0, h - int(patch_size[0] / 2)), min(H - 1, h + int(patch_size[0] / 2))
     w_min, w_max = max(0, w - int(patch_size[1] / 2)), min(W - 1, w + int(patch_size[1] / 2))
@@ -80,7 +83,7 @@ def get_image_patches(image_sequence: torch.Tensor,
     for n in range(N):
         for t in range(T):
             for k in range(K):
-                h_min, h_max, w_min, w_max = get_box_within_image_border(kpt_sequence, patch_size, H, W, t, k)
+                h_min, h_max, w_min, w_max = get_box_within_image_border(kpt_sequence[n], patch_size, H, W, t, k)
                 patch = image_sequence[n, t, :, h_min:h_max, w_min:w_max]
                 assert patch.shape[-2:] == patch_size
                 patch_sequence[n, t, k, ...] = patch

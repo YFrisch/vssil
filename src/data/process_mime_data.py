@@ -40,6 +40,10 @@ def process_mime(root_path: str,
 
     for task_id, mime_task in enumerate(os.listdir(root_path)):
 
+        # TODO: Remove
+        if not mime_task == "mime_push":
+            continue
+
         print(f"\n##### Converting {mime_task} data:")
         time.sleep(1)
 
@@ -60,7 +64,8 @@ def process_mime(root_path: str,
             if not os.path.isdir(sample_joint_path):
                 continue
             else:
-                data_joint_path = os.path.join(sample_joint_path, 'hd_kinect_rgb.mp4')
+                # data_joint_path = os.path.join(sample_joint_path, 'hd_kinect_rgb.mp4')
+                data_joint_path = os.path.join(sample_joint_path, 'rd_kinect_rgb.mp4')
 
             vidcap = cv2.VideoCapture(data_joint_path)
             success, image = vidcap.read()
@@ -85,6 +90,6 @@ def process_mime(root_path: str,
 if __name__ == "__main__":
     process_mime(
         root_path='/media/yannik/samsung_ssd/data/mime_unprocessed/',
-        target_path='/media/yannik/samsung_ssd/data/mime_processed_256pix/',
+        target_path='/media/yannik/samsung_ssd/data/mime_rd_push_processed_256pix/',
         target_img_shape=(256, 256),
     )
