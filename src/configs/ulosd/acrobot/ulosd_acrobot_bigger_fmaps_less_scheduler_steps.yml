@@ -34,7 +34,7 @@ training:
   k_folds: 1
   l2_weight_decay: 0.0005
   lr_scheduler: StepLR
-  lr_scheduler_epoch_steps: 5
+  lr_scheduler_epoch_steps: 10
   lr_scheduler_gamma: 0.5
   max_lr: 0.001
   min_lr: 0.0001
