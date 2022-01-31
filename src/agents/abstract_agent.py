@@ -357,6 +357,9 @@ class AbstractAgent:
                 #torch.cuda.empty_cache()   # TODO: remove?
                 #gc.collect()               # TODO: remove?
 
+            torch.save(self.model.state_dict(),
+                       self.log_dir + f'checkpoints/chckpt_f{fold}_final.PTH')
+
             # Reset scheduler for each fold
             # TODO: This should also reset the model ...
             self.reset_optim_and_scheduler(config)
@@ -428,9 +431,6 @@ class AbstractAgent:
             self.best_val_loss = avg_loss
             torch.save(self.model.state_dict(),
                        self.log_dir + f'checkpoints/chckpt_f{training_fold}_e{training_epoch}.PTH')
-        if training_epoch == config['training']['epochs'] - 1:
-            torch.save(self.model.state_dict(),
-                       self.log_dir + f'checkpoints/chckpt_final.PTH')
         else:
             pass
 
