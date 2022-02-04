@@ -158,11 +158,14 @@ class ULOSD_Agent(AbstractAgent):
             loss = F.mse_loss(input=prediction, target=target, reduction='sum') * 0.5
             loss = loss / (N * T)
 
+        elif rec_loss in ['bce', 'BCE']:
+            loss = F.binary_cross_entropy(input=prediction, target=target, reduction='mean')
+
         elif rec_loss in ['Inception', 'inception', 'INCEPTION', 'alexnet', 'AlexNet', 'ALEXNET']:
             loss = perception_loss(perception_net=self.perception_net,
                                    prediction=prediction,
                                    target=target)
-            loss = loss / (N * T)
+            # loss = loss / (N * T)
 
         else:
             raise ValueError("Unknown error function.")
@@ -402,7 +405,7 @@ class ULOSD_Agent(AbstractAgent):
             coord_pred_loss + kl_loss + \
             pc_loss + emd_sum
 
-        if mode == 'validation' and config['validation']['save_video'] and save_val_sample:
+        if mode == 'validation':
             # NOTE: This part seems to cause a linear increase in CPU memory usage
             #       Maybe the videos should be saved to the hard-drive instead
 
@@ -415,69 +418,71 @@ class ULOSD_Agent(AbstractAgent):
                 self.val_match_loss.append(match_loss.item())
                 self.val_non_match_loss.append(non_match_loss.item())
 
-                torch_img_series_tensor = gen_eval_imgs(sample=sample,
-                                                        reconstruction=reconstruction,
-                                                        key_points=observed_key_points,
-                                                        intensity_threshold=0.5)
+                if config['validation']['save_video'] and save_val_sample:
 
-                self.writer.add_video(tag='val/reconstruction_sample',
-                                      vid_tensor=torch_img_series_tensor,
-                                      global_step=global_epoch_number)
+                    torch_img_series_tensor = gen_eval_imgs(sample=sample,
+                                                            reconstruction=reconstruction,
+                                                            key_points=observed_key_points,
+                                                            intensity_threshold=0.5)
 
-                cm = pylab.get_cmap('gist_rainbow')
+                    self.writer.add_video(tag='val/reconstruction_sample',
+                                          vid_tensor=torch_img_series_tensor,
+                                          global_step=global_epoch_number)
 
-                observed_key_points[..., :2] *= -1.0
-                img_coordinates = kpts_2_img_coordinates(observed_key_points, (Hp, Wp)).cpu()
-                observed_key_points[..., :2] *= -1.0
+                    cm = pylab.get_cmap('gist_rainbow')
 
-                t = T - 1
-                # Get ids of 'active' kpts (intensity above threshold)
-                active_kpt_ids = np.array([k if observed_key_points[0, t, k, 2] > 0.5 else 0 for k in range(K)])
-                active_kpt_ids = np.delete(active_kpt_ids, np.where(active_kpt_ids == 0))
-                _K = len(active_kpt_ids)
+                    observed_key_points[..., :2] *= -1.0
+                    img_coordinates = kpts_2_img_coordinates(observed_key_points, (Hp, Wp)).cpu()
+                    observed_key_points[..., :2] *= -1.0
 
-                fig, ax = plt.subplots(2, _K, figsize=(_K * 3, 6))
+                    t = T - 1
+                    # Get ids of 'active' kpts (intensity above threshold)
+                    active_kpt_ids = np.array([k if observed_key_points[0, t, k, 2] > 0.5 else 0 for k in range(K)])
+                    active_kpt_ids = np.delete(active_kpt_ids, np.where(active_kpt_ids == 0))
+                    _K = len(active_kpt_ids)
 
-                for k in range(_K):
+                    fig, ax = plt.subplots(2, _K, figsize=(_K * 3, 6))
 
-                    if _K == 1:
+                    for k in range(_K):
 
-                        ax[0].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
-                        ax[0].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
-                        ax[0].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                      img_coordinates[0, t, active_kpt_ids[k], 0],
-                                      color=cm(1. * active_kpt_ids[k] / K),
-                                      marker="^", s=150)
+                        if _K == 1:
 
-                        ax[1].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
-                        ax[1].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
-                        ax[1].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                      img_coordinates[0, t, active_kpt_ids[k], 0],
-                                      color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
+                            ax[0].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
+                            ax[0].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
+                            ax[0].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
+                                          img_coordinates[0, t, active_kpt_ids[k], 0],
+                                          color=cm(1. * active_kpt_ids[k] / K),
+                                          marker="^", s=150)
 
-                    else:
+                            ax[1].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
+                            ax[1].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
+                            ax[1].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
+                                          img_coordinates[0, t, active_kpt_ids[k], 0],
+                                          color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
 
-                        ax[0, k].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
-                        ax[0, k].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
-                        ax[0, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                         img_coordinates[0, t, active_kpt_ids[k], 0],
-                                         color=cm(1. * active_kpt_ids[k] / K),
-                                         marker="^", s=150)
+                        else:
 
-                        ax[1, k].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
-                        ax[1, k].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
-                        ax[1, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                         img_coordinates[0, t, active_kpt_ids[k], 0],
-                                         color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
+                            ax[0, k].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
+                            ax[0, k].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
+                            ax[0, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
+                                             img_coordinates[0, t, active_kpt_ids[k], 0],
+                                             color=cm(1. * active_kpt_ids[k] / K),
+                                             marker="^", s=150)
 
-                self.writer.add_figure(tag="feature_maps_and_reconstructions",
-                                       figure=fig,
-                                       global_step=global_epoch_number)
+                            ax[1, k].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
+                            ax[1, k].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
+                            ax[1, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
+                                             img_coordinates[0, t, active_kpt_ids[k], 0],
+                                             color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
 
-                plt.close()
+                    self.writer.add_figure(tag="feature_maps_and_reconstructions",
+                                           figure=fig,
+                                           global_step=global_epoch_number)
 
-                self.writer.flush()
-                del torch_img_series_tensor
+                    plt.close()
+
+                    self.writer.flush()
+                    del torch_img_series_tensor
 
         # Log values and backprop. during training
         if mode == 'training':
