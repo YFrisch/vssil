@@ -9,7 +9,9 @@ from src.data.utils import get_dataset_from_path
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
 from src.utils.kpt_utils import get_image_patches
-from src.losses.kpt_metrics import grad_tracking_metric, visual_difference_metric, distribution_metric
+from src.losses.kpt_distribution_metric import kpt_distribution_metric
+from src.losses.kpt_tracking_metric import kpt_tracking_metric
+from src.losses.kpt_visual_metric import kpt_visual_metric
 from src.losses.spatial_consistency_loss import spatial_consistency_loss
 
 
@@ -81,13 +83,13 @@ if __name__ == "__main__":
                                      intensity_threshold=intensity_threshold,
                                      target_path='./result_videos_ulosd/')
 
-            patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
-                                        patch_size=(16, 16))
+            #patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
+            #                            patch_size=(16, 16))
 
             M_smooth = spatial_consistency_loss(key_points)
-            M_tracking = grad_tracking_metric(patches)
-            M_visual = visual_difference_metric(patches)
-            M_distribution = distribution_metric(key_points, (16, 16))
+            M_tracking = kpt_tracking_metric(key_points, sample, (16, 16), 100)
+            M_visual = kpt_visual_metric(key_points, sample, (16, 16), 100)
+            M_distribution = kpt_distribution_metric(key_points, sample.shape[-2:], 100)
 
             with open('./result_videos_ulosd/metrics.txt', 'w') as metrics_log:
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
