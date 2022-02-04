@@ -41,6 +41,9 @@ def kpt_tracking_metric(kpt_sequence: torch.Tensor,
                     color_hists[n, t, k, c] = torch.histc(patches[n, t, k, c], bins=n_bins)
                     grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
 
+    color_hists /= (Hp * Wp)
+    grad_hists /= (Hp * Wp)
+
     # Get distances
     color_dist = torch.empty(N, K, T-1)
     grad_dist = torch.empty(N, K, T-1)

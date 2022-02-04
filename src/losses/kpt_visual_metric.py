@@ -25,12 +25,7 @@ def kpt_visual_metric(kpt_sequence: torch.Tensor,
 
     patches = get_image_patches(img_sequence, kpt_sequence, patch_size)  # (N, T, K, C, Hp, Wp)
 
-    print(patches.mean())
-
     grads = sobel(patches.view((N * T * K, C, Hp, Wp))).view((N, T, K, C, Hp, Wp))
-
-    print(grads.mean())
-    print()
 
     color_hists = torch.empty((N, T, K, C, n_bins))
     grad_hists = torch.empty((N, T, K, C, n_bins))
@@ -43,14 +38,11 @@ def kpt_visual_metric(kpt_sequence: torch.Tensor,
                     color_hists[n, t, k, c] = torch.histc(patches[n, t, k, c], bins=n_bins)
                     grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
 
-    color_hists = color_hists.view((N, T, K, C * n_bins))
-    print(color_hists.mean())
-    grad_hists = color_hists.view((N, T, K, C * n_bins))
-    print(grad_hists.mean())
-    print()
+    color_hists = color_hists.view((N, T, K, C * n_bins)) / (Hp * Wp)
+    grad_hists = grad_hists.view((N, T, K, C * n_bins)) / (Hp * Wp)
 
     color_dists = torch.norm(color_hists.unsqueeze(2) - color_hists.unsqueeze(3),
-                             dim=[-1], p=float('inf'))  # (N, T, K, K)
+                             dim=[-1], p=float('inf'))   # (N, T, K, K)
 
     grad_dists = torch.norm(grad_hists.unsqueeze(2) - grad_hists.unsqueeze(3),
                             dim=[-1], p=float('inf'))  # (N, T, K, K)
@@ -59,4 +51,4 @@ def kpt_visual_metric(kpt_sequence: torch.Tensor,
 
     grad_dists = torch.sum(grad_dists, dim=[-1, -2])/(K * (K-1))  # (N, T)
 
-    return torch.mean(color_dists), torch.mean(grad_dists)
+    return 0.5 * torch.mean(color_dists) + 0.5 * torch.mean(grad_dists)
