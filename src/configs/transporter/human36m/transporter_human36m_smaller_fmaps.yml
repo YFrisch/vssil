@@ -4,7 +4,7 @@ data:
 
 model:
   n_frames: 10  # Len. of sequence to sample. First sample is used as source frame, last as target frame
-  hidden_dim: 64  # 128??
+  hidden_dim: 128  # 128??
   num_img_channels: 3
   num_keypoints: 6
   activation: prelu

@@ -74,9 +74,13 @@ class TransporterAgent(AbstractAgent):
         # target_frame = x[:, 0 + t_diff, ...]
 
         # Normalizing to [-1, 1] range
-        sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
-        target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
-                            (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
+        # sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        # target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        #                     (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
+
+        sample_frame = x[:, 0, ...]
+        target_frame = x[:, 0 + t_diff, ...]
+
         return sample_frame, target_frame
 
     def loss_func(self, prediction: torch.Tensor, target: torch.Tensor, config: dict) -> torch.Tensor:
@@ -159,10 +163,10 @@ class TransporterAgent(AbstractAgent):
                 key_point_coordinates[..., :2] *= -1.0
 
                 _sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
-                _sample = ((_sample + 1) / 2.0).clip(0.0, 1.0)
+                #_sample = ((_sample + 1) / 2.0).clip(0.0, 1.0)
 
                 reconstruction = torch.cat([sample.unsqueeze(1), reconstruction.unsqueeze(1)], dim=1)
-                reconstruction = ((reconstruction + 1) / 2.0).clip(0.0, 1.0)
+                #reconstruction = ((reconstruction + 1) / 2.0).clip(0.0, 1.0)
 
                 torch_img_series_tensor = gen_eval_imgs(sample=_sample,
                                                         reconstruction=reconstruction,

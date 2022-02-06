@@ -71,6 +71,7 @@ class ULOSD_Agent(AbstractAgent):
             assert pc_time_window <= T
             assert pc_time_window % 2 != 0, "Use odd time-window"
             assert pc_patch_size[0] == pc_patch_size[1], "Use square patch"
+            assert config['training']['batch_size'] == config['validation']['batch_size']
             self.pc_pos_range = max(int(pc_time_window / 2), 1) if pc_time_window > 1 else 0
             pc_center_index = int(pc_patch_size[0] / 2)
             pc_step_matrix = torch.ones(pc_patch_size + (2,)).to(self.device)
@@ -186,7 +187,6 @@ class ULOSD_Agent(AbstractAgent):
             pacolo, match_l, non_match_l = pwcl2(
                 keypoint_coordinates=keypoint_coordinates,
                 image_sequence=image_sequence,
-                pos_range=self.pc_pos_range,
                 grid=self.pc_grid,
                 patch_size=eval(config['training']['patchwise_contrastive_patch_size']),
                 alpha=config['training']['patchwise_contrastive_alpha'],

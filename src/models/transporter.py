@@ -72,8 +72,15 @@ class Transporter(nn.Module):
         assert transported_features.shape == target_feature_maps.shape
 
         reconstruction = self.decoder(transported_features)
-        # reconstruction = F.sigmoid(reconstruction)
-        reconstruction = torch.tanh(reconstruction)
+        """
+        print(reconstruction.min())
+        print(reconstruction.max())
+        print(target_img.min())
+        print(target_img.max())
+        exit()
+        """
+        reconstruction = torch.sigmoid(reconstruction)
+        # reconstruction = torch.tanh(reconstruction)
 
 
         return reconstruction

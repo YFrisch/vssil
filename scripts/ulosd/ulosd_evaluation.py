@@ -92,6 +92,7 @@ if __name__ == "__main__":
             M_distribution = kpt_distribution_metric(key_points, sample.shape[-2:], 100)
 
             with open('./result_videos_ulosd/metrics.txt', 'w') as metrics_log:
+                metrics_log.write(f"M_smooth: {M_smooth}\n")
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
                 metrics_log.write(f"M_visual: {M_visual}\n")
                 metrics_log.write(f"M_distribution: {M_distribution}\n")

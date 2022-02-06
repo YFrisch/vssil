@@ -4,7 +4,7 @@
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
-from kornia.filters import canny
+from kornia.filters import canny, sobel
 
 
 def latent_encodings(patches: torch.Tensor, kpt_coordinates: torch.Tensor) -> torch.Tensor:
@@ -19,7 +19,7 @@ def latent_encodings(patches: torch.Tensor, kpt_coordinates: torch.Tensor) -> to
     N, T, K, C, H_prime, W_prime = patches.shape
     _, _, _, D = kpt_coordinates.shape
 
-    D_prime = 6
+    D_prime = 9
 
     _patches = (patches + 0.5).clip_(0.0, 1.0)
 
@@ -29,8 +29,11 @@ def latent_encodings(patches: torch.Tensor, kpt_coordinates: torch.Tensor) -> to
     encodings[..., :2] = (kpt_coordinates[..., :2] + 1.0)/2.0
     encodings[..., 2] = kpt_coordinates[..., 2]
     # Average patch intensity over C, H', W'
-    encodings[..., 3] = torch.mean(_patches, dim=[-3, -2, -1])
+    encodings[..., 3] = torch.mean(_patches[:, :, :, 0, ...], dim=[-2, -1])
+    encodings[..., 4] = torch.mean(_patches[:, :, :, 1, ...], dim=[-2, -1])
+    encodings[..., 5] = torch.mean(_patches[:, :, :, 2, ...], dim=[-2, -1])
     # Patch gradient information
+    """
     magnitudes, edges = canny(
         input=_patches.view((N*T*K, C, H_prime, W_prime)),
         low_threshold=0.2,
@@ -41,7 +44,13 @@ def latent_encodings(patches: torch.Tensor, kpt_coordinates: torch.Tensor) -> to
     edges = edges.view((N, T, K, H_prime, W_prime))
     encodings[..., 4] = torch.mean(magnitudes, dim=[-2, -1])
     encodings[..., 5] = torch.mean(edges, dim=[-2, -1])
+    """
+    magnitudes = sobel(_patches.view((N*T*K, C, H_prime, W_prime)))
+    magnitudes = magnitudes.view((N, T, K, C, H_prime, W_prime))
     # print(torch.mean(encodings, dim=[0, 1, 2]))
+    encodings[..., 6] = torch.mean(magnitudes[:, :, :, 0, ...], dim=[-2, -1])
+    encodings[..., 7] = torch.mean(magnitudes[:, :, :, 1, ...], dim=[-2, -1])
+    encodings[..., 8] = torch.mean(magnitudes[:, :, :, 2, ...], dim=[-2, -1])
     return encodings
 
 
@@ -76,7 +85,7 @@ def non_match_loss(encodings: torch.Tensor) -> (torch.Tensor, torch.Tensor):
     N, T, K, _ = encodings.shape
 
     # Get distances across key-points
-    distances = torch.norm(encodings.unsqueeze(3) - encodings.unsqueeze(2), p=2, dim=[-1])  # (N, T, K, K)
+    distances = torch.norm(encodings.unsqueeze(3)[..., 3:] - encodings.unsqueeze(2)[..., 3:], p=2, dim=[-1])  # (N, T, K, K)
     # distances = torch.norm(encodings.unsqueeze(3)[..., 3:] - encodings.unsqueeze(2)[..., 3:], p=2, dim=[-1])
 
     # Sum distances over key-points
@@ -136,6 +145,8 @@ def pwcl(
     unstacked_kpts = keypoint_coordinates.view((N*T*K, D))
 
     sample_grids = torch.empty_like(grid).to(image_sequence.device)
+
+    # for ntk in range(sample_grids.shape[0]):
     for ntk in range(sample_grids.shape[0]):
         sample_grids[ntk, :, :, 0] = grid[ntk, :, :, 0] + unstacked_kpts[ntk, 1]
         sample_grids[ntk, :, :, 1] = grid[ntk, :, :, 1] - unstacked_kpts[ntk, 0]
