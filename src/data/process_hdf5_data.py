@@ -44,7 +44,7 @@ def process_hdf5_data(file_path: str, target_path: str):
             cv2.imwrite(filename=frame_target_path, img=frame)
 
         with open(target_path + '/annotations.txt', 'a') as annotations_file:
-            annotations_file.write(f"{target_path}/{'{:04d}/'.format(sample_id + 1)} {1} {frame_count} {sample_id}\n")
+            annotations_file.write(f"{target_path}sim/{'{:04d}/'.format(sample_id)} {1} {frame_count + 1} {sample_id}\n")
 
 
 if __name__ == "__main__":
