@@ -132,7 +132,7 @@ dmypy.json
 .idea/
 datasets/
 results/
-result_videos/
+result_videos_final/
 result_videos*
 vssil.egg-info/
 old/

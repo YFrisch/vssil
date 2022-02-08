@@ -74,9 +74,10 @@ class TransporterAgent(AbstractAgent):
         # target_frame = x[:, 0 + t_diff, ...]
 
         # Normalizing to [-1, 1] range
-        # sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
-        # target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
-        #                     (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
+        # TODO: The Human36M Data seems to work better in [0, 1] range instead...
+        #sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        #target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        #                    (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
 
         sample_frame = x[:, 0, ...]
         target_frame = x[:, 0 + t_diff, ...]
@@ -182,11 +183,11 @@ class TransporterAgent(AbstractAgent):
                 for _k in range(_K):
                     ax[0, _k].imshow(source_fmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
-                    ax[0, _k].scatter(img_coordinates[0, 0, _k, 1], img_coordinates[0, 0, _k, 0],
+                    ax[0, _k].scatter(img_coordinates[0, 0, _k, 0], img_coordinates[0, 0, _k, 1],
                                       color=cm(1.*_k/_K), marker="^", s=150)
                     ax[1, _k].imshow(target_fmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
-                    ax[1, _k].scatter(img_coordinates[0, 1, _k, 1], img_coordinates[0, 1, _k, 0],
+                    ax[1, _k].scatter(img_coordinates[0, 1, _k, 0], img_coordinates[0, 1, _k, 1],
                                       color=cm(1.*_k/_K), marker="^", s=150)
 
                 self.writer.add_figure(tag="val/feature_maps",
@@ -197,11 +198,11 @@ class TransporterAgent(AbstractAgent):
                 for _k in range(_K):
                     ax[0, _k].imshow(source_gmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
-                    ax[0, _k].scatter(img_coordinates[0, 0, _k, 1], img_coordinates[0, 0, _k, 0],
+                    ax[0, _k].scatter(img_coordinates[0, 0, _k, 0], img_coordinates[0, 0, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
                     ax[1, _k].imshow(target_gmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
-                    ax[1, _k].scatter(img_coordinates[0, 1, _k, 1], img_coordinates[0, 1, _k, 0],
+                    ax[1, _k].scatter(img_coordinates[0, 1, _k, 0], img_coordinates[0, 1, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
 
                 self.writer.add_figure(tag="val/gaussian_maps",

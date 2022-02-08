@@ -25,13 +25,12 @@ if __name__ == "__main__":
         transporter_conf['device'] = 'cpu'
         transporter_conf['model']['n_frames'] = 2
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=150)  # 30
+    data_set = get_dataset_from_path(args.data, n_timesteps=30)  # 150
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
     start_ind = int(stop_ind * 0.9) + 1
-    # random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
-    random_sampler = SubsetRandomSampler(indices=[stop_ind-4])  # Only single sample
+    random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
 
     eval_data_loader = DataLoader(
         dataset=data_set,
@@ -50,6 +49,11 @@ if __name__ == "__main__":
 
     print("##### Evaluating:")
     with torch.no_grad():
+
+        samples = None
+        patches = None
+        kpts = None
+
         for i, (sample, label) in enumerate(eval_data_loader):
 
             samples = None
@@ -90,13 +94,14 @@ if __name__ == "__main__":
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      target_path='./result_videos_transporter/')
 
-            M_smooth = spatial_consistency_loss(key_points)
-            M_tracking = kpt_tracking_metric(key_points, samples, (16, 16), 100)
-            M_visual = kpt_visual_metric(key_points, samples, (16, 16), 100)
-            M_distribution = kpt_distribution_metric(key_points, samples.shape[-2:], 100)
+            patches = get_image_patches(image_sequence=samples, kpt_sequence=key_points,
+                                        patch_size=(16, 16))
+
+            M_tracking = grad_tracking_metric(patches)
+            M_visual = visual_difference_metric(patches)
+            M_distribution = distribution_metric(key_points, (16, 16))
 
             with open('./result_videos_transporter/metrics.txt', 'w') as metrics_log:
-                metrics_log.write(f"M_smooth: {M_smooth}\n")
                 metrics_log.write(f"M_tracking: {M_tracking}\n")
                 metrics_log.write(f"M_visual: {M_visual}\n")
                 metrics_log.write(f"M_distribution: {M_distribution}\n")

@@ -9,7 +9,8 @@ from src.data.video_dataset import VideoFrameDataset, ImglistToTensor
 if __name__ == "__main__":
     # data_root_path = '/media/yannik/samsung_ssd/data/mime_processed_256pix'
     # data_root_path = '/media/yannik/samsung_ssd/data/simitate_processed_128pix'
-    data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
+    # data_root_path = '/media/yannik/samsung_ssd/data/human_36m_processed_128pix'
+    data_root_path = '/media/yannik/samsung_ssd/data/roboturk_processed_84pix'
     # data_root_path = '/media/yannik/samsung_ssd/data/walker_processed_64pix'
     # data_root_path = '/media/yannik/samsung_ssd/data/manipulator_processed_64pix'
     annotations_file = os.path.join(data_root_path, 'annotations.txt')

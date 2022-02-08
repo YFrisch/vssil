@@ -9,7 +9,7 @@ model:
   feature_map_height: 32
   feature_map_gauss_sigma: 1.5
   n_init_filters: 8
-  n_convolutions_per_res: 2
+  n_convolutions_per_res: 1
   conv_kernel_size: 3
   decoder_hidden_activations: LeakyReLU
   encoder_hidden_activations: LeakyReLU
@@ -18,19 +18,19 @@ model:
 training:
   k_folds: 1
   epochs: 100
-  steps_per_epoch: 1000
+  steps_per_epoch: 500
   optim: AdamW
   lr_scheduler: StepLR
-  lr_scheduler_epoch_steps: 5  # 300
+  lr_scheduler_epoch_steps: 30  # 300
   lr_scheduler_gamma: 0.5
-  initial_lr: 0.1
+  initial_lr: 0.001
   max_lr: 0.001
   min_lr: 0.0001
   clip_norm: 10.0
   batch_size: 32
   l2_weight_decay: 0.0005  # Conv.-kernel regularization
-  reconstruction_loss: sse
-  reconstruction_loss_scale: 0.1
+  reconstruction_loss: alexnet
+  reconstruction_loss_scale: 1.0
   feature_map_regularization: 5.0  # Key-point sparsity scale
   separation_loss_scale: 0.1
   separation_loss_sigma: 0.02
@@ -48,7 +48,7 @@ training:
 validation:
   steps: 100
   freq: 5
-  batch_size: 1  # 32
+  batch_size: 4  # 32
   save_video: true
 
 evaluation:

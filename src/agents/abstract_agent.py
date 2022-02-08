@@ -271,7 +271,7 @@ class AbstractAgent:
             for epoch in range(epochs_per_fold):
 
                 print(f"##### Fold {fold} Epoch {epoch}:")
-                time.sleep(0.01)
+                time.sleep(0.1)
                 start_time = time.time()
 
                 self.model.train()

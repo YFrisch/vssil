@@ -8,7 +8,6 @@ from src.data.utils import get_dataset_from_path
 
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
-from src.utils.kpt_utils import get_image_patches
 from src.losses.kpt_distribution_metric import kpt_distribution_metric
 from src.losses.kpt_tracking_metric import kpt_tracking_metric
 from src.losses.kpt_visual_metric import kpt_visual_metric
@@ -82,9 +81,6 @@ if __name__ == "__main__":
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
                                      target_path='./result_videos_ulosd/')
-
-            #patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
-            #                            patch_size=(16, 16))
 
             M_smooth = spatial_consistency_loss(key_points)
             M_tracking = kpt_tracking_metric(key_points, sample, (16, 16), 100)
