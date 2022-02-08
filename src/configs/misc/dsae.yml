@@ -1,0 +1,42 @@
+data:
+  num_workers: 0
+
+model:
+  n_frames: 8
+  conv:
+    in_channels: 3
+    hidden_sizes: [64, 32]
+    out_channels: 16
+    activation: ReLU
+  spatial:
+    temperature: 0.99
+    normalize: False
+  fc:
+    in_features: 32
+    out_img_width: 64  # 60
+    out_img_height: 64  # 60
+    activation: Sigmoid
+
+training:
+  optim: SGD
+  k_folds: 0
+  epochs: 100
+  steps_per_epoch: 1000
+  initial_lr: 0.00001
+  l2_weight_decay: 0.0000001
+  lr_scheduler: None
+  batch_size: 16
+  smoothness_penalty: True
+
+evaluation:
+  batch_size: 1
+  chckpt_path: ""
+
+validation:
+  freq: 5
+  steps: 100
+  batch_size: 16
+
+device: "cpu"
+warm_start: False
+log_dir: "results/dsae"
