@@ -75,9 +75,13 @@ class TransporterAgent(AbstractAgent):
 
         # Normalizing to [-1, 1] range
         # TODO: The Human36M Data seems to work better in [0, 1] range instead...
-        #sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
-        #target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        # sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        # target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
         #                    (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
+
+        #sample_frame = ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min()))
+        #target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        #                (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min()))
 
         sample_frame = x[:, 0, ...]
         target_frame = x[:, 0 + t_diff, ...]
@@ -93,14 +97,14 @@ class TransporterAgent(AbstractAgent):
                    (torch.var(target) * 2 * target.shape[0] * target.shape[1])
         elif config['training']['loss_function'] in ['bce', 'BCE']:
             # Map to [0, 1]
-            prediction = (prediction + 1.0) / 2.0
-            target = (target + 1.0) / 2.0
+            #prediction = (prediction + 1.0) / 2.0
+            #target = (target + 1.0) / 2.0
             return F.binary_cross_entropy(input=prediction, target=target)
         elif config['training']['loss_function'] in ['alexnet', 'AlexNet', 'ALEXNET',
                                                      'inception', 'Inception', 'INCEPTION']:
             # Map to [0, 1]
-            prediction = (prediction + 1.0) / 2.0
-            target = (target + 1.0) / 2.0
+            #prediction = (prediction + 1.0) / 2.0
+            #target = (target + 1.0) / 2.0
             loss_perception = perception_loss(perception_net=self.perception_net,
                                               prediction=prediction.unsqueeze(1),
                                               target=target.unsqueeze(1))
@@ -164,10 +168,10 @@ class TransporterAgent(AbstractAgent):
                 key_point_coordinates[..., :2] *= -1.0
 
                 _sample = torch.cat([sample.unsqueeze(1), target.unsqueeze(1)], dim=1)
-                #_sample = ((_sample + 1) / 2.0).clip(0.0, 1.0)
+                # _sample = ((_sample + 1) / 2.0).clip(0.0, 1.0)
 
                 reconstruction = torch.cat([sample.unsqueeze(1), reconstruction.unsqueeze(1)], dim=1)
-                #reconstruction = ((reconstruction + 1) / 2.0).clip(0.0, 1.0)
+                # reconstruction = ((reconstruction + 1) / 2.0).clip(0.0, 1.0)
 
                 torch_img_series_tensor = gen_eval_imgs(sample=_sample,
                                                         reconstruction=reconstruction,
@@ -184,11 +188,11 @@ class TransporterAgent(AbstractAgent):
                     ax[0, _k].imshow(source_fmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
                     ax[0, _k].scatter(img_coordinates[0, 0, _k, 0], img_coordinates[0, 0, _k, 1],
-                                      color=cm(1.*_k/_K), marker="^", s=150)
+                                      color=cm(1. * _k / _K), marker="^", s=150)
                     ax[1, _k].imshow(target_fmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
                     ax[1, _k].scatter(img_coordinates[0, 1, _k, 0], img_coordinates[0, 1, _k, 1],
-                                      color=cm(1.*_k/_K), marker="^", s=150)
+                                      color=cm(1. * _k / _K), marker="^", s=150)
 
                 self.writer.add_figure(tag="val/feature_maps",
                                        figure=fig,

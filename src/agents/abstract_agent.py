@@ -204,6 +204,13 @@ class AbstractAgent:
                 step_size_up=int(config['training']['epochs']/20),
                 mode='triangular'
             )
+        elif config['training']['lr_scheduler'] in ['ReduceLROnPlateau']:
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer=self.optim,
+                mode='min',
+                factor=config['training']['lr_scheduler_gamma'],
+                patience=config['training']['lr_scheduler_epoch_steps']
+            )
         elif config['training']['lr_scheduler'] in [None, 'None', 'NONE', 'none']:
             self.scheduler = None
         else:
@@ -328,7 +335,7 @@ class AbstractAgent:
                 # Validate
                 if config['validation']['freq'] > 0 and not epoch % config['validation']['freq']:
                     with torch.no_grad():
-                        self.validate(training_fold=fold, training_epoch=epoch, config=config)
+                        loss_per_sample = self.validate(training_fold=fold, training_epoch=epoch, config=config)
 
                 # Logs for ressources (memory usage etc.)
                 pid = os.getpid()
@@ -351,7 +358,11 @@ class AbstractAgent:
                                        global_step=epoch)
 
                 if self.scheduler is not None:
-                    self.scheduler.step()
+                    if config['training']['lr_scheduler'] in ['ReduceLROnPlateau']:
+                        avg_loss = np.mean(loss_per_sample)
+                        self.scheduler.step(avg_loss)
+                    else:
+                        self.scheduler.step()
 
                 sys.stdout.flush()
                 #torch.cuda.empty_cache()   # TODO: remove?

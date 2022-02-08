@@ -82,5 +82,4 @@ class Transporter(nn.Module):
         reconstruction = torch.sigmoid(reconstruction)
         # reconstruction = torch.tanh(reconstruction)
 
-
         return reconstruction
