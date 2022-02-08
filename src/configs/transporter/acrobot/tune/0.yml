@@ -3,20 +3,20 @@ data:
   img_shape: (3, 64, 64)
 
 model:
-  n_frames: 3  # Len. of sequence to sample. First sample is used as source frame, random other as target frame
+  n_frames: 3
   num_img_channels: 3
-  hidden_dim: 32  # 64
-  num_keypoints: 8  # 2/3/4
-  activation: LeakyReLU  # LeakyReLU
-  gaussian_map_std: 0.15  # 0.15
+  hidden_dim: 32
+  num_keypoints: 2
+  activation: LeakyReLU
+  gaussian_map_std: 0.15
   weight_init: he_normal
   skip_connections: False
 
 training:
-  epochs: 1000  # 1000
+  epochs: 500
   steps_per_epoch: 500
   optim: Adam
-  k_folds: 0  # 0 Uses the whole set for both, training and validation, while 1 splits it into (90% training, 10%val)
+  k_folds: 0
   initial_lr: 0.01
   lr_scheduler: ReduceLROnPlateau
   lr_scheduler_epoch_steps: 10
@@ -30,8 +30,8 @@ validation:
   steps: -1
   freq: 5
   batch_size: 4
-  save_grad_plots: True  # Set false to reduce memory load and increase speed
-  save_eval_examples: True  # Set false to reduce memory load and increase speed
+  save_grad_plots: True
+  save_eval_examples: True
 
 evaluation:
 
