@@ -3,12 +3,12 @@ data:
   img_shape: (3, 256, 256)
 
 model:
-  n_frames: 4
+  n_frames: 20
   hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 5
+  num_keypoints: 16
   activation: LeakyReLU
-  gaussian_map_std: 0.15
+  gaussian_map_std: 0.1
   weight_init: he_normal
   skip_connections: False
 
@@ -21,7 +21,7 @@ training:
   lr_scheduler: ReduceLROnPlateau
   lr_scheduler_epoch_steps: 10
   lr_scheduler_gamma: 0.9
-  batch_size: 8
+  batch_size: 4
   loss_function: sse
   l2_weight_decay: 0.0005
   grad_clip_max_norm: 1.0
@@ -35,6 +35,6 @@ validation:
 
 evaluation:
 
-device: cpu
+device: cuda:0
 log_dir: 'results/transporter_vssil_new_256pix'
 warm_start: False

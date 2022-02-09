@@ -7,7 +7,8 @@ from src.utils.kpt_utils import get_image_patches
 def kpt_visual_metric(kpt_sequence: torch.Tensor,
                       img_sequence: torch.Tensor,
                       patch_size: tuple,
-                      n_bins: int = 30) -> torch.Tensor:
+                      n_bins: int = 30,
+                      p: float = float('inf')) -> torch.Tensor:
     """ Evaluates the visual difference between the different objects tracked among key-points.
 
 
@@ -16,6 +17,7 @@ def kpt_visual_metric(kpt_sequence: torch.Tensor,
     :param img_sequence:
     :param patch_size:
     :param n_bins:
+    :param p:
     :return:
     """
 
@@ -36,19 +38,22 @@ def kpt_visual_metric(kpt_sequence: torch.Tensor,
             for k in range(K):
                 for c in range(C):
                     color_hists[n, t, k, c] = torch.histc(patches[n, t, k, c], bins=n_bins)
-                    grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
+                    color_hists[n, t, k, c] /= torch.sum(color_hists[n, t, k, c], dim=-1)
 
-    color_hists = color_hists.view((N, T, K, C * n_bins)) / (Hp * Wp)
-    grad_hists = grad_hists.view((N, T, K, C * n_bins)) / (Hp * Wp)
+                    grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
+                    grad_hists[n, t, k, c] /= torch.sum(grad_hists[n, t, k, c], dim=-1)
+
+    #color_hists = color_hists.view((N, T, K, C * n_bins)) / (Hp * Wp)
+    #grad_hists = grad_hists.view((N, T, K, C * n_bins)) / (Hp * Wp)
 
     color_dists = torch.norm(color_hists.unsqueeze(2) - color_hists.unsqueeze(3),
-                             dim=[-1], p=float('inf'))   # (N, T, K, K)
+                             dim=[-1], p=p)   # (N, T, K, K)
 
     grad_dists = torch.norm(grad_hists.unsqueeze(2) - grad_hists.unsqueeze(3),
-                            dim=[-1], p=float('inf'))  # (N, T, K, K)
+                            dim=[-1], p=p)  # (N, T, K, K)
 
     color_dists = torch.sum(color_dists, dim=[-1, -2])/(K * (K-1))  # (N, T)
 
     grad_dists = torch.sum(grad_dists, dim=[-1, -2])/(K * (K-1))  # (N, T)
 
-    return 0.5 * torch.mean(color_dists) + 0.5 * torch.mean(grad_dists)
+    return torch.mean(color_dists) * torch.mean(grad_dists)

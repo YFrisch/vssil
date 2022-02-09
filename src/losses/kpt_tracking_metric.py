@@ -7,7 +7,8 @@ from src.utils.kpt_utils import get_image_patches
 def kpt_tracking_metric(kpt_sequence: torch.Tensor,
                         img_sequence: torch.Tensor,
                         patch_size: tuple,
-                        n_bins: int = 30) -> torch.Tensor:
+                        n_bins: int = 30,
+                        p: float = float('inf')) -> torch.Tensor:
     """ Evaluates the consistency of tracked objects of key-points.
 
         For this, the color and gradient histograms of image patches around key-points
@@ -19,6 +20,7 @@ def kpt_tracking_metric(kpt_sequence: torch.Tensor,
     :param img_sequence: Torch tensor of sequential frames in (N, T, C, H, W)
     :param patch_size: Size of the patches to compare (H', W')
     :param n_bins: Number histogram bins
+    :param p: Order of norm distance used to compare color / gradient distributions
     :return:
     """
 
@@ -39,10 +41,13 @@ def kpt_tracking_metric(kpt_sequence: torch.Tensor,
             for k in range(K):
                 for c in range(C):
                     color_hists[n, t, k, c] = torch.histc(patches[n, t, k, c], bins=n_bins)
-                    grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
+                    color_hists[n, t, k, c] /= torch.sum(color_hists[n, t, k, c], dim=-1)
 
-    color_hists /= (Hp * Wp)
-    grad_hists /= (Hp * Wp)
+                    grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
+                    grad_hists[n, t, k, c] /= torch.sum(grad_hists[n, t, k, c], dim=-1)
+
+    #color_hists /= (Hp * Wp)
+    #grad_hists /= (Hp * Wp)
 
     # Get distances
     color_dist = torch.empty(N, K, T-1)
@@ -51,8 +56,8 @@ def kpt_tracking_metric(kpt_sequence: torch.Tensor,
     for k in range(K):
         for t in range(T-1):
             color_dist[:, k, t] = torch.norm(color_hists[:, t:t+1, k, :] - color_hists[:, t+1:t+2, k, :],
-                                             p=float('inf'))
+                                             p=p)
             grad_dist[:, k, t] = torch.norm(grad_hists[:, t:t+1, k, :] - grad_hists[:, t+1:t+2, k, :],
-                                            p=float('inf'))
+                                            p=p)
 
-    return color_dist.mean() + grad_dist.mean()
+    return color_dist.mean() * grad_dist.mean()
