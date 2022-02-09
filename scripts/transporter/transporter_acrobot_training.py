@@ -31,6 +31,7 @@ if __name__ == "__main__":
             else:
                 transporter_conf[key] = val
 
+    # Pre-processing / data augmentation
     tran = transforms.Compose([
         transforms.RandomApply([
             transforms.RandomHorizontalFlip(p=0.9),
