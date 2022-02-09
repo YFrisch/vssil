@@ -1,40 +1,39 @@
 data:
   num_workers: 4
-  img_shape: (3, 128, 128)  # (3, 64, 64)
+  img_shape: (3, 128, 128)
 
 model:
-  n_frames: 20  # Len. of sequence to sample. First sample is used as source frame, last as target frame
-  hidden_dim: 64  # 32
+  n_frames: 4
   num_img_channels: 3
-  num_keypoints: 5
+  num_keypoints: 32
   activation: LeakyReLU
   gaussian_map_std: 0.15
   weight_init: he_normal
   skip_connections: False
 
 training:
-  epochs: 200  # Careful here with memory issues
-  steps_per_epoch: 100  # 100
+  epochs: 1000
+  steps_per_epoch: 500
   optim: AdamW
   k_folds: 1
   initial_lr: 0.01
   lr_scheduler: ReduceLROnPlateau
   lr_scheduler_epoch_steps: 10
   lr_scheduler_gamma: 0.9
-  batch_size: 64  # 128
-  loss_function: mse  # sse, mse, inception, alexnet
+  batch_size: 64
+  loss_function: mse
   l2_weight_decay: 0.0005
   grad_clip_max_norm: 5.0
 
 validation:
-  steps: -1  # 100
+  steps: -1
   freq: 5
-  batch_size: 4  # 128
+  batch_size: 4
   save_grad_plots: True
   save_eval_examples: True
 
 evaluation:
 
-device: cuda:0  # cuda:0
-log_dir: 'results/transporter_manipulator_new_128pix'
+device: cuda:0
+log_dir: 'results/transporter_human36m_new_128pix'
 warm_start: False
