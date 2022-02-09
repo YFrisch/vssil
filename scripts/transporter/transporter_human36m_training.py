@@ -23,8 +23,13 @@ if __name__ == "__main__":
         transporter_conf['data']['path'] = args.data
 
     preprocess = transforms.Compose([
-            ImglistToTensor(),
-        ])
+        transforms.RandomApply([
+            transforms.RandomHorizontalFlip(p=0.9),
+            transforms.RandomVerticalFlip(p=0.9),
+            # transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
+        ]),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
 
     data_set = VideoFrameDataset(
             root_path=args.data,

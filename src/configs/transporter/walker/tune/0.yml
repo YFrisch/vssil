@@ -3,10 +3,10 @@ data:
   img_shape: (3, 128, 128)
 
 model:
-  n_frames: 20
+  n_frames: 4
   hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 16
+  num_keypoints: 5
   activation: LeakyReLU
   gaussian_map_std: 0.15
   weight_init: he_normal
@@ -16,7 +16,7 @@ training:
   epochs: 1000
   steps_per_epoch: 500
   optim: AdamW
-  k_folds: 1
+  k_folds: 0
   initial_lr: 0.01
   lr_scheduler: ReduceLROnPlateau
   lr_scheduler_epoch_steps: 10
@@ -27,14 +27,14 @@ training:
   grad_clip_max_norm: 5.0
 
 validation:
-  steps: -1  # 100
+  steps: -1
   freq: 5
-  batch_size: 4  # 128
-  save_grad_plots: True
-  save_eval_examples: True
+  batch_size: 4
+  save_grad_plots: False
+  save_eval_examples: False
 
 evaluation:
 
 device: cuda:0
-log_dir: 'results/transporter_manipulator_new_128pix'
+log_dir: 'results/transporter_walker_new_128pix'
 warm_start: False

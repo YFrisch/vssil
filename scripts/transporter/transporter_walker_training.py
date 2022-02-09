@@ -25,13 +25,12 @@ if __name__ == "__main__":
 
     # Apply any number of torchvision transforms here as pre-processing
     preprocess = transforms.Compose([
-        # NOTE: The first transform already converts the image range to (0, 1)
-        ImglistToTensor(),
-        #transforms.RandomChoice([
-        #    transforms.RandomHorizontalFlip(p=0.5),
-        #    transforms.RandomVerticalFlip(p=0.5),
-        #    transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
-        #]),
+        transforms.RandomApply([
+            transforms.RandomHorizontalFlip(p=0.9),
+            transforms.RandomVerticalFlip(p=0.9),
+            # transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
+        ]),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     data_set = VideoFrameDataset(

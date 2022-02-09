@@ -18,9 +18,9 @@ training:
   optim: AdamW
   k_folds: 1
   initial_lr: 0.01
-  lr_scheduler: StepLR
-  lr_scheduler_epoch_steps: 30
-  lr_scheduler_gamma: 0.5
+  lr_scheduler: ReduceLROnPlateau
+  lr_scheduler_epoch_steps: 10
+  lr_scheduler_gamma: 0.9
   batch_size: 64
   loss_function: mse
   l2_weight_decay: 0.0005
