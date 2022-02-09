@@ -5,10 +5,10 @@ data:
 model:
   n_frames: 3  # Len. of sequence to sample. First sample is used as source frame, random other as target frame
   num_img_channels: 3
-  hidden_dim: 32  # 64
+  hidden_dim: 64  # 64
   num_keypoints: 8  # 2/3/4
   activation: LeakyReLU  # LeakyReLU
-  gaussian_map_std: 0.15  # 0.15
+  gaussian_map_std: 0.1  # 0.15
   weight_init: he_normal
   skip_connections: False
 
