@@ -79,6 +79,7 @@ class Transporter(nn.Module):
         print(target_img.max())
         exit()
         """
+        # TODO: Right act. function for pre-processing is important!
         reconstruction = torch.sigmoid(reconstruction)
         # reconstruction = torch.tanh(reconstruction)
 
