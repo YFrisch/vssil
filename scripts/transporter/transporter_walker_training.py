@@ -25,6 +25,7 @@ if __name__ == "__main__":
 
     # Apply any number of torchvision transforms here as pre-processing
     preprocess = transforms.Compose([
+        ImglistToTensor(),
         transforms.RandomApply([
             transforms.RandomHorizontalFlip(p=0.9),
             transforms.RandomVerticalFlip(p=0.9),

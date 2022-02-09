@@ -23,6 +23,7 @@ if __name__ == "__main__":
         transporter_conf['data']['path'] = args.data
 
     preprocess = transforms.Compose([
+        ImglistToTensor(),
         transforms.RandomApply([
             transforms.RandomHorizontalFlip(p=0.9),
             transforms.RandomVerticalFlip(p=0.9),
