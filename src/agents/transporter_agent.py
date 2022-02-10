@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision.utils import make_grid
+from torchvision import transforms
 
 from src.models.transporter import Transporter
 from src.models.inception3 import perception_inception_net
@@ -15,6 +16,13 @@ from src.utils.grad_flow import plot_grad_flow
 from src.utils.kpt_utils import kpts_2_img_coordinates
 from src.losses import perception_loss
 from .abstract_agent import AbstractAgent
+
+
+T = transforms.RandomApply([
+        transforms.RandomHorizontalFlip(p=0.3),
+        transforms.RandomVerticalFlip(p=0.3),
+        transforms.RandomRotation(degrees=45, )
+])
 
 
 class TransporterAgent(AbstractAgent):
@@ -84,7 +92,8 @@ class TransporterAgent(AbstractAgent):
         #                (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min()))
 
         sample_frame = x[:, 0, ...]
-        target_frame = x[:, 0 + t_diff, ...]
+        # target_frame = x[:, 0 + t_diff, ...]
+        target_frame = T(x[:, 0 + t_diff, ...])
 
         return sample_frame, target_frame
 
