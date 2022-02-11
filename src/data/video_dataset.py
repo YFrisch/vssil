@@ -238,6 +238,8 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         image_indices = list()
         for seg_ind in indices:
             frame_index = int(seg_ind)
+            # TODO:
+            frame_index = int(abs(seg_ind))
             for i in range(self.frames_per_segment):
                 seg_img = self._load_image(record.path, frame_index)
                 images.extend(seg_img)

@@ -449,30 +449,30 @@ class ULOSD_Agent(AbstractAgent):
 
                             ax[0].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
                             ax[0].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
-                            ax[0].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                          img_coordinates[0, t, active_kpt_ids[k], 0],
+                            ax[0].scatter(img_coordinates[0, t, active_kpt_ids[k], 0],
+                                          img_coordinates[0, t, active_kpt_ids[k], 1],
                                           color=cm(1. * active_kpt_ids[k] / K),
                                           marker="^", s=150)
 
                             ax[1].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
                             ax[1].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
-                            ax[1].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                          img_coordinates[0, t, active_kpt_ids[k], 0],
+                            ax[1].scatter(img_coordinates[0, t, active_kpt_ids[k], 0],
+                                          img_coordinates[0, t, active_kpt_ids[k], 1],
                                           color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
 
                         else:
 
                             ax[0, k].imshow(feature_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
                             ax[0, k].set_title(f'Frame {t} - F. Map {active_kpt_ids[k]}')
-                            ax[0, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                             img_coordinates[0, t, active_kpt_ids[k], 0],
+                            ax[0, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 0],
+                                             img_coordinates[0, t, active_kpt_ids[k], 1],
                                              color=cm(1. * active_kpt_ids[k] / K),
                                              marker="^", s=150)
 
                             ax[1, k].imshow(gaussian_maps[0, t, active_kpt_ids[k], ...].cpu(), cmap='gray')
                             ax[1, k].set_title(f'Frame {t} - G. Rec. {active_kpt_ids[k]}')
-                            ax[1, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 1],
-                                             img_coordinates[0, t, active_kpt_ids[k], 0],
+                            ax[1, k].scatter(img_coordinates[0, t, active_kpt_ids[k], 0],
+                                             img_coordinates[0, t, active_kpt_ids[k], 1],
                                              color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
 
                     self.writer.add_figure(tag="feature_maps_and_reconstructions",
