@@ -122,7 +122,7 @@ class ULOSD_Agent(AbstractAgent):
         # x = torch.clamp(x - 0.5, min=-0.5, max=0.5)
         # x = torch.clamp(x, min=0.0, max=1.0)
         # x = ((x - x.min()) / (x.max() - x.min()) - 0.5).clamp(-0.5, 0.5)
-        # x = (2 * ((x - x.min()) / (x.max() - x.min())) - 1.0).clamp(-1.0, 1.0)
+        x = (2 * ((x - x.min()) / (x.max() - x.min())) - 1.0).clamp(-1.0, 1.0)
         return x, torch.empty([])
 
     def loss_func(self,
@@ -475,6 +475,7 @@ class ULOSD_Agent(AbstractAgent):
                                              img_coordinates[0, t, active_kpt_ids[k], 1],
                                              color=cm(1. * active_kpt_ids[k] / K), marker="^", s=150)
 
+                    plt.tight_layout()
                     self.writer.add_figure(tag="feature_maps_and_reconstructions",
                                            figure=fig,
                                            global_step=global_epoch_number)

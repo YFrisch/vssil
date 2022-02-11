@@ -57,12 +57,16 @@ def process_vssil_data(root_path: str,
                     # Crop image // Img is in (H, W, C) = (1080, 1920, C)
                     if exp.startswith("subj"):
                         #image = cv2.cvtColor(image[160:1040, 280:1500, :], cv2.COLOR_BGR2RGB)
-                        image = image[160:1040, 280:1500, :]
+                        # image = image[160:1040, 280:1500, :]
+                        image = image[40:940, 280:1570, :]
                     elif exp.startswith("tiago"):
                         #image = cv2.cvtColor(image[130:980, 380:1650, :], cv2.COLOR_BGR2RGB)
                         image = image[130:980, 380:1650, :]
                     else:
                         pass
+                    #plt.imshow(image)
+                    #plt.show()
+                    #exit()
                     # Down-sample image
                     image = cv2.resize(image, dsize=target_img_shape, interpolation=cv2.INTER_AREA)
                     cv2.imwrite(os.path.join(img_target_path, f'img_{target_frame_count:05}.jpg'), image)
@@ -79,8 +83,8 @@ if __name__ == "__main__":
     target_shape = (256, 256)
 
     process_vssil_data(
-        root_path="/home/yannik/Videos/vssil/final",
+        root_path="/home/yannik/Videos/vssil/new",
         # target_path=f"/home/yannik/Videos/vssil/vssil_processed_{target_shape[0]}x{target_shape[1]}pix",
-        target_path=f"/home/yannik/Videos/vssil/vssil_processed_{target_shape[0]}pix",
+        target_path=f"/home/yannik/Videos/vssil/vssil_new_processed_{target_shape[0]}pix",
         target_img_shape=target_shape
     )
