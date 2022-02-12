@@ -30,8 +30,8 @@ validation:
   steps: -1
   freq: 5
   batch_size: 4
-  save_grad_plots: False
-  save_eval_examples: False
+  save_grad_plots: True
+  save_eval_examples: True
 
 evaluation:
 
