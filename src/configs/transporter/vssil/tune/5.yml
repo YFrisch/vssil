@@ -6,7 +6,7 @@ model:
   n_frames: 20
   hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 16
+  num_keypoints: 32
   activation: LeakyReLU
   gaussian_map_std: 0.05
   weight_init: he_uniform
