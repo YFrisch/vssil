@@ -3,13 +3,13 @@ data:
   img_shape: (3, 256, 256)
 
 model:
-  n_frames: 4
+  n_frames: 20
   hidden_dim: 64
   num_img_channels: 3
-  num_keypoints: 16
-  activation: prelu
-  gaussian_map_std: 0.15
-  weight_init: he_normal
+  num_keypoints: 12
+  activation: LeakyReLU
+  gaussian_map_std: 0.05
+  weight_init: he_uniform
   skip_connections: False
 
 training:
@@ -22,12 +22,12 @@ training:
   lr_scheduler_epoch_steps: 10
   lr_scheduler_gamma: 0.9
   batch_size: 4
-  loss_function: sse
+  loss_function: mse
   l2_weight_decay: 0.0005
   grad_clip_max_norm: 1.0
 
 validation:
-  steps: -1
+  steps: 50
   freq: 5
   batch_size: 4
   save_grad_plots: True

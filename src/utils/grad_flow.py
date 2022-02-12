@@ -50,6 +50,7 @@ def plot_grad_flow(named_parameters,
     plt.legend([plt.Line2D([0], [0], color="c", lw=4),
                 plt.Line2D([0], [0], color="b", lw=4),
                 plt.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+    plt.tight_layout()
 
 
     #np_array = pyplot_fig_to_rgb_array(fig)

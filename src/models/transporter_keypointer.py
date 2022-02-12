@@ -72,11 +72,11 @@ class TransporterKeypointer(nn.Module):
         g_c_prob = torch.softmax(g_c_prob, dim=-1)
 
         # Linear combination of the inverval [-1, 1] using the normalized weights
+        # TODO: req. grad?
         scale = torch.linspace(start=-1.0, end=1.0, steps=axis_size,
-                               dtype=torch.float32, requires_grad=False).view(1, 1, axis_size).to(self.device)
+                               dtype=torch.float32, requires_grad=True).view(1, 1, axis_size).to(self.device)
 
         coordinate = torch.sum(g_c_prob * scale, dim=-1)
-
         assert tuple(coordinate.shape) == (N, K)
 
         return coordinate

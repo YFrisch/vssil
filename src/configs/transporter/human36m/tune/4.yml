@@ -4,6 +4,7 @@ data:
 
 model:
   n_frames: 4
+  hidden_dim: 32
   num_img_channels: 3
   num_keypoints: 32
   activation: LeakyReLU

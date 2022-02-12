@@ -17,11 +17,10 @@ from src.utils.kpt_utils import kpts_2_img_coordinates
 from src.losses import perception_loss
 from .abstract_agent import AbstractAgent
 
-
-T = transforms.RandomApply([
-        transforms.RandomHorizontalFlip(p=0.3),
-        transforms.RandomVerticalFlip(p=0.3),
-        transforms.RandomRotation(degrees=45, )
+Tran = transforms.RandomApply([
+    transforms.RandomHorizontalFlip(p=0.3),
+    transforms.RandomVerticalFlip(p=0.3),
+    transforms.RandomRotation(degrees=45, )
 ])
 
 
@@ -83,17 +82,17 @@ class TransporterAgent(AbstractAgent):
 
         # Normalizing to [-1, 1] range
         # TODO: The Human36M Data seems to work better in [0, 1] range instead...
-        #sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
-        #target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        # sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        # target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
         #                   (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
 
-        #sample_frame = ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min()))
-        #target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        # sample_frame = ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min()))
+        # target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
         #                (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min()))
 
         sample_frame = x[:, 0, ...]
-        # target_frame = x[:, 0 + t_diff, ...]
-        target_frame = T(x[:, 0 + t_diff, ...])
+        target_frame = x[:, 0 + t_diff, ...]
+        # target_frame = Tran(x[:, 0 + t_diff, ...])
 
         return sample_frame, target_frame
 
@@ -106,14 +105,14 @@ class TransporterAgent(AbstractAgent):
                    (torch.var(target) * 2 * target.shape[0] * target.shape[1])
         elif config['training']['loss_function'] in ['bce', 'BCE']:
             # Map to [0, 1]
-            #prediction = (prediction + 1.0) / 2.0
-            #target = (target + 1.0) / 2.0
+            # prediction = (prediction + 1.0) / 2.0
+            # target = (target + 1.0) / 2.0
             return F.binary_cross_entropy(input=prediction, target=target)
         elif config['training']['loss_function'] in ['alexnet', 'AlexNet', 'ALEXNET',
                                                      'inception', 'Inception', 'INCEPTION']:
             # Map to [0, 1]
-            #prediction = (prediction + 1.0) / 2.0
-            #target = (target + 1.0) / 2.0
+            # prediction = (prediction + 1.0) / 2.0
+            # target = (target + 1.0) / 2.0
             loss_perception = perception_loss(perception_net=self.perception_net,
                                               prediction=prediction.unsqueeze(1),
                                               target=target.unsqueeze(1))
@@ -198,11 +197,25 @@ class TransporterAgent(AbstractAgent):
                     ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
                     ax[0, _k].scatter(img_coordinates[0, 0, _k, 0], img_coordinates[0, 0, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
+
+                    max_loc_source = torch.argmax(source_fmaps[0, _k, ...]).cpu()
+                    max_loc_source_h = max_loc_source / source_fmaps[0, _k, ...].shape[-2]
+                    max_loc_source_w = max_loc_source % source_fmaps[0, _k, ...].shape[-1]
+                    ax[0, _k].scatter(max_loc_source_w, max_loc_source_h,
+                                      color='red', marker="x", s=250)
+
                     ax[1, _k].imshow(target_fmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
                     ax[1, _k].scatter(img_coordinates[0, 1, _k, 0], img_coordinates[0, 1, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
 
+                    max_loc_target = torch.argmax(target_fmaps[0, _k, ...]).cpu()
+                    max_loc_target_h = max_loc_target / target_fmaps[0, _k, ...].shape[-2]
+                    max_loc_target_w = max_loc_target % target_fmaps[0, _k, ...].shape[-1]
+                    ax[1, _k].scatter(max_loc_target_w, max_loc_target_h,
+                                      color='red', marker="x", s=250)
+
+                plt.tight_layout()
                 self.writer.add_figure(tag="val/feature_maps",
                                        figure=fig,
                                        global_step=global_epoch_number)
@@ -213,11 +226,15 @@ class TransporterAgent(AbstractAgent):
                     ax[0, _k].set_title(f'Source frame - Keypoint {_k}')
                     ax[0, _k].scatter(img_coordinates[0, 0, _k, 0], img_coordinates[0, 0, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
+
                     ax[1, _k].imshow(target_gmaps[0, _k, ...].cpu(), cmap='gray')
                     ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
                     ax[1, _k].scatter(img_coordinates[0, 1, _k, 0], img_coordinates[0, 1, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
 
+
+
+                plt.tight_layout()
                 self.writer.add_figure(tag="val/gaussian_maps",
                                        figure=fig,
                                        global_step=global_epoch_number)

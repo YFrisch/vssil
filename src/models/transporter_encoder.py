@@ -33,7 +33,8 @@ class TransporterBlock(nn.Module):
         self.instance_norm = nn.InstanceNorm2d(out_channels, affine=True)
 
         if activation in ['LeakyRELU', 'LeakyReLU', 'LeakyRelu']:
-            self.activation = activation_dict[activation](negative_slope=0.2)
+            # self.activation = activation_dict[activation](negative_slope=0.2)
+            self.activation = activation_dict[activation](negative_slope=0.1)
         else:
             self.activation = activation_dict[activation]()
 
