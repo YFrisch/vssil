@@ -275,6 +275,11 @@ class AbstractAgent:
 
             # Iterate over epochs
             epochs_per_fold = config['training']['epochs']
+
+            # Placeholder tensors for efficient memory usage
+            sample = torch.FloatTensor(1).to(self.device)
+            label = torch.FloatTensor(1).to(self.device)
+
             for epoch in range(epochs_per_fold):
 
                 print(f"##### Fold {fold} Epoch {epoch}:")
@@ -297,10 +302,21 @@ class AbstractAgent:
                 # for i, (sample, label) in enumerate(tqdm(self.train_data_loader)):
 
                     try:
-                        sample, label = next(generator)
+                        sample_data, label_data = next(generator)
+                        with torch.no_grad():
+                            sample.resize_(sample_data.shape).copy_(sample_data)
+                            label.resize_(label_data.shape).copy_(label_data)
+                        del sample_data
+                        del label_data
+
                     except StopIteration:
                         generator = iter(self.train_data_loader)
-                        sample, label = next(generator)
+                        sample_data, label_data = next(generator)
+                        with torch.no_grad():
+                            sample.resize_(sample_data.shape).copy_(sample_data)
+                            label.resize_(label_data.shape).copy_(label_data)
+                        del sample_data
+                        del label_data
 
                     # with torch.no_grad():
                     sample, target = self.preprocess(sample, label, config)  # (N, T, C, H, W)
@@ -365,8 +381,8 @@ class AbstractAgent:
                         self.scheduler.step()
 
                 sys.stdout.flush()
-                #torch.cuda.empty_cache()   # TODO: remove?
-                #gc.collect()               # TODO: remove?
+                torch.cuda.empty_cache()   # TODO: remove?
+                gc.collect()               # TODO: remove?
 
             torch.save(self.model.state_dict(),
                        self.log_dir + f'checkpoints/chckpt_f{fold}_final.PTH')

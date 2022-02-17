@@ -54,6 +54,7 @@ activation_dict = {
     'identity': nn.Identity,
     'id': nn.Identity,
     'sigmoid': nn.Sigmoid,
+    'Sigmoid': nn.Sigmoid,
     'tanh': nn.Tanh,
     'relu': nn.ReLU,
     'ReLU': nn.ReLU,

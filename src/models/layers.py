@@ -128,7 +128,8 @@ class SpatialSoftArgmax(nn.Module):
 
     def __init__(self,
                  temperature: float = None,
-                 normalize: bool = False):
+                 normalize: bool = False,
+                 device: str = 'cpu'):
         """ Creates class instance.
 
         :param temperature: Temperature parameter (see paper)
@@ -136,7 +137,9 @@ class SpatialSoftArgmax(nn.Module):
         """
         super().__init__()
 
-        self.temperature = nn.Parameter(torch.ones(1) if temperature is None else torch.tensor([temperature]))
+        # self.temperature = nn.Parameter(torch.ones(1) if temperature is None else torch.tensor([temperature]))
+        self.temperature = torch.tensor([1]) if temperature is None else torch.tensor([temperature])
+        self.temperature = self.temperature.to(device)
         self.normalize = normalize
         # self.spatial_softmax = nn.Softmax2d()
 

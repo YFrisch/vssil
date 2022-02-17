@@ -5,6 +5,7 @@
     # TODO: Make sure, batch sizes are handled correctly, i.e. tensors in (N, T, C, H, W) format
 """
 import random
+import gc
 
 import matplotlib.pyplot as plt
 import torch
@@ -12,6 +13,9 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.functional import mse_loss, interpolate
 from torchvision.transforms.functional import rgb_to_grayscale
 
+from src.utils.grad_flow import plot_grad_flow
+from src.utils.kpt_utils import kpts_2_img_coordinates
+from src.models.utils import init_weights
 from .abstract_agent import AbstractAgent
 from ..models.deep_spatial_autoencoder import DeepSpatialAE
 from ..data.utils import play_video
@@ -29,7 +33,10 @@ class DSAEAgent(AbstractAgent):
 
         self.smoothness_penalty = config['training']['smoothness_penalty']
 
-        self.model = DeepSpatialAE(config['model']).to(self.device)
+        self.model = DeepSpatialAE(config['model'], device=config['device']).to(self.device)
+        self.model.conv2.apply(lambda model: init_weights(m=model, config=config))
+        self.model.conv3.apply(lambda model: init_weights(m=model, config=config))
+        self.model.decoder.apply(lambda model: init_weights(m=model, config=config))
 
     def loss_func(self,
                   prediction: torch.Tensor,
@@ -47,10 +54,10 @@ class DSAEAgent(AbstractAgent):
         :param ft_plus1: Features of next image
         """
 
-        loss = mse_loss(input=prediction, target=target)
+        loss = mse_loss(input=prediction, target=target, reduction='sum')
 
         if self.smoothness_penalty and self.model.training:
-            penalty = mse_loss(ft_plus1 - ft, ft - ft_minus1)
+            penalty = mse_loss(ft_plus1 - ft, ft - ft_minus1, reduction='sum')
         else:
             penalty = torch.zeros(1, device=prediction.device)
 
@@ -104,15 +111,14 @@ class DSAEAgent(AbstractAgent):
             f"target shape {target[t].unsqueeze(0).shape}"
 
         # Loss
-        with torch.no_grad():
-            features_t_minus1 = self.model.encode(sample[:, t-1, ...].unsqueeze(1)) if t > 0 else \
-                self.model.encode(sample_t)
+        #with torch.no_grad():
+        features_t_minus1, _ = self.model.encode(sample[:, t-1, ...].unsqueeze(1)) if t > 0 else \
+            self.model.encode(sample_t)
 
-            # TODO: Convert positions from feature map space into image space coordinates?
-            features_t = self.model.encode(sample_t)  # (N, T, K, 2)
+        features_t, fmaps_t = self.model.encode(sample_t)  # (N, T, K, 2)
 
-            features_t_plus1 = self.model.encode(sample[:, t+1, ...].unsqueeze(1)) if t < timesteps-1 else \
-                self.model.encode(sample_t)
+        features_t_plus1, _ = self.model.encode(sample[:, t+1, ...].unsqueeze(1)) if t < timesteps-1 else \
+            self.model.encode(sample_t)
 
         loss = self.loss_func(prediction=prediction,
                               target=target_t,
@@ -125,29 +131,69 @@ class DSAEAgent(AbstractAgent):
             loss.backward()
             self.optim.step()
 
-        if mode == 'validation':
+            if save_grad_flow_plot and config['training']['save_grad_flow_plot']:
+                plot_grad_flow(named_parameters=self.model.named_parameters(),
+                               epoch=global_epoch_number,
+                               tag_name='train/grads',
+                               summary_writer=self.writer)
+
+            del sample_t, target_t, prediction, features_t_minus1, features_t, features_t_plus1
+
+        if mode == 'validation' and config['validation']['save_plot'] and save_val_sample:
 
             fig, ax = plt.subplots(1, 2, figsize=(15, 5))
-            ax[0].imshow(prediction[0].squeeze(), cmap='gray')
-            ax[1].imshow(target_t[0].squeeze(), cmap='gray')
+            ax[0].imshow(prediction[0].cpu().squeeze(), cmap='gray')
+            ax[1].imshow(target_t[0].cpu().squeeze(), cmap='gray')
 
             self.writer.add_figure(tag='val/rec',
                                    figure=fig,
                                    global_step=global_epoch_number)
 
             plt.close()
+            del fig, ax, prediction, target_t
 
+            _features_t = torch.clone(features_t)
+            _features_t[..., 1] *= -1
+
+            img_coordinates_t = kpts_2_img_coordinates(_features_t[0, 0, ...], img_shape=sample_t[0].shape[1:])
             fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-            ax.imshow(sample_t[0].squeeze().permute(1, 2, 0), cmap='gray')
-            ax.scatter(features_t[0, 0, :, 0], features_t[0, 0, :, 1], color='orange')
+            ax.imshow(sample_t[0].cpu().squeeze().permute(1, 2, 0), cmap='gray')
+            ax.scatter(img_coordinates_t[:, 0].cpu(), img_coordinates_t[:, 1].cpu(), color='lime')
 
             self.writer.add_figure(tag='val/sample + kpts',
                                    figure=fig,
                                    global_step=global_epoch_number)
 
             plt.close()
+            del fig, ax, sample_t, features_t, img_coordinates_t
+
+            _fmaps_t = torch.clone(fmaps_t)  # (N, C, H', W')
+            img_coordinates_t = kpts_2_img_coordinates(_features_t, _fmaps_t.shape[2:])  # (N, T, C, 2)
+            fig, ax = plt.subplots(1, _fmaps_t[0].shape[0])
+            for c in range(_fmaps_t[0].shape[0]):
+                ax[c].imshow(_fmaps_t[0, c, ...].cpu(), cmap='gray')
+                ax[c].scatter(img_coordinates_t[0, 0, c, 0].cpu(),
+                              img_coordinates_t[0, 0, c, 1].cpu(),
+                              color='lime', marker='x')
+
+            plt.tight_layout()
+            self.writer.add_figure(tag='val/fmaps + kpts',
+                                   figure=fig,
+                                   global_step=global_epoch_number)
+
+            plt.close()
+            del fmaps_t, _fmaps_t, _features_t
 
             self.writer.flush()
+
+            """
+            for obj in gc.get_objects():
+                try:
+                    if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                        print(type(obj), obj.size())
+                except:
+                    pass
+            """
 
         return loss
 
