@@ -26,11 +26,11 @@ if __name__ == "__main__":
     preprocess = transforms.Compose([
         # NOTE: The first transform already converts the image range to (0, 1)
         ImglistToTensor(),
-        transforms.RandomChoice([
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
-        ]),
+        #transforms.RandomChoice([
+        #    transforms.RandomHorizontalFlip(p=0.5),
+        #    transforms.RandomVerticalFlip(p=0.5),
+        #    transforms.RandomApply([transforms.RandomRotation(degrees=90)], p=0.3),
+        #]),
     ])
 
     data_set = VideoFrameDataset(
