@@ -1,0 +1,40 @@
+data:
+  num_workers: 4
+  img_shape: (3, 256, 256)
+
+model:
+  n_frames: 20
+  hidden_dim: 64
+  num_img_channels: 3
+  num_keypoints: 4
+  activation: LeakyReLU
+  gaussian_map_std: 0.15
+  weight_init: he_normal
+  skip_connections: False
+
+training:
+  epochs: 1000
+  steps_per_epoch: 500
+  optim: AdamW
+  k_folds: 1
+  initial_lr: 0.01
+  lr_scheduler: ReduceLROnPlateau
+  lr_scheduler_epoch_steps: 10
+  lr_scheduler_gamma: 0.9
+  batch_size: 32
+  loss_function: mse
+  l2_weight_decay: 0.0005
+  grad_clip_max_norm: 5.0
+
+validation:
+  steps: 100
+  freq: 5
+  batch_size: 32
+  save_grad_plots: True
+  save_eval_examples: True
+
+evaluation:
+
+device: cuda:0
+log_dir: 'results/transporter_simitate_new_128pix'
+warm_start: False
