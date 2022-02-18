@@ -153,7 +153,7 @@ class DSAEAgent(AbstractAgent):
             del fig, ax, prediction, target_t
 
             _features_t = torch.clone(features_t)
-            _features_t[..., 1] *= -1
+            _features_t[..., 0] *= -1
 
             img_coordinates_t = kpts_2_img_coordinates(_features_t[0, 0, ...], img_shape=sample_t[0].shape[1:])
             fig, ax = plt.subplots(1, 1, figsize=(15, 5))
@@ -169,7 +169,7 @@ class DSAEAgent(AbstractAgent):
 
             _fmaps_t = torch.clone(fmaps_t)  # (N, C, H', W')
             img_coordinates_t = kpts_2_img_coordinates(_features_t, _fmaps_t.shape[2:])  # (N, T, C, 2)
-            fig, ax = plt.subplots(1, _fmaps_t[0].shape[0])
+            fig, ax = plt.subplots(1, _fmaps_t[0].shape[0], figsize=(_fmaps_t[0].shape[0] * 3, 3))
             for c in range(_fmaps_t[0].shape[0]):
                 ax[c].imshow(_fmaps_t[0, c, ...].cpu(), cmap='gray')
                 ax[c].scatter(img_coordinates_t[0, 0, c, 0].cpu(),

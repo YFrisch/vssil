@@ -30,18 +30,20 @@ class DeepSpatialAE(nn.Module):
                                      activation=activation_dict[config['conv']['activation']](),
                                      # activation=nn.ReLU(),
                                      kernel_size=(7, 7),
-                                     padding=(3, 3),
+                                     # padding=(3, 3),
+                                     padding=(0, 0),
                                      stride=(2, 2)
                                      )
 
-        self.conv1 = self.imagenet_init(self.conv1)
+        #self.conv1 = self.imagenet_init(self.conv1)
 
         self.conv2 = BatchNormConv2D(in_channels=config['conv']['hidden_sizes'][0],
                                      out_channels=config['conv']['hidden_sizes'][1],
                                      activation=activation_dict[config['conv']['activation']](),
                                      # activation=nn.ReLU(),
                                      kernel_size=(5, 5),
-                                     padding=(3, 3),
+                                     # padding=(3, 3),
+                                     padding=(0, 0),
                                      stride=(1, 1)
                                      )
 
@@ -50,7 +52,8 @@ class DeepSpatialAE(nn.Module):
                                      activation=activation_dict[config['conv']['activation']](),
                                      # activation=nn.ReLU(),
                                      kernel_size=(5, 5),
-                                     padding=(3, 3),
+                                     # padding=(3, 3),
+                                     padding=(0, 0),
                                      stride=(1, 1)
                                      )
 
@@ -76,6 +79,7 @@ class DeepSpatialAE(nn.Module):
             m = torch.load('src/models/pretrained/googlenet_imagenet.PTH')
 
         layer.conv2d.weight.data = m.conv1.conv.weight.data
+        # layer.conv2d.conv_2d.weight.data = m.conv1.conv.weight.data
         layer.batch_norm.weight.data = m.conv1.bn.weight.data
         return layer
 

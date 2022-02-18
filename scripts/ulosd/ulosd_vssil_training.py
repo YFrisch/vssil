@@ -36,13 +36,15 @@ if __name__ == "__main__":
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
+    prep = ImglistToTensor()
+
     data_set = VideoFrameDataset(
         root_path=args.data,
         annotationfile_path=os.path.join(args.data, 'annotations.txt'),
         num_segments=1,
         frames_per_segment=ulosd_conf['model']['n_frames'],
         imagefile_template='img_{:05d}.jpg',
-        transform=preprocess,
+        transform=prep,
         random_shift=True,
         test_mode=False
     )

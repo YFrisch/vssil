@@ -17,26 +17,26 @@ model:
   decoder_hidden_activations: LeakyReLU
   encoder_hidden_activations: LeakyReLU
   feature_map_gauss_sigma: 1.5
-  feature_map_height: 64
-  feature_map_width: 64
-  n_convolutions_per_res: 2
+  feature_map_height: 128
+  feature_map_width: 128
+  n_convolutions_per_res: 1
   n_feature_maps: 64
-  n_frames: 16
-  n_init_filters: 32
-  weight_init: he_uniform
+  n_frames: 4
+  n_init_filters: 8
+  weight_init: he_normal
 
 training:
   batch_size: 8
-  clip_norm: 5.0
+  clip_norm: 1.0
   emd_sum_scale: 1.0
-  epochs: 500
-  feature_map_regularization: 0.1  # 0.1
-  initial_lr: 0.0001
+  epochs: 100
+  feature_map_regularization: 5.0  # 0.1
+  initial_lr: 0.1
   k_folds: 0
-  l2_weight_decay: 0.00005
-  lr_scheduler: ReduceLROnPlateau
-  lr_scheduler_epoch_steps: 10
-  lr_scheduler_gamma: 0.9
+  l2_weight_decay: 0.0005
+  lr_scheduler: StepLR
+  lr_scheduler_epoch_steps: 5
+  lr_scheduler_gamma: 0.5
   max_lr: 0.001
   min_lr: 0.0001
   optim: AdamW
@@ -48,11 +48,11 @@ training:
   patchwise_contrastive_type: '...'
   re_sample: false
   re_sample_scale: 0.02
-  reconstruction_loss: alexnet
-  reconstruction_loss_scale: 1.0  # 1.0 for mse, 0.01 for sse
+  reconstruction_loss: sse
+  reconstruction_loss_scale: 0.1  # 1.0 for mse, 0.01 for sse
   separation_loss_scale: 0.1  # 0.1 / 0.02 for mse , 10.0 for sse
   separation_loss_sigma: 0.02
-  steps_per_epoch: 500
+  steps_per_epoch: 1000
   use_emd: false
 
 validation:

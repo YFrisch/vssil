@@ -15,7 +15,7 @@ class TransporterKeypointer(nn.Module):
         self.regressor = nn.Conv2d(
             in_channels=config['model']['hidden_dim'],
             out_channels=config['model']['num_keypoints'],
-            kernel_size=(1, 1)
+            kernel_size=(1, 1),
         )
 
         self.gauss_std = config['model']['gaussian_map_std']
@@ -74,7 +74,7 @@ class TransporterKeypointer(nn.Module):
         # Linear combination of the inverval [-1, 1] using the normalized weights
         # TODO: req. grad?
         scale = torch.linspace(start=-1.0, end=1.0, steps=axis_size,
-                               dtype=torch.float32, requires_grad=True).view(1, 1, axis_size).to(self.device)
+                               dtype=torch.float32, requires_grad=False).view(1, 1, axis_size).to(self.device)
 
         coordinate = torch.sum(g_c_prob * scale, dim=-1)
         assert tuple(coordinate.shape) == (N, K)
@@ -110,5 +110,9 @@ class TransporterKeypointer(nn.Module):
     def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         img_feature_maps = self.net(x)
         key_point_feature_maps = self.regressor(img_feature_maps)
+
+        # TODO: Softplus seems to help??
+        key_point_feature_maps = nn.functional.softplus(key_point_feature_maps)
+
         keypoint_means, gaussian_maps = self.feature_maps_to_keypoints(feature_map=key_point_feature_maps)
         return keypoint_means, gaussian_maps, key_point_feature_maps

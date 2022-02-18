@@ -88,9 +88,11 @@ class BatchNormConv2D(nn.Module):
         self.conv2d = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, **args)
         self.batch_norm = nn.BatchNorm2d(num_features=out_channels, eps=1e-3)
         self.activation = activation
+        self.pad = nn.ReplicationPad2d(1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        _y = self.conv2d(x)
+        _y = self.pad(x)
+        _y = self.conv2d(_y)
         _y = self.batch_norm(_y)
         if self.activation is not None:
             _y = self.activation(_y)

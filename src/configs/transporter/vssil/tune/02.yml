@@ -3,33 +3,33 @@ data:
   img_shape: (3, 256, 256)
 
 model:
-  n_frames: 4
-  hidden_dim: 64  # 64
+  n_frames: 20
+  hidden_dim: 32
   num_img_channels: 3
-  num_keypoints: 12
+  num_keypoints: 5
   activation: LeakyReLU
-  gaussian_map_std: 0.15
-  weight_init: he_normal
+  gaussian_map_std: 0.25
+  weight_init: he_uniform
   skip_connections: False
 
 training:
-  epochs: 200
-  steps_per_epoch: 500  # 200
-  optim: Adam
+  epochs: 300
+  steps_per_epoch: 500
+  optim: AdamW
   k_folds: 0
   initial_lr: 0.001
   lr_scheduler: ReduceLROnPlateau
   lr_scheduler_epoch_steps: 10
-  lr_scheduler_gamma: 0.5
-  batch_size: 2
-  loss_function: sse  # mse, alexnet
+  lr_scheduler_gamma: 0.9
+  batch_size: 8
+  loss_function: sse
   l2_weight_decay: 0.0005
   grad_clip_max_norm: 1.0
 
 validation:
   steps: 50
   freq: 5
-  batch_size: 2
+  batch_size: 8
   save_grad_plots: True
   save_eval_examples: True
 

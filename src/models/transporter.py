@@ -56,10 +56,14 @@ class Transporter(nn.Module):
 
         with torch.no_grad():
             source_feature_maps = self.encoder(source_img)
-            source_keypoints, source_gaussian_maps, _ = self.keypointer(source_img)
+            source_keypoints, source_gaussian_maps, source_kpt_maps = self.keypointer(source_img)
 
         target_feature_maps = self.encoder(target_img)
-        target_keypoints, target_gaussian_maps, _ = self.keypointer(target_img)
+        target_keypoints, target_gaussian_maps, target_kpt_maps = self.keypointer(target_img)
+
+        # TODO
+        #source_penalty = torch.max(torch.sum(nn.functional.softplus(source_kpt_maps), dim=[-3]))
+        #target_penalty = torch.max(torch.sum(nn.functional.softplus(target_kpt_maps), dim=[-3]))
 
         transported_features = self.transport(
             # source_gaussian_maps.detach(),
@@ -83,4 +87,4 @@ class Transporter(nn.Module):
         # reconstruction = torch.sigmoid(reconstruction)
         # reconstruction = torch.tanh(reconstruction)
 
-        return reconstruction
+        return reconstruction  # , source_penalty, target_penalty

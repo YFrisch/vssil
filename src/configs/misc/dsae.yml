@@ -3,33 +3,33 @@ data:
 
 model:
   n_frames: 4
-  weight_init: he_uniform
+  weight_init: he_normal
   conv:
     in_channels: 3
-    hidden_sizes: [64, 32]  # [64, 32]
-    out_channels: 16  # 8
-    activation: LeakyReLU
+    hidden_sizes: [128, 64]  # [64, 32]
+    out_channels: 8  # 8
+    activation: ReLU
   spatial:
-    temperature: 0.9
+    temperature: 0.1
     normalize: True
   fc:
-    in_features: 32  # 16
-    out_img_width: 60  # 60
-    out_img_height: 60  # 60
-    activation: ReLU  # ReLu?
+    in_features: 16  # 16
+    out_img_width: 40  # 60
+    out_img_height: 40  # 60
+    activation: Sigmoid  # ReLu?
 
 training:
   optim: Adam
   k_folds: 0
   epochs: 500
-  steps_per_epoch: 1000
-  initial_lr: 0.0001
-  l2_weight_decay: 0.00005
+  steps_per_epoch: 1000  # 1000
+  initial_lr: 0.001
+  l2_weight_decay: 0.0005
   lr_scheduler: ReduceLROnPlateau
   lr_scheduler_gamma: 0.75
   lr_scheduler_epoch_steps: 10
-  batch_size: 4
-  smoothness_penalty: False
+  batch_size: 8
+  smoothness_penalty: True
   save_grad_flow_plot: True
 
 evaluation:
@@ -39,10 +39,10 @@ evaluation:
 validation:
   freq: 5
   steps: 50
-  batch_size: 4
+  batch_size: 8
   save_plot: True
 
 
 device: "cuda:0"
 warm_start: False
-log_dir: "results/dsae"
+log_dir: "results/dsae_manipulator_new_128pix"

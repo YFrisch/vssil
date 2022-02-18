@@ -1,5 +1,6 @@
 import random
 
+import cv2
 import pylab
 import matplotlib.pyplot as plt
 import torch
@@ -7,6 +8,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision.utils import make_grid
 from torchvision import transforms
+import numpy as np
 
 from src.models.transporter import Transporter
 from src.models.inception3 import perception_inception_net
@@ -18,10 +20,10 @@ from src.losses import perception_loss
 from .abstract_agent import AbstractAgent
 
 Tran = transforms.RandomApply([
-    transforms.RandomHorizontalFlip(p=0.3),
-    transforms.RandomVerticalFlip(p=0.3),
-    transforms.RandomRotation(degrees=45, )
-])
+    #transforms.RandomHorizontalFlip(p=1.0),
+    #transforms.RandomVerticalFlip(p=0.3),
+    transforms.RandomRotation(degrees=30)
+], p=0.5)
 
 
 class TransporterAgent(AbstractAgent):
@@ -90,9 +92,26 @@ class TransporterAgent(AbstractAgent):
         # target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
         #                (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min()))
 
+        # Drawing target frame randomly from different sequence (from batch)
+        """
+        N = x.shape[0]
+        sample_frame = x[:, 0, ...]
+        target_frame = torch.empty_like(sample_frame)
+        for n in range(x.shape[0]):
+            random_target_idx = random.randint(0, x.shape[0]-1)
+            target_frame[n, ...] = x[random_target_idx, 0 + t_diff, ...]
+
+        t = torch.cat([sample_frame, target_frame], dim=0)
+        t = Tran(t)
+
+        sample_frame = t[0:N, ...]
+        target_frame = t[N:, ...]
+        """
+
         sample_frame = x[:, 0, ...]
         target_frame = x[:, 0 + t_diff, ...]
-        # target_frame = Tran(x[:, 0 + t_diff, ...])
+
+        #target_frame = Tran(x[:, 0 + t_diff, ...])
 
         return sample_frame, target_frame
 
@@ -135,8 +154,11 @@ class TransporterAgent(AbstractAgent):
         self.optim.zero_grad()
 
         reconstruction = self.model(sample, target)
+        # reconstruction, source_p, target_p = self.model(sample, target)
 
         loss = self.loss_func(prediction=reconstruction, target=target, config=config)
+        #map_p = (0.1*source_p + 0.5*target_p)
+        #loss += map_p
 
         if mode == 'training':
 
@@ -147,6 +169,9 @@ class TransporterAgent(AbstractAgent):
             self.optim.step()
 
             if save_grad_flow_plot:
+
+                #self.writer.add_scalar(tag='train/p', scalar_value=map_p, global_step=global_epoch_number)
+
                 plot_grad_flow(named_parameters=self.model.encoder.named_parameters(),
                                epoch=global_epoch_number,
                                tag_name='encoder',
@@ -214,6 +239,10 @@ class TransporterAgent(AbstractAgent):
                     max_loc_target_w = max_loc_target % target_fmaps[0, _k, ...].shape[-1]
                     ax[1, _k].scatter(max_loc_target_w, max_loc_target_h,
                                       color='red', marker="x", s=250)
+
+                    #np.save(f"source_map_k{_k}.npy", source_fmaps[0, _k, ...].cpu().numpy())
+                    #np.save(f"target_map_k{_k}.npy", target_fmaps[0, _k, ...].cpu().numpy())
+                #exit()
 
                 plt.tight_layout()
                 self.writer.add_figure(tag="val/feature_maps",
