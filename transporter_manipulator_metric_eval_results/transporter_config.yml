@@ -1,0 +1,38 @@
+data:
+  img_shape: (3, 128, 128)
+  num_workers: 4
+  path: /media/yannik/samsung_ssd/data/manipulator_processed_128pix/
+device: cpu
+evaluation: null
+log_dir: results/transporter_manipulator_new_128pix/2022_1_26_12_21/
+model:
+  activation: LeakyReLU
+  gaussian_map_std: 0.15
+  hidden_dim: 64
+  n_frames: 2
+  num_img_channels: 3
+  num_keypoints: 5
+  skip_connections: false
+  weight_init: he_normal
+multi_gpu: false
+training:
+  batch_size: 64
+  epochs: 200
+  grad_clip_max_norm: 5.0
+  initial_lr: 0.01
+  k_folds: 1
+  l2_weight_decay: 0.0005
+  loss_function: mse
+  lr_scheduler: StepLR
+  lr_scheduler_epoch_steps: 30
+  lr_scheduler_gamma: 0.5
+  optim: AdamW
+  steps_per_epoch: 100
+used_gpus: '[''GeForce GTX 1060 6GB'']'
+validation:
+  batch_size: 4
+  freq: 5
+  save_eval_examples: true
+  save_grad_plots: true
+  steps: -1
+warm_start: false

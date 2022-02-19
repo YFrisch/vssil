@@ -15,6 +15,7 @@ from cv2 import VideoWriter, VideoWriter_fourcc, \
 import pylab
 
 from src.losses.kpt_metrics import patchwise_contrastive_metric
+from src.utils.kpt_utils import kpts_2_img_coordinates
 
 
 def numpy_to_mp4(img_array: np.ndarray, target_path: str = 'test.avi', fps: int = 20):
@@ -136,17 +137,16 @@ def play_series_with_keypoints(image_series: torch.Tensor,
             #     [-0.5, -0.5]  |
             #                   |
 
-            x_coord = int((-keypoint_coords[0, t, active_kp_ids[k], 1] + 1.0) / 2 * W)
-            y_coord = int((keypoint_coords[0, t, active_kp_ids[k], 0] + 1.0) / 2 * H)
+            img_coordinates = kpts_2_img_coordinates(keypoint_coords[0, t, active_kp_ids[k], :], (H, W))
 
-            orig_scatter_objects[k].set_offsets([x_coord, y_coord])
+            orig_scatter_objects[k].set_offsets([img_coordinates[0], img_coordinates[1]])
 
             if key_point_trajectory:
                 if len(key_point_pos_buffer[k]) < trajectory_length:
-                    key_point_pos_buffer[k].append([x_coord, y_coord])
+                    key_point_pos_buffer[k].append([img_coordinates[0], img_coordinates[1]])
                 else:
                     key_point_pos_buffer[k].pop(0)
-                    key_point_pos_buffer[k].append([x_coord, y_coord])
+                    key_point_pos_buffer[k].append([img_coordinates[0], img_coordinates[1]])
                 combined_np_array = np.concatenate([key_point_pos_buffer[k]])
                 line_objects[k].set_data(combined_np_array[:, 0], combined_np_array[:, 1])
 
@@ -164,6 +164,7 @@ def play_series_with_keypoints(image_series: torch.Tensor,
     anim.save(save_path + "anim.mp4", writer=writer)
 
     # plt.show()
+    plt.close()
 
     return active_kp_ids
 

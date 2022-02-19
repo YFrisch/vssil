@@ -4,34 +4,32 @@ import torch
 
 def img_coordinates_2_kpts(img_coordinates: torch.Tensor,
                            img_shape: tuple) -> torch.Tensor:
-    """ Converts (integer) image coordinates in [0,H]x[0,W]
-        to key-point coordinates in [-1,1]x[-1,1].
+    """ Converts (integer) image coordinates in [0,W]x[0,H]
+        to (h, w) key-point coordinates in [-1,1]x[-1,1].
 
     :param img_coordinates: Torch tensor in (N, T, K, 2/3)
     :param img_shape: Tuple of image size (H, W)
     :return:
     """
-    _kpt_coordinates = torch.empty_like(img_coordinates)
-    #_kpt_coordinates[..., 0] = (img_coordinates[..., 0] / img_shape[-1] * 2) - 1.0  # W
-    _kpt_coordinates[..., 0] = - (img_coordinates[..., 1] / img_shape[-2] * 2) + 1.0  # H
-    _kpt_coordinates[..., 1] = (img_coordinates[..., 0] / img_shape[-1] * 2) - 1.0  # H
-    #_kpt_coordinates[..., 1] = - (img_coordinates[..., 1] / img_shape[-2] * 2) - 1.0  # H
+    kpt_coordinates = torch.empty_like(img_coordinates)
+    kpt_coordinates[..., 0] = - (img_coordinates[..., 1] / img_shape[-2] * 2) + 1.0  # H
+    kpt_coordinates[..., 1] = (img_coordinates[..., 0] / img_shape[-1] * 2) - 1.0  # W
 
-    return _kpt_coordinates
+    return kpt_coordinates
 
 
 def kpts_2_img_coordinates(kpt_coordinates: torch.Tensor,
                            img_shape: tuple) -> torch.Tensor:
-    """ Converts the key-point coordinates from video structure format [-1,1]x[-1,1]
-        to image coordinates in [0,H]x[0,W].
+    """ Converts the (h, w) key-point coordinates from video structure format [-1,1]x[-1,1]
+        to image coordinates in [0,W]x[0,H].
 
     :param kpt_coordinates: Torch tensor in (N, T, K, 2/3)
     :param img_shape: Tuple of image size (H, W)
     """
-    _kpt_coordinates = torch.empty_like(kpt_coordinates)
-    _kpt_coordinates[..., 0] = ((kpt_coordinates[..., 1] + 1.0)/2.0) * img_shape[-1]  # W
-    _kpt_coordinates[..., 1] = ((-kpt_coordinates[..., 0] + 1.0)/2.0) * img_shape[-2]  # H
-    return _kpt_coordinates
+    img_coordinates = torch.empty_like(kpt_coordinates)
+    img_coordinates[..., 0] = ((kpt_coordinates[..., 1] + 1.0)/2.0) * img_shape[-1]  # W
+    img_coordinates[..., 1] = ((-kpt_coordinates[..., 0] + 1.0)/2.0) * img_shape[-2]  # H
+    return img_coordinates
 
 
 def get_box_within_image_border(kpt_sequence, patch_size, H, W, t, k):

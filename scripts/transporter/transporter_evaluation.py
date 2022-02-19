@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 target_diff = (target - _sample).clip(-1.0, 1.0)
                 key_point_coordinates = transporter_agent.model.keypointer(_sample)[0]
                 # Adapt to visualization
-                key_point_coordinates[..., 1] *= -1
+                key_point_coordinates[..., 0] *= -1
 
                 samples = sample[:, t:t+1, ...] if samples is None \
                     else torch.cat([samples, sample[:, t:t+1, ...]], dim=1)

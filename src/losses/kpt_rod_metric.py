@@ -1,5 +1,7 @@
 import torch
 
+import matplotlib.pyplot as plt
+
 from src.utils.kpt_utils import kpts_2_img_coordinates
 
 
@@ -36,6 +38,8 @@ def kpt_rod_metric(kpt_sequence: torch.Tensor,
             d = image_sequence[n, t] - image_sequence[n, t + 1]
             # Filter frame differences to distinguish between background and foreground
             d_mask = torch.where((torch.abs(torch.norm(d, dim=0, p=2)) > mask_threshold), 1.0, 0.0)
+            #plt.imshow(d_mask, cmap='gray')
+
             for k in range(K):
                 kpt_w_1, kpt_h_1 = img_coordinate_sequence[n, t, k, 0], img_coordinate_sequence[n, t, k, 1]
                 w_min_1, w_max_1 = max(0, int(kpt_w_1 - 0.5 * diameter)), min(W - 1, int(kpt_w_1 + 0.5 * diameter))
@@ -46,6 +50,14 @@ def kpt_rod_metric(kpt_sequence: torch.Tensor,
                 w_min_2, w_max_2 = max(0, int(kpt_w_2 - 0.5 * diameter)), min(W - 1, int(kpt_w_2 + 0.5 * diameter))
                 h_min_2, h_max_2 = max(0, int(kpt_h_2 - 0.5 * diameter)), min(H - 1, int(kpt_h_2 + 0.5 * diameter))
                 pixel_count[n, t, k, 1] += torch.sum(d_mask[h_min_2:h_max_2, w_min_2:w_max_2])
+
+                #plt.scatter(img_coordinate_sequence[n, t, k, 0], img_coordinate_sequence[n, t, k, 1])
+                #plt.scatter(img_coordinate_sequence[n, t+1, k, 0], img_coordinate_sequence[n, t+1, k, 1])
+            #plt.show()
+            #exit()
+    #print(pixel_count.shape)
+    #print(pixel_count)
+    #exit()
 
     # Normalize count by diameter
     normalized_pixel_count = pixel_count / (diameter * diameter)

@@ -1,7 +1,6 @@
+import os
 import yaml
 
-import matplotlib.pyplot as plt
-import seaborn as sns
 import torch
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
@@ -13,6 +12,8 @@ from src.losses.kpt_distribution_metric import kpt_distribution_metric
 from src.losses.kpt_visual_metric import kpt_visual_metric
 from src.losses.kpt_tracking_metric import kpt_tracking_metric
 from src.losses.spatial_consistency_loss import spatial_consistency_loss
+from src.losses.kpt_rod_metric import kpt_rod_metric
+from src.utils.visualization import play_series_with_keypoints
 
 
 if __name__ == "__main__":
@@ -48,6 +49,8 @@ if __name__ == "__main__":
         map_location='cpu'
     )
 
+    os.makedirs('metric_eval_results/', exist_ok=True)
+
     print("##### Evaluating:")
     with torch.no_grad():
 
@@ -59,6 +62,7 @@ if __name__ == "__main__":
         M_distribution = []
         M_tracking = []
         M_visual = []
+        M_rod = []
 
         for i, (sample, label) in enumerate(eval_data_loader):
 
@@ -82,6 +86,9 @@ if __name__ == "__main__":
                 target_diff = (target - _sample).clip(-1.0, 1.0)
                 key_point_coordinates = transporter_agent.model.keypointer(_sample)[0]
 
+                # Adapt to key-point coordinate system from ULOSD paper
+                key_point_coordinates[..., 0] *= -1
+
                 samples = sample[:, t:t+1, ...] if samples is None \
                     else torch.cat([samples, sample[:, t:t+1, ...]], dim=1)
                 reconstructions = reconstruction.unsqueeze(1) if reconstructions is None \
@@ -100,18 +107,37 @@ if __name__ == "__main__":
                                                   n_bins=20, p=float('inf'))[0].cpu().numpy())
             M_visual.append(kpt_visual_metric(key_points, samples, patch_size=(12, 12),
                                               n_bins=20, p=float('inf'))[0].cpu().numpy())
+            M_rod.append(kpt_rod_metric(key_points, samples,
+                                        diameter=int(samples.shape[-1]/10),
+                                        mask_threshold=0.1))
+
+            play_series_with_keypoints(
+                image_series=samples,
+                keypoint_coords=key_points,
+                key_point_trajectory=True,
+                trajectory_length=5,
+                save_path=f'metric_eval_results/transporter_sample_{i}/',
+                save_frames=True
+            )
 
     print(M_smooth)
     print(M_distribution)
     print(M_tracking)
     print(M_visual)
+    print(M_rod)
 
     metric_dict = {
         'smooth': M_smooth,
         'dist': M_distribution,
         'track': M_tracking,
-        'visual': M_visual
+        'visual': M_visual,
+        'rod': M_rod
     }
 
-    with open('results/transporter_metric.yml', 'w') as stream:
+    # Safe stuff
+    with open('metric_eval_results/transporter_metric.yml', 'w') as stream:
         yaml.dump(metric_dict, stream)
+    with open('metric_eval_results/transporter_config.yml', 'w') as stream:
+        yaml.dump(transporter_conf, stream)
+    torch.save(transporter_agent.model.state_dict(),
+               'metric_eval_results/transporter_checkpoint.PTH')
