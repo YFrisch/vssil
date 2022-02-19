@@ -30,10 +30,10 @@ training:
   batch_size: 8
   l2_weight_decay: 0.0005  # Conv.-kernel regularization
   reconstruction_loss: alexnet
-  reconstruction_loss_scale: 1.0
+  reconstruction_loss_scale: 0.1  # 1.0
   feature_map_regularization: 5.0  # Key-point sparsity scale
-  separation_loss_scale: 0.1
-  separation_loss_sigma: 0.02
+  separation_loss_scale: 1.0  # 0.1
+  separation_loss_sigma: 0.2  # 0.02
   patchwise_contrastive_scale: 0.0
   patchwise_contrastive_starting_epoch: ...
   patchwise_contrastive_type: ...
