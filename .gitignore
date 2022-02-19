@@ -146,3 +146,4 @@ dmc2gym/
 test_plots/
 transporter_repo/
 hyperparameter.ods
+*eval_results/
