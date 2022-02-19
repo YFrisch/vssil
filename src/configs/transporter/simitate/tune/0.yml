@@ -27,14 +27,14 @@ training:
   grad_clip_max_norm: 5.0
 
 validation:
-  steps: 100
+  steps: 20
   freq: 5
-  batch_size: 32
+  batch_size: 1
   save_grad_plots: True
   save_eval_examples: True
 
 evaluation:
 
 device: cuda:0
-log_dir: 'results/transporter_simitate_new_128pix'
+log_dir: 'results/transporter_simitate_new_256pix'
 warm_start: False
