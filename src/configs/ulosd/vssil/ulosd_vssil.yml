@@ -21,12 +21,12 @@ model:
   feature_map_width: 64
   n_convolutions_per_res: 2
   n_feature_maps: 32
-  n_frames: 8
+  n_frames: 4
   n_init_filters: 32
   weight_init: he_normal
 
 training:
-  batch_size: 16
+  batch_size: 8
   clip_norm: 1.0
   emd_sum_scale: 1.0
   epochs: 200
@@ -56,7 +56,7 @@ training:
   use_emd: false
 
 validation:
-  batch_size: 16
+  batch_size: 8
   freq: 5
   save_video: true
   steps: 100
