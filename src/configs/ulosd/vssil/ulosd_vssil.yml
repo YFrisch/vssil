@@ -14,22 +14,22 @@ log_dir: "results/ulosd_vssil_new_256pix"
 
 model:
   conv_kernel_size: 3
-  decoder_hidden_activations: LeakyReLU
-  encoder_hidden_activations: LeakyReLU
+  decoder_hidden_activations: prelu
+  encoder_hidden_activations: prelu
   feature_map_gauss_sigma: 1.5
   feature_map_height: 64
   feature_map_width: 64
   n_convolutions_per_res: 2
-  n_feature_maps: 32
-  n_frames: 4
+  n_feature_maps: 64
+  n_frames: 16
   n_init_filters: 32
   weight_init: he_normal
 
 training:
-  batch_size: 8
+  batch_size: 2
   clip_norm: 1.0
   emd_sum_scale: 1.0
-  epochs: 200
+  epochs: 500
   feature_map_regularization: 5.0
   initial_lr: 0.001
   k_folds: 0
@@ -56,7 +56,7 @@ training:
   use_emd: false
 
 validation:
-  batch_size: 8
+  batch_size: 2
   freq: 5
   save_video: true
   steps: 100
