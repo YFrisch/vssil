@@ -43,11 +43,7 @@ if __name__ == "__main__":
 
     transporter_agent = TransporterAgent(dataset=data_set, config=transporter_conf)
     transporter_agent.eval_data_loader = eval_data_loader
-
-    transporter_agent.load_checkpoint(
-        args.checkpoint,
-        map_location='cpu'
-    )
+    transporter_agent.load_checkpoint(args.checkpoint, map_location='cpu')
 
     os.makedirs('metric_eval_results/', exist_ok=True)
 
@@ -119,6 +115,8 @@ if __name__ == "__main__":
                 save_path=f'metric_eval_results/transporter_sample_{i}/',
                 save_frames=True
             )
+
+            #exit()
 
     print(M_smooth)
     print(M_distribution)

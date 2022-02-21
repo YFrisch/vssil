@@ -23,6 +23,7 @@ if __name__ == "__main__":
         ulosd_conf['data']['path'] = args.data
 
     # Apply any number of torchvision transforms here as pre-processing
+    # TODO: Use [-1, 1] normalization in agent class!
     preprocess = transforms.Compose([
         # NOTE: The first transform already converts the image range to (0, 1)
         ImglistToTensor(),
@@ -41,7 +42,7 @@ if __name__ == "__main__":
         imagefile_template='img_{:05d}.jpg',
         transform=preprocess,
         random_shift=True,
-        test_mode=True
+        test_mode=False
     )
 
     ulosd_agent = ULOSD_Agent(dataset=data_set,

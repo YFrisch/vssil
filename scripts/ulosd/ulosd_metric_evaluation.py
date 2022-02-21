@@ -1,3 +1,4 @@
+import os
 import yaml
 
 import torch
@@ -8,10 +9,12 @@ from src.data.utils import get_dataset_from_path
 
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.utils.kpt_utils import get_image_patches
+from src.utils.visualization import play_series_with_keypoints
 from src.losses.kpt_distribution_metric import kpt_distribution_metric
 from src.losses.kpt_tracking_metric import kpt_tracking_metric
 from src.losses.kpt_visual_metric import kpt_visual_metric
 from src.losses.spatial_consistency_loss import spatial_consistency_loss
+from src.losses.kpt_rod_metric import kpt_rod_metric
 
 
 if __name__ == "__main__":
@@ -38,14 +41,11 @@ if __name__ == "__main__":
         sampler=random_sampler
     )
 
-    ulosd_agent = ULOSD_Agent(dataset=data_set,
-                              config=ulosd_conf)
-
+    ulosd_agent = ULOSD_Agent(dataset=data_set, config=ulosd_conf)
     ulosd_agent.eval_data_loader = eval_data_loader
-    ulosd_agent.load_checkpoint(
-        args.checkpoint,
-        map_location='cpu'
-    )
+    ulosd_agent.load_checkpoint(args.checkpoint, map_location='cpu')
+
+    os.makedirs('metric_eval_results/', exist_ok=True)
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -54,6 +54,7 @@ if __name__ == "__main__":
         M_distribution = []
         M_tracking = []
         M_visual = []
+        M_rod = []
 
         for i, (sample, label) in enumerate(eval_data_loader):
 
@@ -67,6 +68,13 @@ if __name__ == "__main__":
             reconstruction, gmaps = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                              first_frame=_sample[:, 0, ...].unsqueeze(1))
 
+            # TODO: Filter for active kpts
+            active_key_point_ids = []
+
+            # Adapt key-point coordinate system
+            _key_points = torch.clone(key_points)
+            _key_points[..., :2] *= -1
+
             patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
                                         patch_size=(12, 12))
 
@@ -77,19 +85,40 @@ if __name__ == "__main__":
                                                   n_bins=20, p=float('inf'))[0].cpu().numpy())
             M_visual.append(kpt_visual_metric(key_points, sample, patch_size=(12, 12),
                                               n_bins=20, p=float('inf'))[0].cpu().numpy())
+            M_rod.append(kpt_rod_metric(key_points, sample,
+                                        diameter=int(sample.shape[-1] / 10),
+                                        mask_threshold=0.1))
+
+            play_series_with_keypoints(
+                image_series=sample,
+                # keypoint_coords=key_points,
+                keypoint_coords=_key_points,
+                intensity_threshold=0.5,
+                key_point_trajectory=True,
+                trajectory_length=5,
+                save_path=f'metric_eval_results/ulosd_sample_{i}/',
+                save_frames=True
+            )
 
     print()
     print(M_smooth)
     print(M_distribution)
     print(M_tracking)
     print(M_visual)
+    print(M_rod)
 
     metric_dict = {
         'smooth': M_smooth,
         'dist': M_distribution,
         'track': M_tracking,
-        'visual': M_visual
+        'visual': M_visual,
+        'rod': M_rod
     }
 
-    with open('results/ulosd_metric.yml', 'w') as stream:
+    # Safe stuff
+    with open('metric_eval_results/ulosd_metric.yml', 'w') as stream:
         yaml.dump(metric_dict, stream)
+    with open('metric_eval_results/ulosd_config.yml', 'w') as stream:
+        yaml.dump(ulosd_conf, stream)
+    torch.save(ulosd_agent.model.state_dict(),
+               'metric_eval_results/ulosd_checkpoint.PTH')

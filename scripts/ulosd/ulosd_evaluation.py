@@ -5,13 +5,8 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from src.utils.argparse import parse_arguments
 from src.data.utils import get_dataset_from_path
-
 from src.agents.ulosd_agent import ULOSD_Agent
 from src.utils.visualization import play_series_with_keypoints, plot_keypoint_amplitudes
-from src.losses.kpt_distribution_metric import kpt_distribution_metric
-from src.losses.kpt_tracking_metric import kpt_tracking_metric
-from src.losses.kpt_visual_metric import kpt_visual_metric
-from src.losses.spatial_consistency_loss import spatial_consistency_loss
 
 
 if __name__ == "__main__":
@@ -48,7 +43,7 @@ if __name__ == "__main__":
         map_location='cpu'
     )
 
-    intensity_threshold = 0.3
+    intensity_threshold = 0.5
 
     print("##### Evaluating:")
     with torch.no_grad():
@@ -70,28 +65,21 @@ if __name__ == "__main__":
             reconstruction, gmaps = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                              first_frame=_sample[:, 0, ...].unsqueeze(1))
 
+            # Adapt for visualization
+            _key_points = torch.clone(key_points)
+            _key_points[..., :2] *= -1
+
             play_series_with_keypoints(image_series=sample,
-                                       keypoint_coords=key_points,
+                                       keypoint_coords=_key_points,
                                        intensity_threshold=intensity_threshold,
                                        key_point_trajectory=True,
-                                       trajectory_length=10,
+                                       trajectory_length=5,
                                        save_path='./result_videos_ulosd/',
                                        save_frames=True)
 
             plot_keypoint_amplitudes(keypoint_coordinates=key_points,
                                      intensity_threshold=intensity_threshold,
                                      target_path='./result_videos_ulosd/')
-
-            M_smooth = spatial_consistency_loss(key_points)
-            M_tracking = kpt_tracking_metric(key_points, sample, (16, 16), 100)
-            M_visual = kpt_visual_metric(key_points, sample, (16, 16), 100)
-            M_distribution = kpt_distribution_metric(key_points, sample.shape[-2:], 100)
-
-            with open('./result_videos_ulosd/metrics.txt', 'w') as metrics_log:
-                metrics_log.write(f"M_smooth: {M_smooth}\n")
-                metrics_log.write(f"M_tracking: {M_tracking}\n")
-                metrics_log.write(f"M_visual: {M_visual}\n")
-                metrics_log.write(f"M_distribution: {M_distribution}\n")
 
             if i == 0:
                 exit()

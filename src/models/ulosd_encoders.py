@@ -4,6 +4,9 @@ from .layers import Conv2DSamePadding
 from .utils import activation_dict
 
 
+AFFINE_BN = True
+
+
 def make_encoder(input_shape: tuple, config: dict):
     """ Image encoder.
 
@@ -34,7 +37,7 @@ def make_encoder(input_shape: tuple, config: dict):
         )
     )
     encoder_module_list.append(
-        nn.BatchNorm2d(num_features=config['model']['n_init_filters'], affine=True)
+        nn.BatchNorm2d(num_features=config['model']['n_init_filters'], affine=AFFINE_BN)
     )
     input_width = encoder_input_shape[-1]
     num_channels = config['model']['n_init_filters']
@@ -50,7 +53,7 @@ def make_encoder(input_shape: tuple, config: dict):
             )
         )
         encoder_module_list.append(
-            nn.BatchNorm2d(num_features=num_channels, affine=True)
+            nn.BatchNorm2d(num_features=num_channels, affine=AFFINE_BN)
         )
 
     while True:
@@ -65,7 +68,7 @@ def make_encoder(input_shape: tuple, config: dict):
             )
         )
         encoder_module_list.append(
-            nn.BatchNorm2d(num_features=num_channels * 2, affine=True)
+            nn.BatchNorm2d(num_features=num_channels * 2, affine=AFFINE_BN)
         )
 
         # Apply additional layers
@@ -80,7 +83,7 @@ def make_encoder(input_shape: tuple, config: dict):
                 )
             )
             encoder_module_list.append(
-                nn.BatchNorm2d(num_features=num_channels * 2, affine=True)
+                nn.BatchNorm2d(num_features=num_channels * 2, affine=AFFINE_BN)
             )
         input_width = input_width // 2
         num_channels = num_channels * 2
@@ -121,7 +124,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
         )
     )
     appearance_module_list.append(
-        nn.BatchNorm2d(num_features=config['model']['n_init_filters'], affine=True)
+        nn.BatchNorm2d(num_features=config['model']['n_init_filters'], affine=AFFINE_BN)
     )
     input_width = input_shape[-1]
     num_channels = config['model']['n_init_filters']
@@ -137,7 +140,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             )
         )
         appearance_module_list.append(
-            nn.BatchNorm2d(num_features=num_channels, affine=True)
+            nn.BatchNorm2d(num_features=num_channels, affine=AFFINE_BN)
         )
 
     while True:
@@ -152,7 +155,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
             )
         )
         appearance_module_list.append(
-            nn.BatchNorm2d(num_features=num_channels * 2, affine=True)
+            nn.BatchNorm2d(num_features=num_channels * 2, affine=AFFINE_BN)
         )
         # Apply additional layers
         for _ in range(config['model']['n_convolutions_per_res']):
@@ -166,7 +169,7 @@ def make_appearance_encoder(input_shape: tuple, config: dict):
                 )
             )
             appearance_module_list.append(
-                nn.BatchNorm2d(num_features=num_channels * 2, affine=True)
+                nn.BatchNorm2d(num_features=num_channels * 2, affine=AFFINE_BN)
             )
         input_width = input_width // 2
         num_channels = num_channels * 2

@@ -2,6 +2,19 @@ import numpy as np
 import torch
 
 
+def get_active_kpts(kpt_sequence: torch.Tensor,
+                    intensity_threshold: float = 0.3) -> torch.Tensor:
+    """ Filters key-points for the ones with a mean intensity above the given threshold.
+
+    :param kpt_sequence: Torch tensor of key-point coordinates in (N, T, C, H, W)
+    """
+    active_kpt_ids = []
+    for n in range(kpt_sequence.shape[0]):
+        for kp in range(kpt_sequence.shape[2]):
+            if kpt_sequence.shape[3] == 2 or np.mean(kpt_sequence[0, :, kp, 2].cpu().numpy()) > intensity_threshold:
+                active_kpt_ids.append(kp)
+
+
 def img_coordinates_2_kpts(img_coordinates: torch.Tensor,
                            img_shape: tuple) -> torch.Tensor:
     """ Converts (integer) image coordinates in [0,W]x[0,H]

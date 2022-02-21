@@ -121,8 +121,11 @@ class Conv2DSamePadding(Conv2d):
             reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
         )
 
+        self.replication_pad_2d = nn.ReplicationPad2d(0)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _y = self.zero_pad_2d(x)
+        #_y = self.replication_pad_2d(x)
         return super(Conv2DSamePadding, self).forward(_y)
 
 
