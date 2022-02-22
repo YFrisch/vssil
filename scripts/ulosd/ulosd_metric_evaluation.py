@@ -2,13 +2,13 @@ import os
 import yaml
 
 import torch
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 
 from src.utils.argparse import parse_arguments
 from src.data.utils import get_dataset_from_path
 
 from src.agents.ulosd_agent import ULOSD_Agent
-from src.utils.kpt_utils import get_image_patches
+from src.utils.kpt_utils import get_image_patches, get_active_kpts
 from src.utils.visualization import play_series_with_keypoints
 from src.losses.kpt_distribution_metric import kpt_distribution_metric
 from src.losses.kpt_tracking_metric import kpt_tracking_metric
@@ -32,13 +32,12 @@ if __name__ == "__main__":
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
     start_ind = int(stop_ind * 0.9) + 1
-    random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
+    data_set = Subset(dataset=data_set, indices=range(start_ind, stop_ind))
 
     eval_data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
         shuffle=False,
-        sampler=random_sampler
     )
 
     ulosd_agent = ULOSD_Agent(dataset=data_set, config=ulosd_conf)
@@ -69,10 +68,10 @@ if __name__ == "__main__":
                                                              first_frame=_sample[:, 0, ...].unsqueeze(1))
 
             # TODO: Filter for active kpts
-            active_key_point_ids = []
+            active_key_points = get_active_kpts(key_points)
 
             # Adapt key-point coordinate system
-            _key_points = torch.clone(key_points)
+            _key_points = torch.clone(active_key_points)
             _key_points[..., :2] *= -1
 
             patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
@@ -99,6 +98,15 @@ if __name__ == "__main__":
                 save_path=f'metric_eval_results/ulosd_sample_{i}/',
                 save_frames=True
             )
+
+            torch.save(sample, f'metric_eval_results/ulosd_sample_{i}/sample.pt')
+            torch.save(feature_maps, f'metric_eval_results/ulosd_sample_{i}/fmaps.pt')
+            torch.save(gmaps, f'metric_eval_results/ulosd_sample_{i}/gmaps.pt')
+            torch.save(reconstruction, f'metric_eval_results/ulosd_sample_{i}/reconstruction.pt')
+            torch.save(key_points, f'metric_eval_results/ulosd_sample_{i}/key_points.pt')
+            torch.save(patches, f'metric_eval_results/ulosd_sample_{i}/patches.pt')
+
+            # exit()
 
     print()
     print(M_smooth)

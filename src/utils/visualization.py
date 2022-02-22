@@ -14,7 +14,6 @@ from cv2 import VideoWriter, VideoWriter_fourcc, \
     normalize, NORM_MINMAX, CV_32F
 import pylab
 
-from src.losses.kpt_metrics import patchwise_contrastive_metric
 from src.utils.kpt_utils import kpts_2_img_coordinates
 
 
@@ -176,7 +175,7 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
                                                   reconstruction: torch.Tensor = None,
                                                   intensity_threshold: float = 0.9,
                                                   key_point_trajectory: bool = False,
-                                                  trajectory_length: int = 10, ):
+                                                  trajectory_length: int = 10):
     """ Visualizes the image-series tensor
         together with its reconstruction and
         given predicted key-points.
@@ -206,7 +205,6 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     (N, T, C, H, W) = tuple(image_series.shape)
     if feature_maps is not None:
-        (K, Hp, Wp) = tuple(feature_maps.shape[2:])
         rgba_img_sequence = torch.zeros(size=(N, T, C + 1, H, W))
         rgba_img_sequence[:, :, :C, ...] = image_series + 0.5
         rgba_img_sequence = rgba_img_sequence.clip(0.0, 1.0).detach().cpu().numpy()
@@ -222,8 +220,8 @@ def play_series_and_reconstruction_with_keypoints(image_series: torch.Tensor,
 
     # Permute to (N, T, H, W, C) for matplotlib
     image_series = (image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
-    reconstructed_image_series = (reconstructed_image_series.permute(0, 1, 3, 4, 2) + 0.5).clip(0.0,
-                                                                                                1.0).detach().cpu().numpy()
+    reconstructed_image_series = (reconstructed_image_series.permute(0, 1, 3, 4, 2)
+                                  + 0.5).clip(0.0, 1.0).detach().cpu().numpy()
 
     # Filter for "active" key-point, i.e. key-points with an avg intensity above the threshold
     active_kp_ids = []

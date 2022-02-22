@@ -2,7 +2,7 @@ import os
 import yaml
 
 import torch
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 
 from src.agents.transporter_agent import TransporterAgent
 from src.data.utils import get_dataset_from_path
@@ -27,18 +27,17 @@ if __name__ == "__main__":
         transporter_conf['device'] = 'cpu'
         transporter_conf['model']['n_frames'] = 2
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=30)  # 150
+    data_set = get_dataset_from_path(args.data, n_timesteps=30)
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
     start_ind = int(stop_ind * 0.9) + 1
-    random_sampler = SubsetRandomSampler(indices=range(start_ind, stop_ind))
+    data_set = Subset(dataset=data_set, indices=range(start_ind, stop_ind))
 
     eval_data_loader = DataLoader(
         dataset=data_set,
         batch_size=1,
         shuffle=False,
-        sampler=random_sampler
     )
 
     transporter_agent = TransporterAgent(dataset=data_set, config=transporter_conf)
@@ -77,7 +76,7 @@ if __name__ == "__main__":
                 _sample.to(transporter_agent.device)
                 target.to(transporter_agent.device)
 
-                reconstruction = transporter_agent.model(_sample, target).clip(-0.5, 0.5)
+                reconstruction = transporter_agent.model(_sample, target).clip(-1.0, 1.0)
                 reconstructed_diff = (reconstruction - _sample).clip(-1.0, 1.0)
                 target_diff = (target - _sample).clip(-1.0, 1.0)
                 key_point_coordinates = transporter_agent.model.keypointer(_sample)[0]
@@ -115,6 +114,13 @@ if __name__ == "__main__":
                 save_path=f'metric_eval_results/transporter_sample_{i}/',
                 save_frames=True
             )
+
+            torch.save(sample, f'metric_eval_results/transporter_sample_{i}/sample.pt')
+            #torch.save(feature_maps, f'metric_eval_results/ulosd_sample_{i}/fmaps.pt')
+            #torch.save(gmaps, f'metric_eval_results/ulosd_sample_{i}/gmaps.pt')
+            torch.save(reconstruction, f'metric_eval_results/transporter_sample_{i}/reconstruction.pt')
+            torch.save(key_points, f'metric_eval_results/transporter_sample_{i}/key_points.pt')
+            torch.save(patches, f'metric_eval_results/transporter_sample_{i}/patches.pt')
 
             #exit()
 

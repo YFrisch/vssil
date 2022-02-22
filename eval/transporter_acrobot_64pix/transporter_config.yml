@@ -1,0 +1,38 @@
+data:
+  img_shape: (3, 64, 64)
+  num_workers: 4
+  path: /media/yannik/samsung_ssd/data/npz_data/acrobot_swingup_random_repeat40_00006887be28ecb8_short_sequences.npz
+device: cpu
+evaluation: null
+log_dir: results/transporter_acrobot_new_64pix/2022_1_26_17_57/
+model:
+  activation: LeakyReLU
+  gaussian_map_std: 0.15
+  hidden_dim: 32
+  n_frames: 2
+  num_img_channels: 3
+  num_keypoints: 3
+  skip_connections: false
+  weight_init: he_normal
+multi_gpu: false
+training:
+  batch_size: 64
+  epochs: 100
+  grad_clip_max_norm: 5.0
+  initial_lr: 0.01
+  k_folds: 1
+  l2_weight_decay: 0.0005
+  loss_function: mse
+  lr_scheduler: StepLR
+  lr_scheduler_epoch_steps: 30
+  lr_scheduler_gamma: 0.5
+  optim: AdamW
+  steps_per_epoch: 100
+used_gpus: '[''GeForce GTX 1060 6GB'']'
+validation:
+  batch_size: 4
+  freq: 5
+  save_eval_examples: true
+  save_grad_plots: true
+  steps: -1
+warm_start: false

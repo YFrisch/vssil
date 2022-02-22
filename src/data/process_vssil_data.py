@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 
 def process_vssil_data(root_path: str,
                        target_path: str,
-                       target_img_shape: tuple = (256, 256)):
+                       target_img_shape: tuple = (256, 256),
+                       sample_freq: int = 1):
 
     """ Brings VSSIL data into the form required for
         https://github.com/RaivoKoot/Video-Dataset-Loading-Pytorch
@@ -49,7 +50,6 @@ def process_vssil_data(root_path: str,
                 print(f'Could not read {video_path}!')
             frame_count = 0
             target_frame_count = 0
-            sample_freq = 1
             print()
             while success:
                 print(f'{video_path}: {frame_count}\r', end="")
@@ -80,11 +80,13 @@ def process_vssil_data(root_path: str,
 if __name__ == "__main__":
 
     # target_shape = (384, 216)
-    target_shape = (256, 256)
+    # target_shape = (256, 256)
+    target_shape = (128, 128)
 
     process_vssil_data(
         root_path="/home/yannik/Videos/vssil/new",
         # target_path=f"/home/yannik/Videos/vssil/vssil_processed_{target_shape[0]}x{target_shape[1]}pix",
         target_path=f"/home/yannik/Videos/vssil/vssil_new_processed_{target_shape[0]}pix",
-        target_img_shape=target_shape
+        target_img_shape=target_shape,
+        sample_freq=5
     )

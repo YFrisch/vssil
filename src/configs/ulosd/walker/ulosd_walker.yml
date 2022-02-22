@@ -7,7 +7,7 @@ device: cuda:0
 evaluation:
   steps: -1
 
-log_dir: "results/ulosd_walker_new_128pix"
+log_dir: "results/ulosd/ulosd_walker_new_128pix"
 
 model:
   conv_kernel_size: 3
@@ -18,27 +18,27 @@ model:
   feature_map_width: 32
   n_convolutions_per_res: 1
   n_feature_maps: 64
-  n_frames: 8  # 16
+  n_frames: 8
   n_init_filters: 32
   weight_init: he_normal
 
 multi_gpu: false
 
 training:
-  batch_size: 32
+  batch_size: 4
   clip_norm: 1.0
   emd_sum_scale: 1.0
   epochs: 200
-  feature_map_regularization: 5.0  # 0.0 (5.0 , 0.1, 0.01)
-  initial_lr: 0.001
-  k_folds: 0  # 1
-  l2_weight_decay: 0.0005
-  lr_scheduler: ReduceLROnPlateau  # None
+  feature_map_regularization: 5.0
+  initial_lr: 0.0005
+  k_folds: 0
+  l2_weight_decay: 0.00005
+  lr_scheduler: ReduceLROnPlateau
   lr_scheduler_epoch_steps: 10
   lr_scheduler_gamma: 0.9
   max_lr: 0.001
   min_lr: 0.0001
-  optim: AdamW
+  optim: Adam
   patchwise_contrastive_alpha: '...'
   patchwise_contrastive_patch_size: '...'
   patchwise_contrastive_scale: 0.0
@@ -47,18 +47,18 @@ training:
   patchwise_contrastive_type: '...'
   re_sample: false
   re_sample_scale: 0.02
-  reconstruction_loss: alexnet
-  reconstruction_loss_scale: 1.0
-  separation_loss_scale: 0.1  # 0.0
+  reconstruction_loss: sse
+  reconstruction_loss_scale: 0.01
+  separation_loss_scale: 0.1
   separation_loss_sigma: 0.02
-  steps_per_epoch: 1000
+  steps_per_epoch: 500
   use_emd: false
 
 validation:
-  batch_size: 32
+  batch_size: 4
   freq: 5
   save_video: true
-  steps: 100
+  steps: 50
 
 warm_start: false
 warm_start_checkpoint: ''

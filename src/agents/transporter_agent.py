@@ -20,8 +20,8 @@ from src.losses import perception_loss
 from .abstract_agent import AbstractAgent
 
 Tran = transforms.RandomApply([
-    #transforms.RandomHorizontalFlip(p=1.0),
-    #transforms.RandomVerticalFlip(p=0.3),
+    # transforms.RandomHorizontalFlip(p=1.0),
+    # transforms.RandomVerticalFlip(p=0.3),
     transforms.RandomRotation(degrees=30)
 ], p=0.5)
 
@@ -84,12 +84,12 @@ class TransporterAgent(AbstractAgent):
 
         # Normalizing to [-1, 1] range
         # TODO: The Human36M Data seems to work better in [0, 1] range instead...
-        #sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
-        #target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
-        #                    (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
+        sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+                           (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
 
-        # sample_frame = ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min()))
-        # target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        #sample_frame = ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min()))
+        #target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
         #                (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min()))
 
         # Drawing target frame randomly from different sequence (from batch)
@@ -108,10 +108,10 @@ class TransporterAgent(AbstractAgent):
         target_frame = t[N:, ...]
         """
 
-        sample_frame = x[:, 0, ...]
-        target_frame = x[:, 0 + t_diff, ...]
+        #sample_frame = x[:, 0, ...]
+        #target_frame = x[:, 0 + t_diff, ...]
 
-        #target_frame = Tran(x[:, 0 + t_diff, ...])
+        # target_frame = Tran(x[:, 0 + t_diff, ...])
 
         return sample_frame, target_frame
 
@@ -157,8 +157,8 @@ class TransporterAgent(AbstractAgent):
         # reconstruction, source_p, target_p = self.model(sample, target)
 
         loss = self.loss_func(prediction=reconstruction, target=target, config=config)
-        #map_p = (0.1*source_p + 0.5*target_p)
-        #loss += map_p
+        # map_p = (0.1*source_p + 0.5*target_p)
+        # loss += map_p
 
         if mode == 'training':
 
@@ -169,8 +169,7 @@ class TransporterAgent(AbstractAgent):
             self.optim.step()
 
             if save_grad_flow_plot:
-
-                #self.writer.add_scalar(tag='train/p', scalar_value=map_p, global_step=global_epoch_number)
+                # self.writer.add_scalar(tag='train/p', scalar_value=map_p, global_step=global_epoch_number)
 
                 plot_grad_flow(named_parameters=self.model.encoder.named_parameters(),
                                epoch=global_epoch_number,
@@ -240,9 +239,9 @@ class TransporterAgent(AbstractAgent):
                     ax[1, _k].scatter(max_loc_target_w, max_loc_target_h,
                                       color='red', marker="x", s=250)
 
-                    #np.save(f"source_map_k{_k}.npy", source_fmaps[0, _k, ...].cpu().numpy())
-                    #np.save(f"target_map_k{_k}.npy", target_fmaps[0, _k, ...].cpu().numpy())
-                #exit()
+                    # np.save(f"source_map_k{_k}.npy", source_fmaps[0, _k, ...].cpu().numpy())
+                    # np.save(f"target_map_k{_k}.npy", target_fmaps[0, _k, ...].cpu().numpy())
+                # exit()
 
                 plt.tight_layout()
                 self.writer.add_figure(tag="val/feature_maps",
@@ -260,8 +259,6 @@ class TransporterAgent(AbstractAgent):
                     ax[1, _k].set_title(f'Target frame - Keypoint {_k}')
                     ax[1, _k].scatter(img_coordinates[0, 1, _k, 0], img_coordinates[0, 1, _k, 1],
                                       color=cm(1. * _k / _K), marker="^", s=150)
-
-
 
                 plt.tight_layout()
                 self.writer.add_figure(tag="val/gaussian_maps",

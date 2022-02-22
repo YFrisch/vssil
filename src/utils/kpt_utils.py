@@ -6,13 +6,16 @@ def get_active_kpts(kpt_sequence: torch.Tensor,
                     intensity_threshold: float = 0.3) -> torch.Tensor:
     """ Filters key-points for the ones with a mean intensity above the given threshold.
 
-    :param kpt_sequence: Torch tensor of key-point coordinates in (N, T, C, H, W)
+    :param kpt_sequence: Torch tensor of key-point coordinates in (N, T, K, D)
+    :param intensity_threshold: Threshold between 0.0 and 1.0 to consider a key-point as active
     """
     active_kpt_ids = []
     for n in range(kpt_sequence.shape[0]):
         for kp in range(kpt_sequence.shape[2]):
             if kpt_sequence.shape[3] == 2 or np.mean(kpt_sequence[0, :, kp, 2].cpu().numpy()) > intensity_threshold:
                 active_kpt_ids.append(kp)
+
+    return kpt_sequence[:, :, active_kpt_ids, :]
 
 
 def img_coordinates_2_kpts(img_coordinates: torch.Tensor,
