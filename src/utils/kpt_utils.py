@@ -27,6 +27,8 @@ def img_coordinates_2_kpts(img_coordinates: torch.Tensor,
     kpt_coordinates = torch.empty_like(img_coordinates)
     kpt_coordinates[..., 0] = - (img_coordinates[..., 1] / img_shape[-2] * 2) + 1.0  # H
     kpt_coordinates[..., 1] = (img_coordinates[..., 0] / img_shape[-1] * 2) - 1.0  # W
+    if img_coordinates.shape[-1] == 3:
+        kpt_coordinates[..., 2] = img_coordinates[..., 2]
 
     return kpt_coordinates
 
@@ -42,6 +44,9 @@ def kpts_2_img_coordinates(kpt_coordinates: torch.Tensor,
     img_coordinates = torch.empty_like(kpt_coordinates)
     img_coordinates[..., 0] = ((kpt_coordinates[..., 1] + 1.0)/2.0) * img_shape[-1]  # W
     img_coordinates[..., 1] = ((-kpt_coordinates[..., 0] + 1.0)/2.0) * img_shape[-2]  # H
+    if kpt_coordinates.shape[-1] == 3:
+        img_coordinates[..., 2] = kpt_coordinates[..., 2]
+
     return img_coordinates
 
 
