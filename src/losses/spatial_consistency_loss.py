@@ -20,7 +20,7 @@ def spatial_consistency_loss(keypoint_coordinates: torch.Tensor) -> torch.Tensor
     for t in np.arange(1, keypoint_coordinates.shape[1]):
         # NOTE: The difference between intensity values is not considered
         diff_tensor[:, t - 1, :] = torch.norm(keypoint_coordinates[:, t, :, :2] - keypoint_coordinates[:, t - 1, :, :2],
-                                              p=2, dim=-1)
+                                              p=1, dim=-1)
 
     # Average diff across time
     diff_mean = torch.mean(diff_tensor, dim=1) + 1e-6  # (N, K)

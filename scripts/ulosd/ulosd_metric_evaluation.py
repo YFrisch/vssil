@@ -72,6 +72,7 @@ if __name__ == "__main__":
 
             # Adapt key-point coordinate system
             _key_points = torch.clone(active_key_points)
+            # TODO: Unify this...
             _key_points[..., :2] *= -1
 
             patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
@@ -92,7 +93,7 @@ if __name__ == "__main__":
                 image_series=sample,
                 # keypoint_coords=key_points,
                 keypoint_coords=_key_points,
-                intensity_threshold=0.5,
+                intensity_threshold=0.2,
                 key_point_trajectory=True,
                 trajectory_length=5,
                 save_path=f'metric_eval_results/ulosd_sample_{i}/',
@@ -105,8 +106,6 @@ if __name__ == "__main__":
             torch.save(reconstruction, f'metric_eval_results/ulosd_sample_{i}/reconstruction.pt')
             torch.save(key_points, f'metric_eval_results/ulosd_sample_{i}/key_points.pt')
             torch.save(patches, f'metric_eval_results/ulosd_sample_{i}/patches.pt')
-
-            # exit()
 
     print()
     print(M_smooth)

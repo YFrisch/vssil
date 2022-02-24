@@ -112,7 +112,7 @@ class TransporterKeypointer(nn.Module):
         key_point_feature_maps = self.regressor(img_feature_maps)
 
         # TODO: Softplus seems to help??
-        key_point_feature_maps = nn.functional.softplus(key_point_feature_maps)
+        # key_point_feature_maps = nn.functional.softplus(key_point_feature_maps)
 
         keypoint_means, gaussian_maps = self.feature_maps_to_keypoints(feature_map=key_point_feature_maps)
         return keypoint_means, gaussian_maps, key_point_feature_maps

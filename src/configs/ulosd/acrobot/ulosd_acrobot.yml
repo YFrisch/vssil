@@ -27,11 +27,11 @@ training:
   max_lr: 0.001
   min_lr: 0.0001
   clip_norm: 1.0
-  batch_size: 8
+  batch_size: 4
   l2_weight_decay: 0.00005  # Conv.-kernel regularization
   reconstruction_loss: sse
   reconstruction_loss_scale: 0.01
-  feature_map_regularization: 5.0  # Key-point sparsity scale
+  feature_map_regularization: 10.0  # Key-point sparsity scale
   separation_loss_scale: 0.1
   separation_loss_sigma: 0.02
   patchwise_contrastive_scale: 0.0
@@ -46,9 +46,9 @@ training:
   re_sample_scale: 0.02
 
 validation:
-  steps: 100
+  steps: 50
   freq: 5
-  batch_size: 8  # 32
+  batch_size: 4  # 32
   save_video: true
 
 evaluation:
@@ -56,7 +56,7 @@ evaluation:
 
 device: cuda:0
 multi_gpu: false
-log_dir: "results/ulosd_acrobot_new_64pix"
+log_dir: "results/ulosd/ulosd_acrobot_new_64pix"
 warm_start: false
 warm_start_checkpoint: ''
 warm_start_config: ''

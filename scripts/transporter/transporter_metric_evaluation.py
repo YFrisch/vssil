@@ -82,7 +82,8 @@ if __name__ == "__main__":
                 key_point_coordinates = transporter_agent.model.keypointer(_sample)[0]
 
                 # Adapt to key-point coordinate system from ULOSD paper
-                key_point_coordinates[..., 0] *= -1
+                # TODO: ???
+                # key_point_coordinates[..., 0] *= -1
 
                 samples = sample[:, t:t+1, ...] if samples is None \
                     else torch.cat([samples, sample[:, t:t+1, ...]], dim=1)
