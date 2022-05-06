@@ -84,9 +84,9 @@ class TransporterAgent(AbstractAgent):
 
         # Normalizing to [-1, 1] range
         # TODO: The Human36M Data seems to work better in [0, 1] range instead...
-        sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
-        target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
-                           (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
+        # sample_frame = 2 * ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min())) - 1
+        # target_frame = 2 * ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
+        #                    (x[:, 0 + t_diff, ...].max() - x[:, 0 + t_diff, ...].min())) - 1
 
         #sample_frame = ((x[:, 0, ...] - x[:, 0, ...].min()) / (x[:, 0, ...].max() - x[:, 0, ...].min()))
         #target_frame = ((x[:, 0 + t_diff, ...] - x[:, 0 + t_diff, ...].min()) /
@@ -108,8 +108,8 @@ class TransporterAgent(AbstractAgent):
         target_frame = t[N:, ...]
         """
 
-        #sample_frame = x[:, 0, ...]
-        #target_frame = x[:, 0 + t_diff, ...]
+        sample_frame = x[:, 0, ...]
+        target_frame = x[:, 0 + t_diff, ...]
 
         # target_frame = Tran(x[:, 0 + t_diff, ...])
 

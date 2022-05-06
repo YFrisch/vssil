@@ -5,7 +5,8 @@ import cv2
 
 def process_human_36m(root_path: str,
                       target_path: str,
-                      target_img_shape: tuple = (64, 64)):
+                      target_img_shape: tuple = (64, 64),
+                      sample_freq: int = 10):
     """ Brings the Human3.6M data from https://vision.imar.ro/human3.6m into the required form of
         https://github.com/RaivoKoot/Video-Dataset-Loading-Pytorch
 
@@ -23,8 +24,9 @@ def process_human_36m(root_path: str,
 
     :param root_path: Path to the root directory of the Human3.6M data
     :param target_path: Path to save processed data to
-    :param target_img_shape: Target image dimensions.
-        Original image is up-/down-sampled accordingly.
+    :param target_img_shape: Target image dimensions
+        Original image is up-/down-sampled accordingly
+    :param sample_freq: Frame-rate to sample from original videos
     :return: None
     """
     assert os.path.isdir(root_path)
@@ -63,7 +65,6 @@ def process_human_36m(root_path: str,
                     print(f'Could not read {video_path}!')
                 frame_count = 0
                 target_frame_count = 0
-                sample_freq = 10
                 print()
                 while success:
                     print(f'{video_path}: {frame_count}\r', end="")
@@ -79,9 +80,11 @@ def process_human_36m(root_path: str,
 
 
 if __name__ == "__main__":
+    target_shape = (128, 128)
     process_human_36m(
         root_path='/media/yannik/samsung_ssd/data/human_3.6m/',
-        target_path='/media/yannik/samsung_ssd/data/human_36m_processed_64pix/',
-        target_img_shape=(64, 64)
+        target_path=f'/media/yannik/samsung_ssd/data/human_36m_processed_{target_shape[0]}pix/',
+        target_img_shape=target_shape,
+        sample_freq=10
     )
 
