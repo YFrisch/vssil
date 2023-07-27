@@ -1,0 +1,48 @@
+data:
+  num_workers: 4
+
+model:
+  n_frames: 3
+  weight_init: he_normal
+  conv:
+    in_channels: 3
+    hidden_sizes: [64, 32]
+    out_channels: 16
+    activation: LeakyReLU
+  spatial:
+    temperature: 0.95
+    normalize: True
+  fc:
+    in_features: 32
+    out_img_width: 40  # 40
+    out_img_height: 40  # 40
+    # activation: Sigmoid
+
+training:
+  optim: Adam
+  k_folds: 0
+  epochs: 200
+  steps_per_epoch: 200
+  initial_lr: 0.0001
+  l2_weight_decay: 0.00001
+  lr_scheduler: ReduceLROnPlateau
+  lr_scheduler_gamma: 0.95
+  lr_scheduler_epoch_steps: 10
+  batch_size: 32
+  smoothness_penalty: True
+  save_grad_flow_plot: True
+
+evaluation:
+  batch_size: 1
+  chckpt_path: ""
+
+validation:
+  freq: 5
+  steps: 50
+  batch_size: 1
+  save_plot: True
+
+
+device: "cuda:0"
+warm_start: False
+log_dir: "results/dsae/dsae_acrobot_new_64pix"

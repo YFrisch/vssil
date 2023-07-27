@@ -86,9 +86,10 @@ class BatchNormConv2D(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, activation=None, **args):
         super().__init__()
         self.conv2d = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, **args)
-        self.batch_norm = nn.BatchNorm2d(num_features=out_channels, eps=1e-3)
+        # self.batch_norm = nn.BatchNorm2d(num_features=out_channels, eps=1e-3)
+        self.batch_norm = nn.InstanceNorm2d(num_features=out_channels, eps=1e-3)
         self.activation = activation
-        self.pad = nn.ReplicationPad2d(1)
+        self.pad = nn.ReplicationPad2d(3)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _y = self.pad(x)

@@ -61,11 +61,12 @@ class DeepSpatialAE(nn.Module):
                                                      normalize=config['spatial']['normalize'],
                                                      device=device)
 
+        decoder_act = nn.Tanh() if config['spatial']['normalize'] else nn.Sigmoid()
+
         self.decoder = FullyConnected(in_features=config['fc']['in_features'],
                                       out_features=(config['fc']['out_img_height'] *
                                                     config['fc']['out_img_width']),
-                                      # activation=nn.Sigmoid())
-                                      activation=activation_dict[config['fc']['activation']]()
+                                      activation=decoder_act
                                       )
 
         self.out_img_shape = (1, config['fc']['out_img_height'], config['fc']['out_img_width'])

@@ -72,7 +72,10 @@ class DSAEAgent(AbstractAgent):
             The sampled image series is down-sampled and
             transformed to greyscale to give the target.
         """
-        img_series = x
+        # img_series = x
+
+        # Standardisation
+        img_series = (x - x.mean())/x.std()
 
         target = interpolate(img_series,
                              size=(3,
