@@ -40,17 +40,17 @@ def kpt_visual_metric(kpt_sequence: torch.Tensor,
         for t in range(T):
             for k in range(K):
                 for c in range(C):
-                    # color_hists[n, t, k, c] = torch.histc(patches[n, t, k, c], bins=n_bins)
-                    # color_hists[n, t, k, c] /= torch.sum(color_hists[n, t, k, c], dim=-1)
-                    color_hists[n, t, k, c] = differentiable_histogram(
-                        patches[n, t, k, c], bins=n_bins, min=0.0, max=1.0
-                    )
+                    color_hists[n, t, k, c] = torch.histc(patches[n, t, k, c], bins=n_bins)
+                    color_hists[n, t, k, c] /= torch.sum(color_hists[n, t, k, c], dim=-1)
+                    #color_hists[n, t, k, c] = differentiable_histogram(
+                    #    patches[n, t, k, c], bins=n_bins, min=0.0, max=1.0
+                    #)
 
-                    # grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
-                    # grad_hists[n, t, k, c] /= torch.sum(grad_hists[n, t, k, c], dim=-1)
-                    grad_hists[n, t, k, c] = differentiable_histogram(
-                        grads[n, t, k, c], bins=n_bins, min=0.0, max=1.0
-                    )
+                    grad_hists[n, t, k, c] = torch.histc(grads[n, t, k, c], bins=n_bins)
+                    grad_hists[n, t, k, c] /= torch.sum(grad_hists[n, t, k, c], dim=-1)
+                    #grad_hists[n, t, k, c] = differentiable_histogram(
+                    #    grads[n, t, k, c], bins=n_bins, min=0.0, max=1.0
+                    #)
 
     joint_hists = torch.multiply(color_hists, grad_hists)
 

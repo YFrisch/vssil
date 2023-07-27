@@ -27,11 +27,17 @@ if __name__ == "__main__":
         ulosd_conf['multi_gpu'] = False
         ulosd_conf['device'] = 'cpu'
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=30)
+    data_set = get_dataset_from_path(args.data, n_timesteps=30)  # 30, 200 for VSSIL full seq.
 
-    # Use last 10 percent of data-set for evaluation (Not seen during training)
+    # Use last ~ 10 percent of data-set for evaluation (Not seen during training)
+
+    # Percentages:
+    # 0.95 for Human3.6M
+    # 0.9 for Acrobot and Manipulator
+    # 0.8 for Walker, Simitate and VSSIL
+
     stop_ind = len(data_set)
-    start_ind = int(stop_ind * 0.9) + 1
+    start_ind = int(stop_ind * 0.8) + 1
     data_set = Subset(dataset=data_set, indices=range(start_ind, stop_ind))
 
     eval_data_loader = DataLoader(
@@ -57,7 +63,7 @@ if __name__ == "__main__":
 
         for i, (sample, label) in enumerate(eval_data_loader):
 
-            print(f"\rSample {i}|{len(range(start_ind, stop_ind))} ...", end="")
+            print(f"\rSample {i}|{len(data_set)} ...", end="")
 
             _sample, _ = ulosd_agent.preprocess(sample, label, ulosd_conf)
             _sample.to(ulosd_agent.device)
@@ -67,7 +73,7 @@ if __name__ == "__main__":
             reconstruction, gmaps = ulosd_agent.model.decode(keypoint_sequence=key_points,
                                                              first_frame=_sample[:, 0, ...].unsqueeze(1))
 
-            # TODO: Filter for active kpts
+            # Filter for active kpts
             active_key_points = get_active_kpts(key_points)
 
             # Adapt key-point coordinate system
@@ -78,6 +84,7 @@ if __name__ == "__main__":
             patches = get_image_patches(image_sequence=sample, kpt_sequence=key_points,
                                         patch_size=(12, 12))
 
+            """
             M_smooth.append(spatial_consistency_loss(key_points).cpu().numpy())
             M_distribution.append(kpt_distribution_metric(key_points, img_shape=sample.shape[-2:],
                                                           n_samples=100).cpu().numpy())
@@ -88,6 +95,7 @@ if __name__ == "__main__":
             M_rod.append(kpt_rod_metric(key_points, sample,
                                         diameter=int(sample.shape[-1] / 10),
                                         mask_threshold=0.1))
+            """
 
             play_series_with_keypoints(
                 image_series=sample,
@@ -107,6 +115,8 @@ if __name__ == "__main__":
             torch.save(key_points, f'metric_eval_results/ulosd_sample_{i}/key_points.pt')
             torch.save(patches, f'metric_eval_results/ulosd_sample_{i}/patches.pt')
 
+            # exit()
+    """
     print()
     print(M_smooth)
     print(M_distribution)
@@ -125,6 +135,7 @@ if __name__ == "__main__":
     # Safe stuff
     with open('metric_eval_results/ulosd_metric.yml', 'w') as stream:
         yaml.dump(metric_dict, stream)
+    """
     with open('metric_eval_results/ulosd_config.yml', 'w') as stream:
         yaml.dump(ulosd_conf, stream)
     torch.save(ulosd_agent.model.state_dict(),

@@ -2,7 +2,7 @@ import os
 import yaml
 
 import torch
-from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
+from torch.utils.data import DataLoader, Subset
 
 from src.agents.transporter_agent import TransporterAgent
 from src.data.utils import get_dataset_from_path
@@ -31,7 +31,13 @@ if __name__ == "__main__":
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)
-    start_ind = int(stop_ind * 0.9) + 1
+
+    # Percentages:
+    # 0.95 for Human3.6M
+    # 0.9 for Acrobot and Manipulator
+    # 0.8 for Walker, Simitate and VSSIL
+
+    start_ind = int(stop_ind * 0.8) + 1  # 0.9, 0.95 for Human3.6M, more for Simitate and VSSIL (0.8)??
     data_set = Subset(dataset=data_set, indices=range(start_ind, stop_ind))
 
     eval_data_loader = DataLoader(
@@ -83,7 +89,7 @@ if __name__ == "__main__":
 
                 # Adapt to key-point coordinate system from ULOSD paper
                 # TODO: ???
-                # key_point_coordinates[..., 0] *= -1
+                key_point_coordinates[..., 0] *= -1
 
                 samples = sample[:, t:t+1, ...] if samples is None \
                     else torch.cat([samples, sample[:, t:t+1, ...]], dim=1)
@@ -96,6 +102,7 @@ if __name__ == "__main__":
             patches = get_image_patches(image_sequence=samples, kpt_sequence=key_points,
                                         patch_size=(12, 12))
 
+            """
             M_smooth.append(spatial_consistency_loss(key_points).cpu().numpy())
             M_distribution.append(kpt_distribution_metric(key_points, img_shape=samples.shape[-2:],
                                                           n_samples=100).cpu().numpy())
@@ -106,6 +113,7 @@ if __name__ == "__main__":
             M_rod.append(kpt_rod_metric(key_points, samples,
                                         diameter=int(samples.shape[-1]/10),
                                         mask_threshold=0.1))
+            """
 
             play_series_with_keypoints(
                 image_series=samples,
@@ -125,6 +133,7 @@ if __name__ == "__main__":
 
             #exit()
 
+    """
     print(M_smooth)
     print(M_distribution)
     print(M_tracking)
@@ -142,6 +151,8 @@ if __name__ == "__main__":
     # Safe stuff
     with open('metric_eval_results/transporter_metric.yml', 'w') as stream:
         yaml.dump(metric_dict, stream)
+    """
+
     with open('metric_eval_results/transporter_config.yml', 'w') as stream:
         yaml.dump(transporter_conf, stream)
     torch.save(transporter_agent.model.state_dict(),

@@ -19,7 +19,7 @@ if __name__ == "__main__":
         ulosd_conf['multi_gpu'] = False
         ulosd_conf['device'] = 'cpu'
 
-    data_set = get_dataset_from_path(args.data, n_timesteps=150)
+    data_set = get_dataset_from_path(args.data, n_timesteps=200)
 
     # Use last 10 percent of data-set for evaluation (Not seen during training)
     stop_ind = len(data_set)

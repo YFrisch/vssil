@@ -85,8 +85,9 @@ if __name__ == "__main__":
 
     process_vssil_data(
         root_path="/home/yannik/Videos/vssil/new",
+        # root_path="/home/yannik/Videos/vssil/final",
         # target_path=f"/home/yannik/Videos/vssil/vssil_processed_{target_shape[0]}x{target_shape[1]}pix",
-        target_path=f"/home/yannik/Videos/vssil/vssil_new_processed_{target_shape[0]}pix",
+        target_path=f"/home/yannik/Videos/vssil/vssil_processed_new_full_seq_{target_shape[0]}pix",
         target_img_shape=target_shape,
-        sample_freq=5
+        sample_freq=1
     )
